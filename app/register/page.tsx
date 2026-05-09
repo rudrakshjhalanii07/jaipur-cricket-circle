@@ -15,6 +15,7 @@ import {
   Loader2,
   Send,
   Trophy,
+  Calendar,
 } from "lucide-react";
 import SectionHeading from "@/components/SectionHeading";
 import { supabase } from "@/lib/supabase";
@@ -26,7 +27,7 @@ interface Match {
   location_name: string;
   location_map_url: string;
   player_limit: number;
-  status: "open" | "full" | "closed";
+  status: "open" | "full" | "closed" | "unscheduled" | "cancelled";
 }
 
 interface Registration {
@@ -285,6 +286,13 @@ export default function RegisterPage() {
       border: "border-jcc-red/15",
       dot: "bg-jcc-red",
     },
+    unscheduled: {
+      label: "TBD",
+      color: "text-jcc-muted",
+      bg: "bg-jcc-bg",
+      border: "border-jcc-border",
+      dot: "bg-jcc-muted",
+    },
   };
 
   const currentStatus = match.status === "open" && isMatchFull ? "full" : match.status;
@@ -440,7 +448,7 @@ export default function RegisterPage() {
                      Back to Registration
                    </button>
                 </div>
-              ) : registrationMode === "existing" ? (
+              ) : formStatus === "success" ? (
                 <div className="p-8 rounded-2xl bg-jcc-turf/[0.06] border border-jcc-turf/15 text-center">
                    <div className="w-12 h-12 rounded-full bg-jcc-turf flex items-center justify-center mx-auto mb-4 shadow-lg shadow-jcc-turf/20">
                      <CheckCircle2 className="w-6 h-6 text-white" />

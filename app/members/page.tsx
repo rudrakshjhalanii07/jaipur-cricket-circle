@@ -60,6 +60,7 @@ export default function MembersPage() {
             battingStyle: p.batting_style || "Right-hand bat",
             bowlingStyle: p.bowling_style || "N/A",
             shortBio: p.bio || "A valued member of the circle.",
+            joinedDate: p.approved_at || p.created_at || new Date().toISOString(),
           };
         });
         setDbPlayers(mapped);
