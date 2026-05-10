@@ -25,8 +25,8 @@ export async function POST(request: Request) {
     if (error) throw error;
 
     return NextResponse.json({ success: true, message: "Registration removed" });
-  } catch (error: any) {
+  } catch (error) {
     console.error("API Remove Registration Error:", error);
-    return NextResponse.json({ error: error.message || "Server Error" }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Server Error" }, { status: 500 });
   }
 }

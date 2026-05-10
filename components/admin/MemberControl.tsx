@@ -89,6 +89,7 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
     setSaving(true);
 
     const endpoint = isAdding ? "/api/admin/players/create" : "/api/admin/players/update";
+    if (!editingPlayer) return;
     const body = isAdding ? { ...editingPlayer, approval_status: 'approved' } : { id: editingPlayer.id, updates: editingPlayer };
 
     try {
@@ -340,7 +341,7 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
                   <h3 className="text-xl font-black text-white uppercase tracking-tight">
                     {isAdding ? "Register Personnel" : "Edit Profile"}
                   </h3>
-                  {!isAdding && <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mt-1">{editingPlayer.name}</p>}
+                  {!isAdding && <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mt-1">{editingPlayer?.name}</p>}
                 </div>
                 <button onClick={() => setEditingPlayer(null)} className="w-10 h-10 rounded-full hover:bg-white/5 flex items-center justify-center transition-colors">
                   <X className="w-6 h-6 text-white/20" />
@@ -354,8 +355,8 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
                     <input 
                       required
                       className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black shadow-inner"
-                      value={editingPlayer.name || ""}
-                      onChange={e => setEditingPlayer({...editingPlayer, name: e.target.value})}
+                      value={editingPlayer?.name || ""}
+                      onChange={e => setEditingPlayer(prev => prev ? {...prev, name: e.target.value} : null)}
                     />
                   </div>
                   <div className="space-y-3">
@@ -363,16 +364,16 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
                     <input 
                       required
                       className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black shadow-inner"
-                      value={editingPlayer.phone || ""}
-                      onChange={e => setEditingPlayer({...editingPlayer, phone: e.target.value})}
+                      value={editingPlayer?.phone || ""}
+                      onChange={e => setEditingPlayer(prev => prev ? {...prev, phone: e.target.value} : null)}
                     />
                   </div>
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] px-1">Specialization</label>
                     <select 
                       className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black shadow-inner appearance-none"
-                      value={editingPlayer.cricket_role || ""}
-                      onChange={e => setEditingPlayer({...editingPlayer, cricket_role: e.target.value})}
+                      value={editingPlayer?.cricket_role || ""}
+                      onChange={e => setEditingPlayer(prev => prev ? {...prev, cricket_role: e.target.value} : null)}
                     >
                       <option value="all-rounder" className="bg-[#050E17]">All-Rounder</option>
                       <option value="batter" className="bg-[#050E17]">Batter</option>
@@ -384,8 +385,8 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
                     <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] px-1">Tactical Deployment</label>
                     <select 
                       className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black shadow-inner appearance-none"
-                      value={editingPlayer.team || ""}
-                      onChange={e => setEditingPlayer({...editingPlayer, team: e.target.value})}
+                      value={editingPlayer?.team || ""}
+                      onChange={e => setEditingPlayer(prev => prev ? {...prev, team: e.target.value} : null)}
                     >
                       <option value="Unassigned" className="bg-[#050E17]">Unassigned</option>
                       <option value="Mavericks" className="bg-[#050E17]">Mavericks</option>
@@ -396,8 +397,8 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
                     <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] px-1">Service Tag</label>
                     <select 
                       className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black shadow-inner appearance-none"
-                      value={editingPlayer.member_tag || ""}
-                      onChange={e => setEditingPlayer({...editingPlayer, member_tag: e.target.value})}
+                      value={editingPlayer?.member_tag || ""}
+                      onChange={e => setEditingPlayer(prev => prev ? {...prev, member_tag: e.target.value} : null)}
                     >
                       <option value="member" className="bg-[#050E17]">Member</option>
                       <option value="founding-member" className="bg-[#050E17]">Founding Member</option>
@@ -407,8 +408,8 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
                     <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] px-1">Command Authority</label>
                     <select 
                       className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black shadow-inner appearance-none"
-                      value={editingPlayer.group_role || ""}
-                      onChange={e => setEditingPlayer({...editingPlayer, group_role: e.target.value})}
+                      value={editingPlayer?.group_role || ""}
+                      onChange={e => setEditingPlayer(prev => prev ? {...prev, group_role: e.target.value} : null)}
                     >
                       <option value="member" className="bg-[#050E17]">Member</option>
                       <option value="captain" className="bg-[#050E17]">Captain</option>
@@ -424,8 +425,8 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
                   <textarea 
                     rows={3}
                     className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black shadow-inner resize-none placeholder:text-white/10"
-                    value={editingPlayer.short_bio || ""}
-                    onChange={e => setEditingPlayer({...editingPlayer, short_bio: e.target.value})}
+                    value={editingPlayer?.short_bio || ""}
+                    onChange={e => setEditingPlayer(prev => prev ? {...prev, short_bio: e.target.value} : null)}
                     placeholder="Brief history of achievements..."
                   />
                 </div>

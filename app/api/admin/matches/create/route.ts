@@ -34,8 +34,8 @@ export async function POST(req: Request) {
     if (error) throw error;
 
     return NextResponse.json({ success: true, match: data });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Match creation error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Server Error" }, { status: 500 });
   }
 }

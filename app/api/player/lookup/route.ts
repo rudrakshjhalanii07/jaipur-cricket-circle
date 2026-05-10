@@ -36,7 +36,7 @@ export async function POST(request: Request) {
         approval_status: player.approval_status
       }
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Lookup error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }

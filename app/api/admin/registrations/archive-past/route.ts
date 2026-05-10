@@ -43,8 +43,8 @@ export async function POST(request: Request) {
     if (matchUpdateError) throw matchUpdateError;
 
     return NextResponse.json({ success: true, archived_count: pastMatchIds.length });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Admin Archive Error:", error);
-    return NextResponse.json({ error: error.message || "Server Error" }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Server Error" }, { status: 500 });
   }
 }

@@ -12,7 +12,7 @@ import ConfirmDialog from "./ConfirmDialog";
 import PastVenuesModal from "./PastVenuesModal";
 
 interface Match {
-  id: string;
+  id?: string;
   match_date: string;
   match_time: string;
   location_name: string;
@@ -162,6 +162,7 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
     e?.preventDefault();
     setSaving(true);
     setStatus("idle");
+    if (!match || !editData) return;
     try {
       const response = await fetch("/api/admin/matches/update", {
         method: "POST",
@@ -176,7 +177,7 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
             match_time: editData.match_time,
             location_name: editData.location_name,
             location_map_url: editData.location_map_url,
-            player_limit: parseInt(editData?.player_limit.toString() || "18"),
+            player_limit: parseInt(editData?.player_limit?.toString() || "18"),
             status: editData?.status
           }
         }),
@@ -225,6 +226,7 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
 
   const handleDelete = async () => {
     setSaving(true);
+    if (!match) return;
     try {
       const response = await fetch("/api/admin/matches/delete", {
         method: "POST",
@@ -281,8 +283,10 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
   };
 
   const startEditing = () => {
-    setEditData({ ...match });
-    setIsEditing(true);
+    if (match) {
+      setEditData({ ...match });
+      setIsEditing(true);
+    }
   };
 
   const startCreating = () => {
@@ -349,16 +353,16 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                   <div className="space-y-3">
-                     <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Match Date</label>
-                     <input required type="date" className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none text-white text-[15px] font-black shadow-inner" 
-                       value={editData.match_date} onChange={e => setEditData({...editData, match_date: e.target.value})} />
-                   </div>
-                   <div className="space-y-3">
-                     <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Match Time</label>
-                     <input required type="text" className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none text-white text-[15px] font-black shadow-inner" 
-                       value={editData.match_time} onChange={e => setEditData({...editData, match_time: e.target.value})} />
-                   </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Match Date</label>
+                      <input required type="date" className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none text-white text-[15px] font-black shadow-inner" 
+                        value={editData?.match_date || ""} onChange={e => setEditData(prev => prev ? {...prev, match_date: e.target.value} : null)} />
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Match Time</label>
+                      <input required type="text" className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none text-white text-[15px] font-black shadow-inner" 
+                        value={editData?.match_time || ""} onChange={e => setEditData(prev => prev ? {...prev, match_time: e.target.value} : null)} />
+                    </div>
                 </div>
 
                 <div className="space-y-4">
@@ -369,9 +373,9 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
                     </button>
                   </div>
                   <input required type="text" placeholder="Venue Name" className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none text-white text-[15px] font-black shadow-inner placeholder:text-white/10" 
-                    value={editData.location_name} onChange={e => setEditData({...editData, location_name: e.target.value})} />
+                    value={editData?.location_name || ""} onChange={e => setEditData(prev => prev ? {...prev, location_name: e.target.value} : null)} />
                   <input type="text" placeholder="Google Maps URL" className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none text-white text-[15px] font-black shadow-inner placeholder:text-white/10" 
-                    value={editData.location_map_url} onChange={e => setEditData({...editData, location_map_url: e.target.value})} />
+                    value={editData?.location_map_url || ""} onChange={e => setEditData(prev => prev ? {...prev, location_map_url: e.target.value} : null)} />
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-center gap-4 pt-6">
@@ -454,28 +458,28 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
                       <div className="space-y-3">
                         <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Match Date</label>
                         <input type="date" className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none text-white text-[15px] font-black shadow-inner" 
-                          value={editData.match_date} onChange={e => setEditData({...editData, match_date: e.target.value})} />
+                          value={editData?.match_date || ""} onChange={e => setEditData(prev => prev ? {...prev, match_date: e.target.value} : null)} />
                       </div>
                       <div className="space-y-3">
                         <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Match Time</label>
                         <input type="text" className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none text-white text-[15px] font-black shadow-inner" 
-                          value={editData.match_time} onChange={e => setEditData({...editData, match_time: e.target.value})} />
+                          value={editData?.match_time || ""} onChange={e => setEditData(prev => prev ? {...prev, match_time: e.target.value} : null)} />
                       </div>
                       <div className="space-y-3">
                         <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Venue Name</label>
                         <input type="text" className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none text-white text-[15px] font-black shadow-inner" 
-                          value={editData.location_name} onChange={e => setEditData({...editData, location_name: e.target.value})} />
+                          value={editData?.location_name || ""} onChange={e => setEditData(prev => prev ? {...prev, location_name: e.target.value} : null)} />
                       </div>
                       <div className="space-y-3">
                         <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Player Limit</label>
                         <input type="number" className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none text-white text-[15px] font-black shadow-inner" 
-                          value={editData?.player_limit} onChange={e => setEditData({...editData!, player_limit: parseInt(e.target.value)})} />
+                          value={editData?.player_limit || 18} onChange={e => setEditData(prev => prev ? {...prev, player_limit: parseInt(e.target.value)} : null)} />
                       </div>
                     </div>
-                    <div className="space-y-3">
+                     <div className="space-y-3">
                       <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Maps URL</label>
                       <input type="text" className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none text-white text-[15px] font-black shadow-inner" 
-                        value={editData.location_map_url} onChange={e => setEditData({...editData, location_map_url: e.target.value})} />
+                        value={editData?.location_map_url || ""} onChange={e => setEditData(prev => prev ? {...prev, location_map_url: e.target.value} : null)} />
                     </div>
                     <div className="flex flex-col sm:flex-row gap-4 pt-4">
                       <button disabled={saving} type="submit" className="w-full sm:flex-1 py-5 rounded-2xl btn-vibrant-blue text-black font-black text-sm transition-all flex items-center justify-center gap-2 uppercase tracking-widest">
@@ -500,13 +504,13 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
                       {/* Badge */}
                       <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-jcc-accent/10 border border-jcc-accent/20 text-jcc-accent font-black text-[10px] uppercase tracking-widest">
                         <Trophy className="w-4 h-4" />
-                        {new Date(match.match_date).getDay() === 0 ? "Sunday Match Day" : "Match Day Scheduled"}
+                        {new Date(match?.match_date || "").getDay() === 0 ? "Sunday Match Day" : "Match Day Scheduled"}
                       </div>
 
                       {/* Main Info */}
                       <div>
                         <h3 className="text-5xl sm:text-7xl font-black text-white tracking-tighter mb-4 font-[var(--font-heading)] uppercase">
-                          {new Date(match.match_date).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}
+                          {new Date(match?.match_date || "").toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}
                         </h3>
                         <div className="flex flex-wrap items-center gap-6">
                            <div className="flex items-center gap-3 text-jcc-accent font-black text-[15px] uppercase tracking-widest">
@@ -516,7 +520,7 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
                           <div className="w-1.5 h-1.5 rounded-full bg-white/10" />
                           <div className="flex items-center gap-3 text-white/60 font-black text-[15px] uppercase tracking-widest">
                             <Clock className="w-5 h-5" />
-                            {match.match_time}
+                            {match!.match_time}
                           </div>
                         </div>
                       </div>
@@ -528,8 +532,8 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
                         </div>
                         <div className="flex-1">
                           <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] mb-2">Battleground</p>
-                          <p className="text-lg font-black text-white leading-tight uppercase tracking-tight">{match.location_name}</p>
-                          {match.location_map_url && (
+                          <p className="text-lg font-black text-white leading-tight uppercase tracking-tight">{match?.location_name}</p>
+                          {match?.location_map_url && (
                             <a href={match.location_map_url} target="_blank" rel="noopener noreferrer" className="text-[10px] font-black text-jcc-accent flex items-center gap-2 mt-3 hover:underline uppercase tracking-widest">
                               View Orientation <ExternalLink className="w-3.5 h-3.5" />
                             </a>
@@ -551,12 +555,12 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
 
                     {/* Player Slots Progress */}
                     <div className="relative z-10 mt-12 space-y-5">
-                      <div className="flex items-end justify-between px-1">
+                       <div className="flex items-end justify-between px-1">
                         <div className="space-y-2">
                           <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em]">Squad Strength</p>
                           <div className="flex items-baseline gap-2">
                             <span className="text-4xl font-black text-white font-[var(--font-heading)]">{regCounts.confirmed}</span>
-                            <span className="text-sm font-black text-white/30 uppercase tracking-widest">/ {match.player_limit} Warriors</span>
+                            <span className="text-sm font-black text-white/30 uppercase tracking-widest">/ {match!.player_limit} Warriors</span>
                           </div>
                         </div>
                         {regCounts.waitlist > 0 && (
@@ -570,17 +574,17 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
                       <div className="h-5 w-full bg-black/40 rounded-full overflow-hidden border border-white/10 p-1.5 shadow-inner">
                         <motion.div 
                           initial={{ width: 0 }}
-                          animate={{ width: `${Math.min((regCounts.confirmed / match.player_limit) * 100, 100)}%` }}
+                          animate={{ width: `${Math.min((regCounts.confirmed / (match!.player_limit || 1)) * 100, 100)}%` }}
                           transition={{ duration: 1.5, ease: "easeOut" }}
                           className={`h-full rounded-full ${
-                            regCounts.confirmed >= match.player_limit ? 'bg-jcc-gold' : 'bg-jcc-accent'
+                            regCounts.confirmed >= (match!.player_limit || 1) ? 'bg-jcc-gold' : 'bg-jcc-accent'
                           } shadow-[0_0_20px_rgba(0,194,255,0.4)]`}
                         />
                       </div>
                       <p className="text-[11px] text-white/40 font-black px-1 italic uppercase tracking-widest">
-                        {regCounts.confirmed >= match.player_limit 
+                        {regCounts.confirmed >= (match!.player_limit || 1) 
                           ? "Squad limit reached. New entries added to waitlist." 
-                          : `${match.player_limit - regCounts.confirmed} spots remaining for the Sunday showdown.`}
+                          : `${(match!.player_limit || 1) - regCounts.confirmed} spots remaining for the Sunday showdown.`}
                       </p>
                     </div>
                   </div>
@@ -694,7 +698,7 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
       <PastVenuesModal 
         isOpen={showVenues}
         onClose={() => setShowVenues(false)}
-        onSelect={(venue) => setEditData({ ...editData, location_name: venue.name, location_map_url: venue.url })}
+        onSelect={(venue) => setEditData(prev => prev ? { ...prev, location_name: venue.name, location_map_url: venue.url } : null)}
       />
     </div>
   );

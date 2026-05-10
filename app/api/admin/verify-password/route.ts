@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     } else {
       return NextResponse.json({ valid: false }, { status: 401 });
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error("API Verify Password Error:", error);
     return NextResponse.json({ error: "Server Error" }, { status: 500 });
   }
