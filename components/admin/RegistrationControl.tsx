@@ -92,91 +92,91 @@ export default function RegistrationControl({ adminPassword }: { adminPassword?:
     }
   };
 
-  if (loading) return <div className="p-8 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-jcc-blue" /></div>;
+  if (loading) return <div className="p-20 text-center"><Loader2 className="w-10 h-10 animate-spin mx-auto text-jcc-accent opacity-20" /></div>;
 
   const confirmed = registrations.filter(r => r.status === "confirmed");
   const waitlist = registrations.filter(r => r.status === "waitlist");
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-jcc-navy font-[var(--font-heading)]">Registrations</h2>
-          <p className="text-[12px] text-jcc-muted font-medium">Manage the squad and standby lists for the upcoming match.</p>
+          <h2 className="text-2xl font-black text-white font-[var(--font-heading)] uppercase tracking-tight">Match Roster</h2>
+          <p className="text-[13px] text-white/50 font-medium uppercase tracking-widest mt-1">Squad & Standby Management</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="px-3 py-1.5 rounded-lg bg-jcc-bg border border-jcc-border flex items-center gap-2">
-            <CheckCircle2 className="w-3.5 h-3.5 text-jcc-turf" />
-            <span className="text-[11px] font-bold text-jcc-navy">{confirmed.length} Confirmed</span>
+        <div className="flex items-center gap-4">
+          <div className="px-4 py-2 rounded-xl bg-emerald-400/10 border border-emerald-400/20 flex items-center gap-2 shadow-lg">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span className="text-[11px] font-black text-white uppercase tracking-widest">{confirmed.length} Confirmed</span>
           </div>
-          <div className="px-3 py-1.5 rounded-lg bg-jcc-bg border border-jcc-border flex items-center gap-2">
-            <Wifi className="w-3.5 h-3.5 text-jcc-gold" />
-            <span className="text-[11px] font-bold text-jcc-navy">{waitlist.length} Waitlist</span>
+          <div className="px-4 py-2 rounded-xl bg-jcc-gold/10 border border-jcc-gold/20 flex items-center gap-2 shadow-lg">
+            <Wifi className="w-4 h-4 text-jcc-gold" />
+            <span className="text-[11px] font-black text-white uppercase tracking-widest">{waitlist.length} Waitlist</span>
           </div>
         </div>
       </div>
 
-      <div className="glass-card overflow-hidden">
+      <div className="premium-card overflow-hidden border-white/5">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-jcc-border bg-jcc-bg/30">
-                <th className="px-6 py-4 text-[10px] font-bold text-jcc-muted uppercase tracking-widest">Player</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-jcc-muted uppercase tracking-widest">Phone</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-jcc-muted uppercase tracking-widest">Role</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-jcc-muted uppercase tracking-widest">Status</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-jcc-muted uppercase tracking-widest text-right">Actions</th>
+              <tr className="border-b border-white/5 bg-white/[0.02]">
+                <th className="px-6 py-5 text-[10px] font-black text-white/30 uppercase tracking-[0.25em]">Warrior</th>
+                <th className="px-6 py-5 text-[10px] font-black text-white/30 uppercase tracking-[0.25em]">Comms</th>
+                <th className="px-6 py-5 text-[10px] font-black text-white/30 uppercase tracking-[0.25em]">Specialization</th>
+                <th className="px-6 py-5 text-[10px] font-black text-white/30 uppercase tracking-[0.25em]">Deployment</th>
+                <th className="px-6 py-5 text-[10px] font-black text-white/30 uppercase tracking-[0.25em] text-right">Command</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-jcc-border">
+            <tbody className="divide-y divide-white/5">
               {registrations.length > 0 ? registrations.map((player) => (
-                <tr key={player.id} className="hover:bg-jcc-bg/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <span className="text-[13px] font-bold text-jcc-navy">{player.name}</span>
+                <tr key={player.id} className="hover:bg-white/[0.02] transition-colors group">
+                  <td className="px-6 py-5">
+                    <span className="text-[15px] font-black text-white uppercase tracking-tight">{player.name}</span>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className="text-[12px] text-jcc-muted font-mono">{player.phone}</span>
+                  <td className="px-6 py-5">
+                    <span className="text-[13px] text-white/40 font-black tracking-widest">{player.phone}</span>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className="text-[10px] font-bold text-jcc-blue-deep uppercase tracking-widest">{player.cricket_role}</span>
+                  <td className="px-6 py-5">
+                    <span className="text-[10px] font-black text-jcc-accent uppercase tracking-[0.15em]">{player.cricket_role}</span>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                  <td className="px-6 py-5">
+                    <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] border ${
                       player.status === "confirmed" 
-                        ? "bg-jcc-turf/[0.06] text-jcc-turf border border-jcc-turf/10" 
-                        : "bg-jcc-gold/[0.06] text-jcc-gold border border-jcc-gold/10"
+                        ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/10" 
+                        : "bg-jcc-gold/10 text-jcc-gold border-jcc-gold/10"
                     }`}>
-                      {player.status === "confirmed" ? <CheckCircle2 className="w-2.5 h-2.5" /> : <Wifi className="w-2.5 h-2.5" />}
+                      {player.status === "confirmed" ? <CheckCircle2 className="w-3 h-3" /> : <Wifi className="w-3 h-3" />}
                       {player.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
+                  <td className="px-6 py-5 text-right">
+                    <div className="flex items-center justify-end gap-3">
                       {player.status === "waitlist" && (
                         <button
                           disabled={actionId === player.id}
                           onClick={() => promotePlayer(player.id)}
-                          className="p-2 rounded-lg bg-jcc-blue/[0.06] text-jcc-blue-deep hover:bg-jcc-blue/[0.12] transition-colors"
+                          className="w-10 h-10 rounded-xl bg-jcc-accent/10 text-jcc-accent hover:bg-jcc-accent hover:text-black transition-all flex items-center justify-center shadow-inner border border-white/5"
                           title="Promote to Squad"
                         >
-                          {actionId === player.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUpCircle className="w-4 h-4" />}
+                          {actionId === player.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUpCircle className="w-5 h-5" />}
                         </button>
                       )}
                       <button
                         disabled={actionId === player.id}
                         onClick={() => deleteRegistration(player.id)}
-                        className="p-2 rounded-lg bg-jcc-red/[0.06] text-jcc-red hover:bg-jcc-red/[0.12] transition-colors"
+                        className="w-10 h-10 rounded-xl bg-jcc-ball-red/10 text-jcc-ball-red hover:bg-jcc-ball-red hover:text-black transition-all flex items-center justify-center shadow-inner border border-white/5"
                         title="Remove Player"
                       >
-                        {actionId === player.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                        {actionId === player.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-5 h-5" />}
                       </button>
                     </div>
                   </td>
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-jcc-muted text-sm font-medium">
-                    No registrations found for this match.
+                  <td colSpan={5} className="px-6 py-16 text-center text-white/20 text-sm font-black uppercase tracking-[0.2em]">
+                    No registrations detected for this match.
                   </td>
                 </tr>
               )}

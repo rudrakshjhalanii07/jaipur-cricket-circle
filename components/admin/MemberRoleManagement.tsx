@@ -114,8 +114,8 @@ export default function MemberRoleManagement({ adminPassword }: { adminPassword?
     }
   };
 
-  if (loading) return <div className="p-8 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-jcc-blue" /></div>;
-  if (!match) return <div className="p-8 text-center text-jcc-muted font-bold">No match found to manage roles.</div>;
+  if (loading) return <div className="p-20 text-center"><Loader2 className="w-10 h-10 animate-spin mx-auto text-jcc-accent opacity-20" /></div>;
+  if (!match) return <div className="p-20 text-center text-white/20 font-black uppercase tracking-[0.2em] premium-card border-white/5">No tactical engagement detected for role management.</div>;
 
   const filteredPlayers = players.filter(p => 
     p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -123,18 +123,18 @@ export default function MemberRoleManagement({ adminPassword }: { adminPassword?
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-jcc-navy font-[var(--font-heading)]">Match Leadership</h2>
-          <p className="text-[12px] text-jcc-muted font-medium">Assign leadership roles for the match on {new Date(match.match_date).toLocaleDateString()}.</p>
+          <h2 className="text-2xl font-black text-white font-[var(--font-heading)] uppercase tracking-tight">Match Leadership</h2>
+          <p className="text-[13px] text-white/50 font-medium uppercase tracking-widest mt-1">Command Assignment for {new Date(match.match_date).toLocaleDateString()}</p>
         </div>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-jcc-muted" />
+        <div className="relative group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-jcc-accent transition-colors" />
           <input
             type="text"
-            placeholder="Search by name or phone..."
-            className="pl-10 pr-4 py-2.5 rounded-xl bg-white border border-jcc-border focus:border-jcc-blue outline-none transition-all text-sm font-medium w-full sm:w-72"
+            placeholder="Search roster..."
+            className="pl-11 pr-4 py-3 rounded-2xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-sm font-black text-white uppercase tracking-widest w-full sm:w-72 placeholder:text-white/10"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -147,44 +147,44 @@ export default function MemberRoleManagement({ adminPassword }: { adminPassword?
             initial={{ opacity: 0, height: 0 }} 
             animate={{ opacity: 1, height: "auto" }} 
             exit={{ opacity: 0, height: 0 }}
-            className="p-4 rounded-xl bg-jcc-red/[0.06] border border-jcc-red/15 flex items-center gap-3 text-jcc-red text-[13px] font-bold"
+            className="p-5 rounded-2xl bg-jcc-ball-red/10 border border-jcc-ball-red/20 flex items-center gap-3 text-jcc-ball-red text-[13px] font-black uppercase tracking-widest"
           >
-            <AlertCircle className="w-4 h-4" />
+            <AlertCircle className="w-5 h-5" />
             {error}
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {filteredPlayers.length > 0 ? filteredPlayers.map((player) => {
           const leadershipRole = getLeadershipRole(player.player_id);
           return (
-            <div key={player.player_id} className="glass-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:border-jcc-blue/20 transition-all duration-300">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-jcc-bg border border-jcc-border flex items-center justify-center shrink-0">
-                  <User className="w-5 h-5 text-jcc-muted" />
+            <div key={player.player_id} className="premium-card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-6 group">
+              <div className="flex items-start gap-5 flex-1 min-w-0">
+                <div className="w-14 h-14 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center shrink-0 shadow-inner">
+                  <User className="w-6 h-6 text-white/10" />
                 </div>
-                <div className="min-w-0">
-                  <h4 className="text-[15px] font-bold text-jcc-navy mb-0.5 truncate">{player.name}</h4>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2">
-                    <span className="flex items-center gap-1 text-[11px] text-jcc-muted font-medium">
-                      <Phone className="w-3 h-3" /> {player.phone}
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-[17px] font-black text-white mb-1 truncate uppercase tracking-tight">{player.name}</h4>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-3">
+                    <span className="flex items-center gap-1.5 text-[11px] text-white/40 font-black uppercase tracking-widest">
+                      <Phone className="w-3.5 h-3.5" /> {player.phone}
                     </span>
-                    <span className="text-[11px] font-bold text-jcc-blue-deep uppercase tracking-widest">
+                    <span className="text-[11px] font-black text-jcc-accent uppercase tracking-[0.15em]">
                       {player.cricket_role}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border ${
-                      player.status === "confirmed" ? "bg-jcc-turf/[0.06] text-jcc-turf border-jcc-turf/10" : "bg-jcc-gold/[0.06] text-jcc-gold border-jcc-gold/10"
+                    <span className={`text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-widest border ${
+                      player.status === "confirmed" ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/10" : "bg-jcc-gold/10 text-jcc-gold border-jcc-gold/10"
                     }`}>
                       {player.status}
                     </span>
                     {leadershipRole !== "player" && (
-                      <span className={`flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
-                        leadershipRole === "captain" ? "bg-jcc-gold text-white border-jcc-gold" : "bg-jcc-purple text-white border-jcc-purple"
+                      <span className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border shadow-lg ${
+                        leadershipRole === "captain" ? "bg-jcc-gold text-black border-jcc-gold" : "bg-jcc-accent text-black border-jcc-accent"
                       }`}>
-                        {leadershipRole === "captain" ? <Trophy className="w-2.5 h-2.5" /> : <Star className="w-2.5 h-2.5" />}
+                        {leadershipRole === "captain" ? <Trophy className="w-3 h-3" /> : <Star className="w-3 h-3" />}
                         {leadershipRole}
                       </span>
                     )}
@@ -192,38 +192,38 @@ export default function MemberRoleManagement({ adminPassword }: { adminPassword?
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5 p-1 rounded-xl bg-jcc-bg border border-jcc-border shrink-0 self-end sm:self-center">
+              <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-black/40 border border-white/5 shrink-0 self-end sm:self-center shadow-inner">
                 {[
-                  { role: "captain", icon: Trophy, label: "Captain" },
-                  { role: "vice-captain", icon: Star, label: "VC" },
-                  { role: "player", icon: User, label: "Reset" },
+                  { role: "captain", icon: Trophy, label: "Captain", activeClass: "bg-jcc-gold text-black shadow-[0_0_20px_rgba(255,184,0,0.3)]" },
+                  { role: "vice-captain", icon: Star, label: "VC", activeClass: "bg-jcc-accent text-black shadow-[0_0_20px_rgba(0,224,255,0.3)]" },
+                  { role: "player", icon: User, label: "Reset", activeClass: "bg-white/10 text-white shadow-lg" },
                 ].map((r) => (
                   <button
                     key={r.role}
                     disabled={updating === player.player_id}
                     onClick={() => updateRole(player.player_id, r.role)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-300 ${
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-500 ${
                       leadershipRole === r.role 
-                        ? "bg-jcc-blue-deep text-white shadow-lg" 
-                        : "text-jcc-muted hover:bg-white hover:text-jcc-navy"
+                        ? r.activeClass 
+                        : "text-white/20 hover:text-white hover:bg-white/5"
                     }`}
                   >
                     {updating === player.player_id && leadershipRole !== r.role ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      <r.icon className="w-3.5 h-3.5" />
+                      <r.icon className="w-4 h-4" />
                     )}
-                    <span className="text-[10px] font-bold uppercase tracking-wider hidden sm:inline">{r.label}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">{r.label}</span>
                   </button>
                 ))}
               </div>
             </div>
           );
         }) : (
-          <div className="col-span-full py-20 text-center glass-card bg-jcc-bg/30">
-            <Info className="w-8 h-8 text-jcc-muted mx-auto mb-3 opacity-30" />
-            <p className="text-jcc-muted font-bold text-sm tracking-wide">NO PLAYERS REGISTERED FOR THIS MATCH</p>
-            <p className="text-[11px] text-jcc-muted mt-1">New registrations will appear here automatically.</p>
+          <div className="col-span-full py-24 text-center premium-card border-white/5">
+            <Info className="w-12 h-12 text-white/5 mx-auto mb-5" />
+            <p className="text-white/40 font-black text-sm tracking-[0.3em] uppercase">NO SQUAD DATA DETECTED</p>
+            <p className="text-[11px] text-white/20 mt-2 uppercase tracking-widest">Awaiting tactical registration sequence.</p>
           </div>
         )}
       </div>

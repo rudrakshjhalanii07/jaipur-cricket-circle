@@ -1,19 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { 
-  Plus, 
-  Search, 
-  Edit2, 
-  Trash2, 
-  Eye, 
-  CheckCircle2, 
-  XCircle, 
-  Loader2, 
-  AlertCircle, 
-  Calendar, 
-  Tag, 
-  User, 
+import {
+  Plus,
+  Search,
+  Edit2,
+  Trash2,
+  Eye,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  AlertCircle,
+  Calendar,
+  Tag,
+  User,
   ChevronRight,
   Image as ImageIcon,
   Layout,
@@ -50,6 +50,24 @@ interface Article {
   closing_verdict?: string;
 }
 
+const CHEWVANA_IMAGES = [
+  "/images/chewvana/report-1.png",
+  "/images/chewvana/report-2.png",
+  "/images/chewvana/report-3.png",
+  "/images/chewvana/report-4.png",
+  "https://images.unsplash.com/photo-1624526267942-ab0ff8a3e972?q=80&w=1200&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=1200&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1531415074968-036ba1b575da?q=80&w=1200&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1625401586060-f12be3d7cc57?q=80&w=1200&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1562077772-3bd90403f7f0?q=80&w=1200&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1593766827228-8737b4534aa6?q=80&w=1200&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1512719994953-eabf50895df7?q=80&w=1200&auto=format&fit=crop",
+];
+function getRandomChewvanaImage(previousImage?: string) {
+  const filtered = CHEWVANA_IMAGES.filter(img => img !== previousImage);
+  return filtered[Math.floor(Math.random() * filtered.length)];
+}
+
 export default function ChewvanaControl({ adminPassword }: { adminPassword?: string }) {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,6 +76,7 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingArticle, setEditingArticle] = useState<Partial<Article> | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lastUsedImage, setLastUsedImage] = useState<string>("");
 
   useEffect(() => {
     fetchArticles();
@@ -79,7 +98,25 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
     }
   };
 
+  const handleCloseRequest = () => {
+    if (isSubmitting) return;
+
+    const hasData = editingArticle?.title || editingArticle?.content || editingArticle?.excerpt;
+    if (hasData) {
+      if (confirm("Discard draft changes? Your intelligence report data will be lost.")) {
+        setIsModalOpen(false);
+        setEditingArticle(null);
+      }
+    } else {
+      setIsModalOpen(false);
+      setEditingArticle(null);
+    }
+  };
+
   const handleCreate = () => {
+    const newImage = getRandomChewvanaImage(lastUsedImage);
+    setLastUsedImage(newImage);
+
     setEditingArticle({
       title: "",
       slug: "",
@@ -89,6 +126,7 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
       author: "Jaipur Cricket Circle",
       content: "",
       status: "draft",
+      cover_image_url: newImage,
       match_date: new Date().toISOString().split('T')[0],
       editor_name: "Chewvana Desk",
       reporter_alias: "",
@@ -110,13 +148,13 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this article? This action cannot be undone.")) return;
-    
+
     try {
       const response = await fetch("/api/admin/articles/delete", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          "x-admin-password": adminPassword || "" 
+          "x-admin-password": adminPassword || ""
         },
         body: JSON.stringify({ id })
       });
@@ -130,19 +168,19 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
   const handleTogglePublish = async (article: Article) => {
     const isCurrentlyPublished = article.status === 'published';
     const nextStatus = isCurrentlyPublished ? 'draft' : 'published';
-    
+
     try {
       const response = await fetch("/api/admin/articles/publish", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          "x-admin-password": adminPassword || "" 
+          "x-admin-password": adminPassword || ""
         },
         body: JSON.stringify({ id: article.id, status: nextStatus })
       });
-      
+
       if (!response.ok) throw new Error("Failed to update status");
-      
+
       const result = await response.json();
       if (result.success) {
         // Update local state with the new status
@@ -164,27 +202,27 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
     try {
       const isNew = !editingArticle.id;
       const url = isNew ? "/api/admin/articles/create" : "/api/admin/articles/update";
-      
+
       // Add default cover image if empty
       const finalArticle = {
         ...editingArticle,
         cover_image_url: editingArticle.cover_image_url || "https://images.unsplash.com/photo-1531415074968-036ba1b575da?q=80&w=1200&auto=format&fit=crop"
       };
-      
+
       const response = await fetch(url, {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          "x-admin-password": adminPassword || "" 
+          "x-admin-password": adminPassword || ""
         },
         body: JSON.stringify(finalArticle)
       });
-      
+
       if (!response.ok) {
         const res = await response.json();
         throw new Error(res.error || "Failed to save article");
       }
-      
+
       const { data } = await response.json();
       if (isNew) {
         setArticles([data, ...articles]);
@@ -207,144 +245,142 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
       .replace(/(^-|-$)+/g, '');
   };
 
-  const filteredArticles = articles.filter(a => 
-    a.title.toLowerCase().includes(search.toLowerCase()) || 
+  const filteredArticles = articles.filter(a =>
+    a.title.toLowerCase().includes(search.toLowerCase()) ||
     a.category.toLowerCase().includes(search.toLowerCase())
   );
 
+  if (loading) return <div className="p-20 text-center"><Loader2 className="w-10 h-10 animate-spin mx-auto text-jcc-accent opacity-20" /></div>;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-jcc-navy font-[var(--font-heading)]">Chewvana Times Archive</h2>
-          <p className="text-[12px] text-jcc-muted font-medium">Manage match reports, analysis, and stories from the circle.</p>
+          <h2 className="text-2xl font-black text-white font-[var(--font-heading)] uppercase tracking-tight">Chewvana Times Archive</h2>
+          <p className="text-[13px] text-white/50 font-medium uppercase tracking-widest mt-1">Editorial & Publication Control</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-jcc-muted" />
+          <div className="relative group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-jcc-accent transition-colors" />
             <input
               type="text"
-              placeholder="Search articles..."
-              className="pl-10 pr-4 py-2.5 rounded-xl bg-white border border-jcc-border focus:border-jcc-blue outline-none transition-all text-sm font-medium w-full sm:w-64"
+              placeholder="Search reports..."
+              className="pl-11 pr-4 py-3 rounded-2xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-sm font-black text-white uppercase tracking-widest w-full sm:w-64 placeholder:text-white/10"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <button 
+          <button
             onClick={handleCreate}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-jcc-blue-deep text-white text-sm font-bold shadow-lg shadow-jcc-blue/20 hover:scale-[1.02] transition-all"
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl btn-vibrant-blue text-black text-sm font-black transition-all uppercase tracking-widest shadow-lg"
           >
             <Plus className="w-4 h-4" />
-            New Article
+            New Intel
           </button>
         </div>
       </div>
 
       <AnimatePresence>
         {error && (
-          <motion.div 
-            initial={{ opacity: 0, height: 0 }} 
-            animate={{ opacity: 1, height: "auto" }} 
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="p-4 rounded-xl bg-jcc-red/[0.06] border border-jcc-red/15 flex items-center gap-3 text-jcc-red text-[13px] font-bold"
+            className="p-5 rounded-2xl bg-jcc-ball-red/10 border border-jcc-ball-red/20 flex items-center gap-3 text-jcc-ball-red text-[13px] font-black uppercase tracking-widest"
           >
-            <AlertCircle className="w-4 h-4" />
+            <AlertCircle className="w-5 h-5" />
             {error}
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="grid grid-cols-1 gap-4">
-        {loading ? (
-          <div className="py-20 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-jcc-blue" /></div>
-        ) : filteredArticles.length > 0 ? (
+      <div className="grid grid-cols-1 gap-6">
+        {filteredArticles.length > 0 ? (
           filteredArticles.map((article) => (
-            <div key={article.id} className="glass-card p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 group hover:border-jcc-blue/20 transition-all duration-300">
-              <div className="flex items-start gap-5 flex-1 min-w-0">
-                <div className="w-20 h-20 rounded-2xl bg-jcc-bg border border-jcc-border flex items-center justify-center shrink-0 overflow-hidden relative">
+            <div key={article.id} className="premium-card p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 group">
+              <div className="flex items-start gap-6 flex-1 min-w-0">
+                <div className="w-24 h-24 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden relative shadow-inner">
                   {article.cover_image_url ? (
-                    <img src={article.cover_image_url} alt="" className="w-full h-full object-cover" />
+                    <img src={article.cover_image_url} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                   ) : (
-                    <Layout className="w-6 h-6 text-jcc-muted/30" />
+                    <Layout className="w-8 h-8 text-white/5" />
                   )}
-                  <div className={`absolute top-1.5 left-1.5 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter shadow-sm border ${
-                    article.status === 'published' 
-                      ? "bg-jcc-turf text-white border-jcc-turf/20" 
-                      : "bg-jcc-muted/20 text-jcc-muted border-jcc-muted/20"
-                  }`}>
+                  <div className={`absolute top-2 left-2 px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest shadow-lg border ${article.status === 'published'
+                    ? "bg-emerald-400 text-black border-emerald-400"
+                    : "bg-white/10 text-white/40 border-white/10 backdrop-blur-md"
+                    }`}>
                     {article.status}
                   </div>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="px-2 py-0.5 rounded-md bg-jcc-blue/[0.06] border border-jcc-blue/10 text-[9px] font-bold text-jcc-blue uppercase tracking-widest">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="px-2.5 py-1 rounded-lg bg-jcc-accent/10 border border-jcc-accent/20 text-[9px] font-black text-jcc-accent uppercase tracking-widest">
                       {article.category}
                     </span>
-                    <span className="flex items-center gap-1 text-[10px] text-jcc-muted font-medium">
-                      <Clock className="w-3 h-3" /> {new Date(article.created_at).toLocaleDateString()}
+                    <span className="flex items-center gap-1.5 text-[10px] text-white/30 font-black uppercase tracking-widest">
+                      <Clock className="w-3.5 h-3.5" /> {new Date(article.created_at).toLocaleDateString()}
                     </span>
                   </div>
-                  <h4 className="text-[17px] font-bold text-jcc-navy mb-1 truncate">{article.title}</h4>
-                  <p className="text-[13px] text-jcc-muted font-medium line-clamp-1">{article.excerpt || "No excerpt provided."}</p>
-                  
-                  <div className="flex items-center gap-4 mt-3">
-                    <div className="flex items-center gap-1.5 text-[11px] text-jcc-muted font-semibold">
-                      <User className="w-3.5 h-3.5 text-jcc-blue" /> {article.author}
+                  <h4 className="text-xl font-black text-white mb-2 truncate uppercase tracking-tight">{article.title}</h4>
+                  <p className="text-[14px] text-white/40 font-medium line-clamp-1 italic">"{article.excerpt || "No intelligence summary provided."}"</p>
+
+                  <div className="flex items-center gap-5 mt-4">
+                    <div className="flex items-center gap-2 text-[11px] text-white/50 font-black uppercase tracking-widest">
+                      <User className="w-4 h-4 text-jcc-accent" /> {article.author}
                     </div>
                     {article.match_date && (
-                      <div className="flex items-center gap-1.5 text-[11px] text-jcc-muted font-semibold">
-                        <Calendar className="w-3.5 h-3.5 text-jcc-turf" /> {new Date(article.match_date).toLocaleDateString()}
+                      <div className="flex items-center gap-2 text-[11px] text-white/50 font-black uppercase tracking-widest">
+                        <Calendar className="w-4 h-4 text-emerald-400" /> {new Date(article.match_date).toLocaleDateString()}
                       </div>
                     )}
-                    <div className="flex items-center gap-1.5 text-[11px] text-jcc-muted font-semibold italic">
+                    <div className="flex items-center gap-2 text-[11px] text-white/20 font-black uppercase tracking-[0.2em]">
                       /{article.slug}
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 w-full md:w-auto border-t md:border-t-0 pt-4 md:pt-0">
-                <a 
-                  href={`/chewvana-times/${article.slug}`} 
-                  target="_blank" 
-                  className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-jcc-border text-jcc-muted hover:text-jcc-blue hover:border-jcc-blue/30 transition-all text-xs font-bold"
+              <div className="flex items-center gap-3 w-full md:w-auto border-t md:border-t-0 border-white/5 pt-6 md:pt-0">
+                <a
+                  href={`/chewvana-times/${article.slug}`}
+                  target="_blank"
+                  className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/40 hover:text-white hover:bg-white/10 transition-all text-[11px] font-black uppercase tracking-widest shadow-lg"
                 >
                   <Eye className="w-4 h-4" />
                   Preview
                 </a>
-                <button 
+                <button
                   onClick={() => handleTogglePublish(article)}
-                  className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border transition-all text-xs font-bold ${
-                    article.status === 'published'
-                      ? "bg-jcc-red/[0.03] border-jcc-red/10 text-jcc-red hover:bg-jcc-red/5"
-                      : "bg-jcc-turf/[0.03] border-jcc-turf/10 text-jcc-turf hover:bg-jcc-turf/5"
-                  }`}
+                  className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-2xl border transition-all text-[11px] font-black uppercase tracking-widest shadow-lg ${article.status === 'published'
+                    ? "bg-jcc-ball-red/10 border-jcc-ball-red/20 text-jcc-ball-red hover:bg-jcc-ball-red hover:text-black"
+                    : "bg-emerald-400/10 border-emerald-400/20 text-emerald-400 hover:bg-emerald-400 hover:text-black"
+                    }`}
                 >
                   {article.status === 'published' ? <XCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-                  {article.status === 'published' ? "Unpublish" : "Publish"}
+                  {article.status === 'published' ? "Archive" : "Publish"}
                 </button>
                 <div className="flex items-center gap-2">
-                  <button 
+                  <button
                     onClick={() => handleEdit(article)}
-                    className="p-2.5 rounded-xl bg-jcc-bg border border-jcc-border text-jcc-navy hover:bg-white hover:border-jcc-blue transition-all"
+                    className="w-11 h-11 rounded-2xl bg-black/40 border border-white/10 text-white/20 hover:text-jcc-accent hover:bg-jcc-accent/10 transition-all flex items-center justify-center shadow-lg"
                   >
-                    <Edit2 className="w-4 h-4" />
+                    <Edit2 className="w-4.5 h-4.5" />
                   </button>
-                  <button 
+                  <button
                     onClick={() => handleDelete(article.id)}
-                    className="p-2.5 rounded-xl bg-jcc-bg border border-jcc-border text-jcc-red hover:bg-jcc-red/5 hover:border-jcc-red transition-all"
+                    className="w-11 h-11 rounded-2xl bg-black/40 border border-white/10 text-white/20 hover:text-jcc-ball-red hover:bg-jcc-ball-red/10 transition-all flex items-center justify-center shadow-lg"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-4.5 h-4.5" />
                   </button>
                 </div>
               </div>
             </div>
           ))
         ) : (
-          <div className="py-20 text-center glass-card bg-jcc-bg/30">
-            <Layout className="w-8 h-8 text-jcc-muted mx-auto mb-3 opacity-30" />
-            <p className="text-jcc-muted font-bold text-sm tracking-wide uppercase">No Articles Found</p>
-            <p className="text-[11px] text-jcc-muted mt-1">Start by creating your first match report or story.</p>
+          <div className="py-24 text-center premium-card border-white/5">
+            <Layout className="w-12 h-12 text-white/5 mx-auto mb-5" />
+            <p className="text-white/40 font-black text-sm tracking-[0.3em] uppercase">No intelligence data detected</p>
+            <p className="text-[11px] text-white/20 mt-2 uppercase tracking-widest">Initiate publication sequence to populate the archive.</p>
           </div>
         )}
       </div>
@@ -353,56 +389,55 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => !isSubmitting && setIsModalOpen(false)}
-              className="absolute inset-0 bg-jcc-navy/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/80 backdrop-blur-xl"
             />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden glass-card shadow-2xl bg-white flex flex-col"
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-5xl max-h-[90vh] overflow-hidden premium-card border-white/20 shadow-[0_32px_128px_rgba(0,0,0,0.8)] bg-[#050E17] flex flex-col"
             >
-              <div className="p-6 border-b border-jcc-border flex items-center justify-between bg-jcc-bg/30">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-jcc-blue/10 flex items-center justify-center">
-                    <Edit2 className="w-5 h-5 text-jcc-blue" />
+              <div className="p-8 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
+                <div className="flex items-center gap-5">
+                  <div className="w-12 h-12 rounded-2xl bg-jcc-accent/10 flex items-center justify-center border border-jcc-accent/20">
+                    <Edit2 className="w-6 h-6 text-jcc-accent" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-jcc-navy">{editingArticle?.id ? "Edit Article" : "Create New Article"}</h3>
-                    <p className="text-[11px] text-jcc-muted font-medium">Draft your next sports highlight</p>
+                    <h3 className="text-xl font-black text-white uppercase tracking-tight">{editingArticle?.id ? "Modify intelligence" : "Construct Intel report"}</h3>
+                    <p className="text-[10px] text-white/30 font-black uppercase tracking-[0.2em] mt-1">Dossier drafting sequence active</p>
                   </div>
                 </div>
-                <button 
-                  onClick={() => setIsModalOpen(false)}
+                <button
+                  onClick={handleCloseRequest}
                   disabled={isSubmitting}
-                  className="p-2 hover:bg-jcc-bg rounded-lg transition-colors"
+                  className="w-12 h-12 rounded-full hover:bg-white/5 flex items-center justify-center transition-all group"
                 >
-                  <X className="w-5 h-5 text-jcc-muted" />
+                  <X className="w-7 h-7 text-white/20 group-hover:text-white" />
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-8 space-y-10">
+              <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-10 space-y-12">
                 {/* Basic Info Section */}
-                <div className="space-y-6">
-                  <h4 className="text-[11px] font-black text-jcc-blue uppercase tracking-[0.2em] border-b border-jcc-blue/10 pb-2">Basic Publication Info</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-black text-jcc-muted uppercase tracking-widest">Headline / Title *</label>
-                        <input 
+                <div className="space-y-8">
+                  <h4 className="text-[11px] font-black text-jcc-accent uppercase tracking-[0.3em] border-b border-white/5 pb-4">Primary Dossier Metrics</h4>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                    <div className="space-y-6">
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Codename / Headline *</label>
+                        <input
                           type="text"
                           required
-                          className="w-full px-4 py-3 rounded-xl bg-jcc-bg border border-jcc-border focus:border-jcc-blue outline-none transition-all text-[15px] font-bold"
-                          placeholder="e.g. The Day NeuroStrikers Claimed the Lead"
+                          className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[16px] font-black shadow-inner"
+                          placeholder="e.g. Operation Midnight Strike"
                           value={editingArticle?.title || ""}
                           onChange={(e) => {
                             const title = e.target.value;
-                            setEditingArticle({ 
-                              ...editingArticle, 
+                            setEditingArticle({
+                              ...editingArticle,
                               title,
                               slug: editingArticle?.id ? editingArticle.slug : generateSlug(title)
                             });
@@ -410,40 +445,40 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
                         />
                       </div>
 
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-black text-jcc-muted uppercase tracking-widest">Slug (URL Path) *</label>
-                        <div className="relative">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-jcc-muted/50 font-bold text-sm">/</span>
-                          <input 
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Network Path (Slug) *</label>
+                        <div className="relative group">
+                          <span className="absolute left-5 top-1/2 -translate-y-1/2 text-white/20 font-black text-sm">/</span>
+                          <input
                             type="text"
                             required
-                            className="w-full pl-7 pr-4 py-3 rounded-xl bg-jcc-bg border border-jcc-border focus:border-jcc-blue outline-none transition-all text-sm font-medium"
-                            placeholder="the-day-neurostrikers-claimed-the-lead"
+                            className="w-full pl-9 pr-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-sm font-black text-white uppercase tracking-widest shadow-inner"
+                            placeholder="operation-midnight-strike"
                             value={editingArticle?.slug || ""}
                             onChange={(e) => setEditingArticle({ ...editingArticle, slug: generateSlug(e.target.value) })}
                           />
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <label className="text-[11px] font-black text-jcc-muted uppercase tracking-widest">Category</label>
-                          <select 
-                            className="w-full px-4 py-3 rounded-xl bg-jcc-bg border border-jcc-border focus:border-jcc-blue outline-none transition-all text-sm font-bold"
+                      <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-3">
+                          <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Classification</label>
+                          <select
+                            className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-sm font-black text-white uppercase tracking-widest shadow-inner appearance-none"
                             value={editingArticle?.category || "Match Report"}
                             onChange={(e) => setEditingArticle({ ...editingArticle, category: e.target.value })}
                           >
-                            <option>Match Report</option>
-                            <option>Analysis</option>
-                            <option>Origin Story</option>
-                            <option>News</option>
+                            <option className="bg-[#050E17]">Match Report</option>
+                            <option className="bg-[#050E17]">Analysis</option>
+                            <option className="bg-[#050E17]">Origin Story</option>
+                            <option className="bg-[#050E17]">News</option>
                           </select>
                         </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[11px] font-black text-jcc-muted uppercase tracking-widest">Match Date</label>
-                          <input 
+                        <div className="space-y-3">
+                          <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Event Timestamp</label>
+                          <input
                             type="date"
-                            className="w-full px-4 py-3 rounded-xl bg-jcc-bg border border-jcc-border focus:border-jcc-blue outline-none transition-all text-sm font-bold"
+                            className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-sm font-black text-white shadow-inner"
                             value={editingArticle?.match_date || ""}
                             onChange={(e) => setEditingArticle({ ...editingArticle, match_date: e.target.value })}
                           />
@@ -451,24 +486,24 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
                       </div>
                     </div>
 
-                    <div className="space-y-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-black text-jcc-muted uppercase tracking-widest">Subtitle</label>
-                        <input 
+                    <div className="space-y-6">
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Secondary Tagline</label>
+                        <input
                           type="text"
-                          className="w-full px-4 py-3 rounded-xl bg-jcc-bg border border-jcc-border focus:border-jcc-blue outline-none transition-all text-sm font-medium"
-                          placeholder="A short punchy line below the title"
+                          className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-sm font-black text-white/60 shadow-inner"
+                          placeholder="Brief tactical detail"
                           value={editingArticle?.subtitle || ""}
                           onChange={(e) => setEditingArticle({ ...editingArticle, subtitle: e.target.value })}
                         />
                       </div>
 
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-black text-jcc-muted uppercase tracking-widest">Excerpt</label>
-                        <textarea 
-                          rows={3}
-                          className="w-full px-4 py-3 rounded-xl bg-jcc-bg border border-jcc-border focus:border-jcc-blue outline-none transition-all text-sm font-medium resize-none"
-                          placeholder="Brief summary for the card preview..."
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Intelligence Abstract</label>
+                        <textarea
+                          rows={4}
+                          className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-sm font-black text-white/60 shadow-inner resize-none placeholder:text-white/5"
+                          placeholder="Executive summary of the investigation..."
                           value={editingArticle?.excerpt || ""}
                           onChange={(e) => setEditingArticle({ ...editingArticle, excerpt: e.target.value })}
                         />
@@ -478,33 +513,33 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
                 </div>
 
                 {/* Editorial Info */}
-                <div className="space-y-6">
-                  <h4 className="text-[11px] font-black text-jcc-purple uppercase tracking-[0.2em] border-b border-jcc-purple/10 pb-2">Editorial Staff</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-black text-jcc-muted uppercase tracking-widest">Editor Name</label>
-                      <input 
+                <div className="space-y-8">
+                  <h4 className="text-[11px] font-black text-emerald-400 uppercase tracking-[0.3em] border-b border-white/5 pb-4">Editorial Command</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Chief Editor</label>
+                      <input
                         type="text"
-                        className="w-full px-4 py-3 rounded-xl bg-jcc-bg border border-jcc-border focus:border-jcc-blue outline-none transition-all text-sm font-bold"
+                        className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-sm font-black text-white shadow-inner"
                         value={editingArticle?.editor_name || ""}
                         onChange={(e) => setEditingArticle({ ...editingArticle, editor_name: e.target.value })}
                       />
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-black text-jcc-muted uppercase tracking-widest">Reporter Alias</label>
-                      <input 
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Field Operative (Alias)</label>
+                      <input
                         type="text"
-                        className="w-full px-4 py-3 rounded-xl bg-jcc-bg border border-jcc-border focus:border-jcc-blue outline-none transition-all text-sm font-bold"
-                        placeholder="e.g. The Whispering Willow"
+                        className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-sm font-black text-white shadow-inner"
+                        placeholder="e.g. Ghost Willow"
                         value={editingArticle?.reporter_alias || ""}
                         onChange={(e) => setEditingArticle({ ...editingArticle, reporter_alias: e.target.value })}
                       />
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-black text-jcc-muted uppercase tracking-widest">Tone</label>
-                      <input 
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Dossier Narrative Tone</label>
+                      <input
                         type="text"
-                        className="w-full px-4 py-3 rounded-xl bg-jcc-bg border border-jcc-border focus:border-jcc-blue outline-none transition-all text-sm font-bold"
+                        className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-sm font-black text-white shadow-inner"
                         value={editingArticle?.tone || "Sarcastic Investigative"}
                         onChange={(e) => setEditingArticle({ ...editingArticle, tone: e.target.value })}
                       />
@@ -513,65 +548,65 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
                 </div>
 
                 {/* Investigation Blocks */}
-                <div className="space-y-6">
-                  <h4 className="text-[11px] font-black text-jcc-turf uppercase tracking-[0.2em] border-b border-jcc-turf/10 pb-2">Investigation Blocks</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-black text-jcc-muted uppercase tracking-widest">The Central Question</label>
-                      <input 
+                <div className="space-y-8">
+                  <h4 className="text-[11px] font-black text-jcc-ball-red uppercase tracking-[0.3em] border-b border-white/5 pb-4">Tactical Investigation Blocks</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">The Critical Query</label>
+                      <input
                         type="text"
-                        className="w-full px-4 py-3 rounded-xl bg-jcc-bg border border-jcc-border focus:border-jcc-blue outline-none transition-all text-sm font-medium"
-                        placeholder="e.g. Did the top order forget their bats or just their dignity?"
+                        className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-sm font-black text-white shadow-inner"
+                        placeholder="e.g. Was the wicket prepared or sabotaged?"
                         value={editingArticle?.key_question || ""}
                         onChange={(e) => setEditingArticle({ ...editingArticle, key_question: e.target.value })}
                       />
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-black text-jcc-muted uppercase tracking-widest">Match Summary (The Sarcastic Brief)</label>
-                      <textarea 
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Tactical Brief (Sarcastic Summary)</label>
+                      <textarea
                         rows={2}
-                        className="w-full px-4 py-3 rounded-xl bg-jcc-bg border border-jcc-border focus:border-jcc-blue outline-none transition-all text-sm font-medium resize-none"
-                        placeholder="A quick summary of the chaos..."
+                        className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-sm font-black text-white shadow-inner resize-none"
+                        placeholder="Brief overview of the fallout..."
                         value={editingArticle?.match_summary || ""}
                         onChange={(e) => setEditingArticle({ ...editingArticle, match_summary: e.target.value })}
                       />
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-black text-jcc-muted uppercase tracking-widest">Moment Under Investigation</label>
-                      <input 
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Moment of Interest</label>
+                      <input
                         type="text"
-                        className="w-full px-4 py-3 rounded-xl bg-jcc-bg border border-jcc-border focus:border-jcc-blue outline-none transition-all text-sm font-medium"
-                        placeholder="e.g. The 14th over run-out comedy."
+                        className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-sm font-black text-white shadow-inner"
+                        placeholder="e.g. The dropped catch at slip."
                         value={editingArticle?.accused_moment || ""}
                         onChange={(e) => setEditingArticle({ ...editingArticle, accused_moment: e.target.value })}
                       />
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-black text-jcc-muted uppercase tracking-widest">Turning Point</label>
-                      <input 
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Strategic Pivot</label>
+                      <input
                         type="text"
-                        className="w-full px-4 py-3 rounded-xl bg-jcc-bg border border-jcc-border focus:border-jcc-blue outline-none transition-all text-sm font-medium"
-                        placeholder="When it all went sideways."
+                        className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-sm font-black text-white shadow-inner"
+                        placeholder="When the tide shifted."
                         value={editingArticle?.turning_point || ""}
                         onChange={(e) => setEditingArticle({ ...editingArticle, turning_point: e.target.value })}
                       />
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-black text-jcc-muted uppercase tracking-widest">Player of the Match</label>
-                      <input 
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Primary Combatant (POTM)</label>
+                      <input
                         type="text"
-                        className="w-full px-4 py-3 rounded-xl bg-jcc-bg border border-jcc-border focus:border-jcc-blue outline-none transition-all text-sm font-medium"
-                        placeholder="Who survived the mess?"
+                        className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-sm font-black text-white shadow-inner"
+                        placeholder="The lone survivor."
                         value={editingArticle?.player_of_the_match || ""}
                         onChange={(e) => setEditingArticle({ ...editingArticle, player_of_the_match: e.target.value })}
                       />
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-black text-jcc-muted uppercase tracking-widest">Final Verdict</label>
-                      <input 
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Final Prosecution Verdict</label>
+                      <input
                         type="text"
-                        className="w-full px-4 py-3 rounded-xl bg-jcc-bg border border-jcc-border focus:border-jcc-blue outline-none transition-all text-sm font-medium"
-                        placeholder="The brutal truth."
+                        className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-sm font-black text-white shadow-inner"
+                        placeholder="The absolute final word."
                         value={editingArticle?.closing_verdict || ""}
                         onChange={(e) => setEditingArticle({ ...editingArticle, closing_verdict: e.target.value })}
                       />
@@ -580,42 +615,42 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
                 </div>
 
                 {/* Media & Content Section */}
-                <div className="space-y-6">
-                  <h4 className="text-[11px] font-black text-jcc-muted uppercase tracking-[0.2em] border-b border-jcc-border pb-2">Full Investigation Content</h4>
-                  <div className="space-y-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-black text-jcc-muted uppercase tracking-widest">Cover Image URL</label>
-                      <div className="flex gap-4">
-                        <div className="relative flex-1">
-                          <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-jcc-muted/50" />
-                          <input 
+                <div className="space-y-8">
+                  <h4 className="text-[11px] font-black text-white/30 uppercase tracking-[0.3em] border-b border-white/5 pb-4">Full Narrative Documentation</h4>
+                  <div className="space-y-8">
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Visual Evidence (Cover Image URL)</label>
+                      <div className="flex gap-6">
+                        <div className="relative flex-1 group">
+                          <ImageIcon className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-white/10 group-focus-within:text-jcc-accent transition-colors" />
+                          <input
                             type="text"
-                            className="w-full pl-10 pr-4 py-3 rounded-xl bg-jcc-bg border border-jcc-border focus:border-jcc-blue outline-none transition-all text-sm font-medium"
+                            className="w-full pl-14 pr-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-sm font-black text-white shadow-inner"
                             placeholder="https://images.unsplash.com/..."
                             value={editingArticle?.cover_image_url || ""}
                             onChange={(e) => setEditingArticle({ ...editingArticle, cover_image_url: e.target.value })}
                           />
                         </div>
                         {editingArticle?.cover_image_url && (
-                          <div className="w-20 h-11 rounded-lg overflow-hidden border border-jcc-border">
+                          <div className="w-24 h-14 rounded-xl overflow-hidden border border-white/10 shadow-lg">
                             <img src={editingArticle.cover_image_url} alt="Preview" className="w-full h-full object-cover" />
                           </div>
                         )}
                       </div>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[11px] font-black text-jcc-muted uppercase tracking-widest">Article Body (Markdown Supported) *</label>
-                        <span className="text-[10px] text-jcc-muted font-bold flex items-center gap-1">
-                          <ExternalLink className="w-3 h-3" /> Markdown Tips
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between px-1">
+                        <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Dossier Content (Markdown Standard) *</label>
+                        <span className="text-[9px] text-white/20 font-black uppercase tracking-widest flex items-center gap-2">
+                          <ExternalLink className="w-3.5 h-3.5" /> MD Protocol Active
                         </span>
                       </div>
-                      <textarea 
+                      <textarea
                         required
-                        rows={12}
-                        className="w-full px-5 py-4 rounded-2xl bg-jcc-bg border border-jcc-border focus:border-jcc-blue outline-none transition-all text-[15px] font-medium leading-relaxed font-mono"
-                        placeholder="Write your investigation here using Markdown..."
+                        rows={15}
+                        className="w-full px-6 py-6 rounded-2xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-[16px] font-medium leading-relaxed text-white/80 font-mono shadow-inner"
+                        placeholder="Commence narrative sequence here..."
                         value={editingArticle?.content || ""}
                         onChange={(e) => setEditingArticle({ ...editingArticle, content: e.target.value })}
                       />
@@ -624,48 +659,38 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
                 </div>
               </form>
 
-              <div className="p-6 border-t border-jcc-border bg-jcc-bg/30 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <input 
-                      type="radio" 
-                      id="status-draft" 
-                      name="status" 
-                      checked={editingArticle?.status === 'draft'} 
-                      onChange={() => setEditingArticle({ ...editingArticle, status: 'draft' })}
-                      className="w-4 h-4 text-jcc-blue"
-                    />
-                    <label htmlFor="status-draft" className="text-xs font-bold text-jcc-muted">Draft</label>
+              <div className="p-8 border-t border-white/10 bg-white/[0.02] flex flex-col sm:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-8">
+                  <div className="flex items-center gap-3 group cursor-pointer" onClick={() => setEditingArticle({ ...editingArticle, status: 'draft' })}>
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${editingArticle?.status === 'draft' ? 'border-jcc-accent bg-jcc-accent' : 'border-white/10'}`}>
+                      {editingArticle?.status === 'draft' && <div className="w-2 h-2 rounded-full bg-black" />}
+                    </div>
+                    <label className={`text-xs font-black uppercase tracking-widest cursor-pointer transition-colors ${editingArticle?.status === 'draft' ? 'text-jcc-accent' : 'text-white/20'}`}>Draft Status</label>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <input 
-                      type="radio" 
-                      id="status-published" 
-                      name="status" 
-                      checked={editingArticle?.status === 'published'} 
-                      onChange={() => setEditingArticle({ ...editingArticle, status: 'published' })}
-                      className="w-4 h-4 text-jcc-turf"
-                    />
-                    <label htmlFor="status-published" className="text-xs font-bold text-jcc-turf">Published</label>
+                  <div className="flex items-center gap-3 group cursor-pointer" onClick={() => setEditingArticle({ ...editingArticle, status: 'published' })}>
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${editingArticle?.status === 'published' ? 'border-emerald-400 bg-emerald-400' : 'border-white/10'}`}>
+                      {editingArticle?.status === 'published' && <div className="w-2 h-2 rounded-full bg-black" />}
+                    </div>
+                    <label className={`text-xs font-black uppercase tracking-widest cursor-pointer transition-colors ${editingArticle?.status === 'published' ? 'text-emerald-400' : 'text-white/20'}`}>Live Deployment</label>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <button 
+                <div className="flex items-center gap-4 w-full sm:w-auto">
+                  <button
                     type="button"
-                    onClick={() => setIsModalOpen(false)}
+                    onClick={handleCloseRequest}
                     disabled={isSubmitting}
-                    className="px-6 py-2.5 rounded-xl text-sm font-bold text-jcc-muted hover:text-jcc-navy transition-colors"
+                    className="flex-1 sm:flex-none px-8 py-4 rounded-xl text-xs font-black text-white/30 uppercase tracking-widest hover:text-white transition-colors"
                   >
-                    Discard Changes
+                    Abort Changes
                   </button>
-                  <button 
+                  <button
                     type="submit"
                     onClick={handleSubmit}
                     disabled={isSubmitting}
-                    className="flex items-center gap-2 px-8 py-2.5 rounded-xl bg-jcc-navy text-white text-sm font-bold shadow-xl shadow-jcc-navy/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-70"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-10 py-4 rounded-xl btn-vibrant-blue text-black text-sm font-black transition-all uppercase tracking-widest shadow-xl disabled:opacity-50"
                   >
-                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    {editingArticle?.id ? "Update Publication" : "Create Publication"}
+                    {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                    {editingArticle?.id ? "Update Intel" : "Authorize Report"}
                   </button>
                 </div>
               </div>

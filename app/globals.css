@@ -1,313 +1,290 @@
 @import "tailwindcss";
 
+@theme {
+  --color-jcc-navy-deep: #081826;
+  --color-jcc-navy: #0F2740;
+  --color-jcc-navy-light: #163B61;
+  
+  --color-jcc-accent: #00C2FF;
+  --color-jcc-accent-glow: rgba(0, 194, 255, 0.4);
+  --color-jcc-green: #39FF88;
+  --color-jcc-ball-red: #FF4D4D;
+  --color-jcc-gold: #FFB800;
+  
+  --color-jcc-ice: #F4F8FC;
+  --color-jcc-blue-light: #EAF2FA;
+  
+  --color-jcc-text-primary: #FFFFFF;
+  --color-jcc-text-soft: #F4F8FC;
+  --color-jcc-text-muted: rgba(244, 248, 252, 0.6);
+  
+  --color-jcc-border: rgba(255, 255, 255, 0.1);
+  --color-jcc-border-bright: rgba(255, 255, 255, 0.2);
+
+  --font-heading: var(--font-heading);
+  --font-body: var(--font-body);
+
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.5rem;
+}
+
 /* ============================================================
-   Jaipur Cricket Circle — Premium Light Design System
-   Fresh athletic blue & turf green sports community theme
+   Jaipur Cricket Circle — Midnight Sports Tech Theme
    ============================================================ */
 
 :root {
-  /* Brand Colors */
-  --jcc-bg: #F4FAFF;
-  --jcc-bg-soft: #FFFFFF;
-  --jcc-blue: #7DB7D9;
-  --jcc-blue-deep: #2F6F95;
-  --jcc-turf: #3FA34D;
-  --jcc-turf-dim: #328a40;
-  --jcc-navy: #102A43;
-  --jcc-muted: #627D98;
-  --jcc-text-light: #9FB3C8;
-  --jcc-border: #D8EAF5;
-  --jcc-border-light: rgba(216, 234, 245, 0.5);
-  
-  /* Additional Accents */
-  --jcc-purple: #958DF1;
-  --jcc-gold: #F5BC41;
-  --jcc-red: #F06E6E;
-  --jcc-cyan: #48BBF1;
-
-  color-scheme: light;
-}
-
-@theme inline {
-  --color-jcc-bg: var(--jcc-bg);
-  --color-jcc-bg-soft: var(--jcc-bg-soft);
-  --color-jcc-blue: var(--jcc-blue);
-  --color-jcc-blue-deep: var(--jcc-blue-deep);
-  --color-jcc-turf: var(--jcc-turf);
-  --color-jcc-turf-dim: var(--jcc-turf-dim);
-  --color-jcc-navy: var(--jcc-navy);
-  --color-jcc-muted: var(--jcc-muted);
-  --color-jcc-text-light: var(--jcc-text-light);
-  --color-jcc-border: var(--jcc-border);
-  --color-jcc-border-light: var(--jcc-border-light);
-  
-  --color-jcc-purple: var(--jcc-purple);
-  --color-jcc-gold: var(--jcc-gold);
-  --color-jcc-red: var(--jcc-red);
-  --color-jcc-cyan: var(--jcc-cyan);
-
-  /* Fonts */
-  --font-sans: var(--font-inter);
-  --font-heading: var(--font-fraunces);
-}
-
-/* ---- Base ---- */
-
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--jcc-border) transparent;
-}
-
-::-webkit-scrollbar {
-  width: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--jcc-border);
-  border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--jcc-blue);
-}
-
-html {
-  scroll-behavior: smooth;
+  --jcc-bg: #081826;
+  --jcc-navy: #0F2740;
+  --jcc-navy-light: #163B61;
+  --jcc-accent: #00C2FF;
+  --jcc-green: #39FF88;
+  --jcc-border: rgba(255, 255, 255, 0.1);
+  --jcc-text-soft: #F4F8FC;
+  --jcc-text-muted: rgba(244, 248, 252, 0.6);
 }
 
 body {
-  background: var(--jcc-bg);
-  color: var(--jcc-navy);
-  font-family: var(--font-inter), system-ui, sans-serif;
+  background-color: var(--jcc-bg);
+  color: var(--jcc-text-soft);
+  font-family: var(--font-body), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  line-height: 1.6;
 }
 
-::selection {
-  background: rgba(125, 183, 217, 0.2);
-  color: var(--jcc-blue-deep);
+/* ---- Section Rhythms ---- */
+.section-bg-navy { background-color: var(--jcc-bg); }
+.section-bg-ice { background-color: var(--jcc-navy); }
+.section-bg-deep { background-color: #050E17; } /* Ultra dark for depth */
+
+/* ---- Typography ---- */
+h1, h2, h3, h4 {
+  color: #FFFFFF;
+  font-family: var(--font-heading);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
 }
 
-/* ---- Component Styles ---- */
+.text-gradient-cyan {
+  background: linear-gradient(135deg, #00C2FF 0%, #39FF88 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
 
-.glass-card {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+/* ---- Premium Card System ---- */
+.premium-card {
+  background: rgba(15, 39, 64, 0.4);
+  backdrop-filter: blur(24px);
   border: 1px solid var(--jcc-border);
-  border-radius: 24px;
-  box-shadow: 0 4px 20px rgba(16, 42, 67, 0.04);
-}
-
-.glass-card-hover {
+  border-radius: 1.5rem;
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 15px 40px -10px rgba(0, 0, 0, 0.5);
 }
 
-.glass-card-hover:hover {
+.premium-card:hover {
+  border-color: rgba(0, 194, 255, 0.4);
+  background: rgba(15, 39, 64, 0.6);
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 25px 50px -15px rgba(0, 0, 0, 0.7), 0 0 30px rgba(0, 194, 255, 0.1);
+}
+
+.glass-card-dark {
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 1.25rem;
+}
+
+/* ---- Button System (Ultra High Contrast) ---- */
+.btn-vibrant-blue {
+  background: #00C2FF;
+  color: #081826 !important;
+  font-weight: 900;
+  border-radius: 1rem;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 8px 24px rgba(0, 194, 255, 0.25);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  padding: 1rem 2.5rem;
+  border: none;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.875rem;
+}
+
+.btn-vibrant-blue:hover {
   background: #FFFFFF;
-  border-color: var(--jcc-blue);
-  box-shadow: 
-    0 10px 40px rgba(125, 183, 217, 0.1),
-    0 4px 12px rgba(16, 42, 67, 0.02);
-  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 194, 255, 0.4), 0 0 20px rgba(255, 255, 255, 0.2);
+  transform: translateY(-3px) scale(1.02);
 }
 
-/* Scoreboard card — modern sports broadcast aesthetic */
-.scoreboard-card {
-  background: linear-gradient(
-    135deg,
-    #FFFFFF 0%,
-    #F9FCFF 100%
-  );
-  border: 1px solid var(--jcc-border);
-  border-radius: 28px;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 8px 32px rgba(16, 42, 67, 0.06);
+.btn-ghost {
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: #FFFFFF !important;
+  font-weight: 900;
+  border-radius: 1rem;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  padding: 1rem 2.5rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.875rem;
 }
 
-.scoreboard-card::before {
-  content: "";
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #00C2FF;
+  color: #00C2FF !important;
+  transform: translateY(-2px);
+}
+
+/* ---- Utility Classes ---- */
+.hero-overlay {
+  background: linear-gradient(to bottom, rgba(8, 24, 38, 0.4) 0%, rgba(8, 24, 38, 0.1) 50%, rgba(8, 24, 38, 0.9) 100%);
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(var(--jcc-border) 0.5px, transparent 0.5px);
-  background-size: 16px 16px;
-  opacity: 0.3;
-  pointer-events: none;
-}
-
-/* ---- Effects & Accents ---- */
-
-.glow-blue {
-  box-shadow: 0 0 30px rgba(125, 183, 217, 0.2);
-}
-
-.glow-turf {
-  box-shadow: 0 0 30px rgba(63, 163, 77, 0.2);
-}
-
-.text-gradient-blue {
-  background: linear-gradient(135deg, var(--jcc-blue) 0%, var(--jcc-blue-deep) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.text-gradient-turf {
-  background: linear-gradient(135deg, var(--jcc-turf) 0%, var(--jcc-turf-dim) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Hero background - soft blue to white */
-.hero-gradient {
-  background: 
-    radial-gradient(circle at 0% 0%, rgba(125, 183, 217, 0.15) 0%, transparent 50%),
-    radial-gradient(circle at 100% 100%, rgba(63, 163, 77, 0.08) 0%, transparent 50%),
-    linear-gradient(180deg, var(--jcc-bg) 0%, #FFFFFF 100%);
-}
-
-/* Stadium light / energy effect for light theme */
-.stadium-glow {
-  background: radial-gradient(
-    ellipse at 50% 0%,
-    rgba(125, 183, 217, 0.1) 0%,
-    transparent 70%
-  );
-}
-
-/* Noise overlay texture - more subtle for light theme */
-.noise-overlay {
-  position: relative;
-}
-
-.noise-overlay::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  opacity: 0.01;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-  pointer-events: none;
   z-index: 1;
 }
 
-/* Pitch-line pattern - soft blue for light theme */
-.pitch-lines {
-  background-image: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 79px,
-    rgba(125, 183, 217, 0.03) 79px,
-    rgba(125, 183, 217, 0.03) 80px
-  );
+.stadium-glow {
+  background: radial-gradient(circle at 50% -20%, rgba(0, 194, 255, 0.2) 0%, transparent 70%);
+  position: absolute;
+  inset: 0;
 }
 
-/* ---- Keyframe Animations ---- */
-
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+.stat-pill {
+  @apply inline-flex items-center gap-2.5 px-5 py-2.5 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-2xl text-white font-black uppercase tracking-widest text-[10px] transition-all;
 }
 
-@keyframes pulse-glow {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.8; }
-}
+/* ---- Member Tags (High Contrast) ---- */
+.tag-captain { @apply bg-jcc-accent/15 text-jcc-accent border border-jcc-accent/20; }
+.tag-founding-member { @apply bg-jcc-gold/15 text-jcc-gold border border-jcc-gold/20; }
+.tag-vice-captain { @apply bg-jcc-green/15 text-jcc-green border border-jcc-green/20; }
+.tag-batter { @apply bg-white/5 text-white/80 border border-white/10; }
+.tag-bowler { @apply bg-white/5 text-white/80 border border-white/10; }
+.tag-all-rounder { @apply bg-purple-400/15 text-purple-400 border border-purple-400/20; }
+.tag-wicketkeeper { @apply bg-jcc-ball-red/15 text-jcc-ball-red border border-jcc-ball-red/20; }
 
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-}
-
-@keyframes border-glow {
-  0%, 100% { border-color: rgba(125, 183, 217, 0.1); }
-  50% { border-color: rgba(125, 183, 217, 0.4); }
-}
-
-@keyframes gradient-shift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-.animate-shimmer {
-  background: linear-gradient(
-    90deg,
-    transparent 25%,
-    rgba(125, 183, 217, 0.1) 50%,
-    transparent 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 4s ease-in-out infinite;
-}
-
-.animate-pulse-glow {
-  animation: pulse-glow 3s ease-in-out infinite;
-}
-
-.animate-float {
-  animation: float 6s ease-in-out infinite;
-}
-
-.animate-gradient-shift {
-  background-size: 200% 200%;
-  animation: gradient-shift 10s ease infinite;
-}
-
-/* ---- Tag Badge Colors (Light Theme) ---- */
-
-.tag-founding-member {
-  background: #E0F2FE;
-  color: #0369A1;
-  border: 1px solid #BAE6FD;
-}
-
-.tag-captain {
-  background: #FEF3C7;
-  color: #92400E;
-  border: 1px solid #FDE68A;
-}
-
-.tag-vice-captain {
-  background: #EDE9FE;
-  color: #5B21B6;
-  border: 1px solid #DDD6FE;
-}
-
-.tag-batter {
-  background: #DBEAFE;
-  color: #1E40AF;
-  border: 1px solid #BFDBFE;
-}
-
-.tag-bowler {
-  background: #FEE2E2;
-  color: #991B1B;
-  border: 1px solid #FECACA;
-}
-
-.tag-all-rounder {
-  background: #DCFCE7;
-  color: #166534;
-  border: 1px solid #BBF7D0;
-}
-
-.tag-wicketkeeper {
-  background: #F5F3FF;
-  color: #4C1D95;
-  border: 1px solid #EDE9FE;
-}
-
-/* ---- Scoreboard Number Style ---- */
-
+/* ---- Scoreboard Numbers ---- */
 .score-number {
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
-  color: var(--jcc-navy);
+  letter-spacing: -0.05em;
+}
+
+/* ---- Hero Utilities ---- */
+.hero-gradient {
+  background: radial-gradient(circle at 50% 40%, #163B61 0%, #081826 100%);
+}
+
+.noise-overlay {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  filter: contrast(120%) brightness(100%);
+  opacity: 0.15;
+}
+
+.dot-pattern {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  33% { transform: translate(15px, -20px) rotate(3deg); }
+  66% { transform: translate(-10px, -15px) rotate(-2deg); }
+}
+
+.animate-drift {
+  animation: drift 12s ease-in-out infinite;
+}
+
+@keyframes light-ray-flow {
+  0% { transform: translateY(-100%) skewX(-15deg); opacity: 0; }
+  50% { opacity: 0.3; }
+  100% { transform: translateY(100%) skewX(-15deg); opacity: 0; }
+}
+
+.light-ray {
+  position: absolute;
+  width: 2px;
+  top: 0;
+  filter: blur(8px);
+  animation: light-ray-flow 12s linear infinite;
+}
+
+@keyframes particle-float {
+  0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+  20% { opacity: 0.6; }
+  80% { opacity: 0.6; }
+  100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
+}
+
+.particle {
+  position: absolute;
+  border-radius: 50%;
+  animation: particle-float linear infinite;
+  filter: blur(1px);
+}
+
+@keyframes impact-burst {
+  0% { transform: scale(0.8); opacity: 0; }
+  50% { opacity: 0.6; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+.animate-impact-burst {
+  animation: impact-burst 2.5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+@keyframes bat-swing {
+  0%, 100% { transform: rotate(-12deg) translate(0, 0); }
+  50% { transform: rotate(8deg) translate(8px, -8px); }
+}
+
+.animate-bat-swing {
+  animation: bat-swing 5s ease-in-out infinite;
+  transform-origin: top center;
+}
+
+@keyframes ball-fly {
+  0% { transform: translate(-30px, 30px) scale(0.8); opacity: 0; }
+  5% { opacity: 1; }
+  100% { transform: translate(800px, -600px) scale(1.5); opacity: 0; }
+}
+
+.animate-ball-fly {
+  animation: ball-fly 3.5s cubic-bezier(0.1, 0, 0.2, 1) infinite;
+}
+
+@keyframes speed-line {
+  0% { transform: translateX(-100%) scaleX(0); opacity: 0; }
+  20% { transform: translateX(0) scaleX(1); opacity: 0.5; }
+  100% { transform: translateX(200%) scaleX(0); opacity: 0; }
+}
+
+.animate-speed-line {
+  animation: speed-line 3.5s cubic-bezier(0.1, 0, 0.2, 1) infinite;
+}
+
+@keyframes stump-shake {
+  0%, 85%, 100% { transform: rotate(0deg); }
+  87% { transform: rotate(-1.5deg); }
+  90% { transform: rotate(2deg); }
+  93% { transform: rotate(-2deg); }
+  96% { transform: rotate(1deg); }
+}
+
+.animate-stump-shake {
+  animation: stump-shake 7s ease-in-out infinite;
+  transform-origin: bottom center;
 }

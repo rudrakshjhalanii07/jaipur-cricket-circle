@@ -17,8 +17,8 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   }
 
   const team = member.team !== "Unassigned" ? teams[member.team.toLowerCase()] : null;
-  const teamColor = member.team === "Mavericks" ? "text-jcc-blue-deep" : member.team === "NeuroStrikers" ? "text-jcc-red" : "text-jcc-muted";
-  const teamBg = member.team === "Mavericks" ? "bg-jcc-blue/[0.04]" : member.team === "NeuroStrikers" ? "bg-jcc-red/[0.04]" : "bg-jcc-bg";
+  const teamColor = member.team === "Mavericks" ? "text-jcc-accent" : member.team === "NeuroStrikers" ? "text-jcc-ball-red" : "text-white/40";
+  const teamBg = member.team === "Mavericks" ? "bg-jcc-accent/5" : member.team === "NeuroStrikers" ? "bg-jcc-ball-red/5" : "bg-white/5";
 
   return (
     <div className="min-h-screen pt-28 pb-20 noise-overlay bg-jcc-bg">
@@ -31,7 +31,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
         >
           <Link
             href="/members"
-            className="inline-flex items-center gap-2 text-[13px] text-jcc-muted hover:text-jcc-blue-deep transition-colors duration-300 group font-bold"
+            className="inline-flex items-center gap-2 text-[13px] text-white/40 hover:text-jcc-accent transition-colors duration-300 group font-black uppercase tracking-widest"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             Back to The Circle
@@ -47,7 +47,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
             transition={{ duration: 0.6 }}
             className="md:col-span-1"
           >
-            <div className={`relative aspect-square rounded-[32px] overflow-hidden border border-jcc-border ${teamBg} shadow-sm`}>
+            <div className={`relative aspect-square rounded-[32px] overflow-hidden border border-white/10 ${teamBg} shadow-sm`}>
               {member.image ? (
                 <img
                   src={member.image}
@@ -55,18 +55,18 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-6xl font-bold text-jcc-navy font-[var(--font-heading)]">
+                <div className="w-full h-full flex items-center justify-center text-6xl font-black text-white font-[var(--font-heading)]">
                   {member.initials}
                 </div>
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-jcc-navy/60 via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-jcc-bg via-transparent to-transparent" />
               
               {/* Team Badge Overlaid */}
               <div className="absolute bottom-6 left-6 flex flex-col gap-1">
-                 <span className={`text-[10px] uppercase tracking-widest font-bold ${teamColor}`}>
+                 <span className={`text-[10px] uppercase tracking-[0.2em] font-black ${teamColor}`}>
                     {member.team}
                  </span>
-                 <h1 className="text-2xl font-bold text-white font-[var(--font-heading)]">
+                 <h1 className="text-2xl font-black text-white font-[var(--font-heading)] uppercase tracking-tight">
                     {member.name}
                  </h1>
               </div>
@@ -74,11 +74,11 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
 
             {/* Social Actions */}
             <div className="flex gap-3 mt-6">
-                <button className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-white border border-jcc-border text-jcc-muted hover:text-jcc-blue-deep hover:bg-jcc-bg transition-all duration-300 shadow-sm font-bold">
+                <button className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all duration-300 font-black uppercase tracking-widest text-[11px]">
                     <Share2 className="w-4 h-4" />
-                    <span className="text-[12px]">Share Profile</span>
+                    Share Profile
                 </button>
-                <button className="w-12 h-12 flex items-center justify-center rounded-xl bg-white border border-jcc-border text-jcc-muted hover:text-jcc-blue-deep hover:bg-jcc-bg transition-all duration-300 shadow-sm">
+                <button className="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all duration-300">
                     <Globe className="w-5 h-5" />
                 </button>
             </div>
@@ -95,48 +95,48 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
             <div>
               <div className="flex flex-wrap gap-2 mb-4">
                 {member.tags.map((tag) => (
-                  <span key={tag} className={`tag-${tag} text-[9px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider`}>
+                  <span key={tag} className={`tag-${tag} text-[9px] px-2.5 py-1 rounded-full font-black uppercase tracking-widest`}>
                     {tag.replace("-", " ")}
                   </span>
                 ))}
               </div>
-              <h2 className="text-3xl font-bold text-jcc-navy font-[var(--font-heading)] mb-4">
+              <h2 className="text-3xl font-black text-white font-[var(--font-heading)] mb-4 uppercase tracking-tight">
                 {member.role}
               </h2>
-              <p className="text-jcc-muted text-lg leading-relaxed font-medium">
+              <p className="text-white/60 text-lg leading-relaxed font-medium">
                 {member.shortBio}
               </p>
             </div>
 
             {/* Cricket Specs */}
             <div className="grid grid-cols-2 gap-4">
-                <div className="glass-card p-5">
+                <div className="premium-card p-5">
                     <div className="flex items-center gap-3 mb-3">
-                        <Target className="w-4 h-4 text-jcc-blue-deep" />
-                        <span className="text-[10px] uppercase tracking-widest text-jcc-muted font-bold">Batting Style</span>
+                        <Target className="w-4 h-4 text-jcc-accent" />
+                        <span className="text-[10px] uppercase tracking-widest text-white/40 font-black">Batting Style</span>
                     </div>
-                    <span className="text-jcc-navy font-bold">{member.battingStyle}</span>
+                    <span className="text-white font-black uppercase tracking-wide">{member.battingStyle}</span>
                 </div>
-                <div className="glass-card p-5">
+                <div className="premium-card p-5">
                     <div className="flex items-center gap-3 mb-3">
-                        <Shield className="w-4 h-4 text-jcc-blue-deep" />
-                        <span className="text-[10px] uppercase tracking-widest text-jcc-muted font-bold">Bowling Style</span>
+                        <Shield className="w-4 h-4 text-jcc-accent" />
+                        <span className="text-[10px] uppercase tracking-widest text-white/40 font-black">Bowling Style</span>
                     </div>
-                    <span className="text-jcc-navy font-bold">{member.bowlingStyle}</span>
+                    <span className="text-white font-black uppercase tracking-wide">{member.bowlingStyle}</span>
                 </div>
-                <div className="glass-card p-5">
+                <div className="premium-card p-5">
                     <div className="flex items-center gap-3 mb-3">
-                        <Trophy className="w-4 h-4 text-jcc-blue-deep" />
-                        <span className="text-[10px] uppercase tracking-widest text-jcc-muted font-bold">Primary Role</span>
+                        <Trophy className="w-4 h-4 text-jcc-accent" />
+                        <span className="text-[10px] uppercase tracking-widest text-white/40 font-black">Primary Role</span>
                     </div>
-                    <span className="text-jcc-navy font-bold capitalize">{member.cricketRole}</span>
+                    <span className="text-white font-black capitalize tracking-wide">{member.cricketRole}</span>
                 </div>
-                <div className="glass-card p-5">
+                <div className="premium-card p-5">
                     <div className="flex items-center gap-3 mb-3">
-                        <Info className="w-4 h-4 text-jcc-blue-deep" />
-                        <span className="text-[10px] uppercase tracking-widest text-jcc-muted font-bold">Joined JCC</span>
+                        <Info className="w-4 h-4 text-jcc-accent" />
+                        <span className="text-[10px] uppercase tracking-widest text-white/40 font-black">Joined JCC</span>
                     </div>
-                    <span className="text-jcc-navy font-bold">
+                    <span className="text-white font-black uppercase tracking-wide">
                         {new Date(member.joinedDate).toLocaleDateString("en-IN", { month: "long", year: "numeric" })}
                     </span>
                 </div>
@@ -153,21 +153,21 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                 { label: "Wickets", value: "12" },
                 { label: "High Score", value: "68*" }
             ].map((stat, i) => (
-                <div key={i} className="glass-card p-6 text-center group hover:border-jcc-blue/30 transition-all duration-300">
-                    <div className="text-3xl font-bold text-jcc-navy font-[var(--font-heading)] group-hover:text-jcc-blue-deep transition-colors mb-1">{stat.value}</div>
-                    <div className="text-[10px] uppercase tracking-widest text-jcc-muted font-bold">{stat.label}</div>
+                <div key={i} className="premium-card p-6 text-center group hover:border-jcc-accent/30 transition-all duration-300">
+                    <div className="text-3xl font-black text-white font-[var(--font-heading)] group-hover:text-jcc-accent transition-colors mb-1">{stat.value}</div>
+                    <div className="text-[10px] uppercase tracking-widest text-white/30 font-black">{stat.label}</div>
                 </div>
             ))}
         </div>
 
         {/* Action Bottom */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-6 p-8 rounded-3xl bg-white border border-jcc-border shadow-sm">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-6 p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md">
             <div>
-                <h4 className="text-lg font-bold text-jcc-navy mb-1">Building the Circle Together</h4>
-                <p className="text-jcc-muted text-[13px] font-medium">Want to play alongside {member.name.split(" ")[0]} this Sunday?</p>
+                <h4 className="text-lg font-black text-white mb-1 uppercase tracking-tight">Building the Circle Together</h4>
+                <p className="text-white/50 text-[13px] font-medium">Want to play alongside {member.name.split(" ")[0]} this Sunday?</p>
             </div>
-            <Link href="/register" className="px-8 py-3.5 rounded-xl bg-jcc-turf text-white font-bold text-[13px] shadow-lg shadow-jcc-turf/20 hover:bg-jcc-turf-dim transition-all duration-300">
-                Register for Next Match
+            <Link href="/register" className="btn-vibrant-blue text-[13px]">
+                REGISTER FOR NEXT MATCH
             </Link>
         </div>
       </div>

@@ -121,7 +121,7 @@ export const teams: Record<string, Team> = {
     logo: "M",
     primaryColor: "#3b82f6", // jcc-blue
     secondaryColor: "#60a5fa",
-    mainSeriesWins: 7,
+    mainSeriesWins: 10,
     exhibitionSeriesWins: 3,
   },
   neurostrikers: {
@@ -131,7 +131,7 @@ export const teams: Record<string, Team> = {
     logo: "N",
     primaryColor: "#ff4757", // jcc-red
     secondaryColor: "#ff6b7a",
-    mainSeriesWins: 9,
+    mainSeriesWins: 10,
     exhibitionSeriesWins: 1,
   },
 };
@@ -337,6 +337,34 @@ export const blogPosts: BlogPost[] = [
 
 export const matchHistory: MatchHistoryItem[] = [
   {
+    id: "r-today-2",
+    date: "2026-05-10",
+    type: "main",
+    team1: "Mavericks",
+    team1Score: "168/4",
+    team2: "NeuroStrikers",
+    team2Score: "165/7",
+    winner: "Mavericks",
+    result: "Mavericks won by 3 runs",
+    summary: "A thrilling double-header finish. Mavericks defended a tight total in the second match of the day to level the series.",
+    playerOfTheMatch: "Arjun Rathore",
+    venue: "SMS Stadium Ground B",
+  },
+  {
+    id: "r-today-1",
+    date: "2026-05-10",
+    type: "main",
+    team1: "Mavericks",
+    team1Score: "145/2",
+    team2: "NeuroStrikers",
+    team2Score: "142/8",
+    winner: "Mavericks",
+    result: "Mavericks won by 8 wickets",
+    summary: "Complete dominance in the first match of the day. Opal Chaudhary's bowling set the tone for a comfortable chase.",
+    playerOfTheMatch: "Opal Chaudhary",
+    venue: "SMS Stadium Ground B",
+  },
+  {
     id: "r1",
     date: "2026-04-27",
     type: "main",
@@ -409,9 +437,9 @@ export const matchHistory: MatchHistoryItem[] = [
 ];
 
 export const rivalryData = {
-  mainSeries: { mavericks: 7, neuroStrikers: 9 },
+  mainSeries: { mavericks: 10, neuroStrikers: 10 },
   exhibitionSeries: { mavericks: 3, neuroStrikers: 1 },
-  totalMatches: 20,
+  totalMatches: 24,
   recentMatches: matchHistory.slice(0, 5),
 };
 
@@ -463,7 +491,7 @@ export const registrationData: RegistrationData = {
 export const clubStats = {
   founded: "2026",
   totalMembers: 14,
-  matchesPlayed: 20,
+  matchesPlayed: 24,
   sundaysActive: 52,
   citiesRepresented: 1,
   tagline: "Where Sundays Hit Different",

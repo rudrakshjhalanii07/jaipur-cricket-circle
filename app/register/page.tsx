@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import SectionHeading from "@/components/SectionHeading";
 import { supabase } from "@/lib/supabase";
+import { fadeUp, scaleIn, staggerContainer, VIEWPORT_CONFIG } from "@/lib/animations";
 
 interface Match {
   id: string;
@@ -222,10 +223,11 @@ export default function RegisterPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-jcc-bg">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 text-jcc-blue animate-spin" />
-          <p className="text-[12px] text-jcc-muted font-bold tracking-widest uppercase">Fetching Match Details...</p>
+      <div className="min-h-screen flex items-center justify-center hero-gradient relative overflow-hidden">
+        <div className="absolute inset-0 stadium-glow opacity-30 z-0" />
+        <div className="flex flex-col items-center gap-4 relative z-10">
+          <Loader2 className="w-8 h-8 text-jcc-accent animate-spin" />
+          <p className="text-[12px] text-white/60 font-black tracking-widest uppercase">Fetching Match Details...</p>
         </div>
       </div>
     );
@@ -233,17 +235,18 @@ export default function RegisterPage() {
 
   if (!match) {
     return (
-      <div className="min-h-screen pt-28 pb-20 bg-jcc-bg flex items-center justify-center">
-        <div className="text-center px-4">
+      <div className="min-h-screen pt-28 pb-20 relative overflow-hidden hero-gradient flex items-center justify-center">
+        <div className="absolute inset-0 stadium-glow opacity-30 z-0" />
+        <div className="text-center px-4 relative z-10">
           <SectionHeading
             title="Sunday Registration"
             subtitle="No match is currently scheduled."
             accentColor="blue"
           />
-          <div className="glass-card p-12 max-w-md mx-auto mt-8">
-            <CalendarCheck className="w-12 h-12 text-jcc-muted mx-auto mb-4 opacity-20" />
-            <h2 className="text-2xl font-bold text-jcc-navy mb-2">Yet to be Scheduled</h2>
-            <p className="text-jcc-muted text-sm">Stay tuned — registration will open once the next Sunday match is announced. Follow us on WhatsApp for updates!</p>
+          <div className="premium-card p-12 max-w-md mx-auto mt-8">
+            <CalendarCheck className="w-12 h-12 text-white/10 mx-auto mb-4" />
+            <h2 className="text-2xl font-black text-white mb-2 uppercase">Yet to be Scheduled</h2>
+            <p className="text-white/60 text-sm font-medium">Stay tuned — registration will open once the next Sunday match is announced. Follow us on WhatsApp for updates!</p>
           </div>
         </div>
       </div>
@@ -260,38 +263,38 @@ export default function RegisterPage() {
   const statusConfig = {
     open: {
       label: "Registration Open",
-      color: "text-jcc-turf",
-      bg: "bg-jcc-turf/[0.06]",
-      border: "border-jcc-turf/15",
-      dot: "bg-jcc-turf",
+      color: "text-emerald-400",
+      bg: "bg-emerald-400/10",
+      border: "border-emerald-400/20",
+      dot: "bg-emerald-400",
     },
     full: {
       label: "Match Full (Waitlist)",
       color: "text-jcc-gold",
-      bg: "bg-jcc-gold/[0.06]",
-      border: "border-jcc-gold/15",
+      bg: "bg-jcc-gold/10",
+      border: "border-jcc-gold/20",
       dot: "bg-jcc-gold",
     },
     closed: {
       label: "Registration Closed",
-      color: "text-jcc-red",
-      bg: "bg-jcc-red/[0.06]",
-      border: "border-jcc-red/15",
-      dot: "bg-jcc-red",
+      color: "text-jcc-ball-red",
+      bg: "bg-jcc-ball-red/10",
+      border: "border-jcc-ball-red/20",
+      dot: "bg-jcc-ball-red",
     },
     cancelled: {
       label: "Match Cancelled",
-      color: "text-jcc-red",
-      bg: "bg-jcc-red/[0.06]",
-      border: "border-jcc-red/15",
-      dot: "bg-jcc-red",
+      color: "text-jcc-ball-red",
+      bg: "bg-jcc-ball-red/10",
+      border: "border-jcc-ball-red/20",
+      dot: "bg-jcc-ball-red",
     },
     unscheduled: {
       label: "TBD",
-      color: "text-jcc-muted",
-      bg: "bg-jcc-bg",
-      border: "border-jcc-border",
-      dot: "bg-jcc-muted",
+      color: "text-white/40",
+      bg: "bg-white/5",
+      border: "border-white/10",
+      dot: "bg-white/20",
     },
   };
 
@@ -299,20 +302,24 @@ export default function RegisterPage() {
   const sc = statusConfig[currentStatus as keyof typeof statusConfig];
 
   return (
-    <div className="min-h-screen pt-28 pb-20 noise-overlay bg-jcc-bg">
+    <div className="min-h-screen pt-28 pb-20 relative overflow-hidden hero-gradient">
+      {/* Cinematic Background Elements */}
+      <div className="absolute inset-0 stadium-glow opacity-50 z-0" />
+      <div className="absolute inset-0 noise-overlay opacity-20 pointer-events-none z-0" />
+
       <div className="max-w-4xl mx-auto px-4 sm:px-6 relative z-10">
         {/* Header Badge */}
         <div className="text-center mb-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full ${sc.bg} border ${sc.border} mb-6`}
+            className={`inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full ${sc.bg} border ${sc.border} mb-6 shadow-xl`}
           >
             <span className="relative flex h-2 w-2">
               <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${sc.dot} opacity-50`} />
               <span className={`relative inline-flex rounded-full h-2 w-2 ${sc.dot}`} />
             </span>
-            <span className={`text-[10px] font-bold ${sc.color} tracking-[0.25em] uppercase`}>
+            <span className={`text-[10px] font-black ${sc.color} tracking-[0.25em] uppercase`}>
               {sc.label}
             </span>
           </motion.div>
@@ -331,13 +338,13 @@ export default function RegisterPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="glass-card p-8 sm:p-10"
+              className="premium-card p-8 sm:p-10"
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 {[
                   {
                     icon: CalendarCheck,
-                    color: "text-jcc-blue-deep",
+                    color: "text-jcc-accent",
                     label: "Match Date",
                     value: new Date(match.match_date).toLocaleDateString("en-IN", {
                       weekday: "long", day: "numeric", month: "long", year: "numeric",
@@ -345,7 +352,7 @@ export default function RegisterPage() {
                   },
                   {
                     icon: Clock,
-                    color: "text-jcc-purple",
+                    color: "text-purple-400",
                     label: "Reporting Time",
                     value: match.match_time,
                   },
@@ -358,20 +365,20 @@ export default function RegisterPage() {
                   },
                   {
                     icon: Users,
-                    color: "text-jcc-blue",
+                    color: "text-emerald-400",
                     label: "Squad Size",
                     value: `${slotsTotal} Players (${slotsTotal / 2} vs ${slotsTotal / 2})`,
                   },
                 ].map((item) => (
                   <div key={item.label} className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-jcc-bg border border-jcc-border flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 shadow-inner">
                       <item.icon className={`w-5 h-5 ${item.color}`} />
                     </div>
                     <div className="flex-1">
-                      <p className="text-[10px] text-jcc-muted uppercase tracking-widest font-bold mb-1">{item.label}</p>
-                      <p className="text-[14px] font-bold text-jcc-navy">{item.value}</p>
+                      <p className="text-[10px] text-white/30 uppercase tracking-[0.2em] font-black mb-1">{item.label}</p>
+                      <p className="text-[14px] font-black text-white uppercase tracking-tight leading-tight">{item.value}</p>
                       {item.link && (
-                          <a href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[11px] text-jcc-blue-deep hover:underline mt-2 font-bold">
+                          <a href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[11px] text-jcc-accent hover:underline mt-2 font-black uppercase tracking-widest">
                             View on Map <ExternalLink className="w-3 h-3" />
                           </a>
                       )}
@@ -386,78 +393,78 @@ export default function RegisterPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="glass-card p-8 sm:p-10"
+              className="premium-card p-8 sm:p-10"
             >
               <div className="flex items-center gap-3 mb-8">
-                <div className="w-10 h-10 rounded-xl bg-jcc-turf/[0.06] border border-jcc-turf/15 flex items-center justify-center">
-                  <ClipboardList className="w-5 h-5 text-jcc-turf" />
+                <div className="w-12 h-12 rounded-2xl bg-emerald-400/10 border border-emerald-400/20 flex items-center justify-center shadow-inner">
+                  <ClipboardList className="w-6 h-6 text-emerald-400" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-jcc-navy">Claim Your Spot</h3>
-                  <p className="text-[12px] text-jcc-muted font-medium">Select your membership status to proceed.</p>
+                  <h3 className="text-xl font-black text-white uppercase tracking-tight leading-tight">Claim Your Spot</h3>
+                  <p className="text-[12px] text-white/30 font-bold uppercase tracking-widest mt-1">Select your membership status to proceed.</p>
                 </div>
               </div>
 
               {/* Tabs */}
-              <div className="flex gap-2 p-1.5 bg-jcc-bg border border-jcc-border rounded-2xl mb-8">
+              <div className="flex gap-2 p-1.5 bg-black/40 border border-white/10 rounded-2xl mb-8">
                 <button
                   onClick={() => { setRegistrationMode("existing"); setExistingPlayer(null); setFormStatus("idle"); }}
-                  className={`flex-1 py-3 rounded-xl text-[12px] font-bold transition-all ${registrationMode === "existing" ? "bg-white text-jcc-navy shadow-sm border border-jcc-border" : "text-jcc-muted hover:text-jcc-navy"}`}
+                  className={`flex-1 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all ${registrationMode === "existing" ? "bg-white/10 text-white shadow-xl border border-white/10" : "text-white/40 hover:text-white"}`}
                 >
                   Existing Member
                 </button>
                 <button
                   onClick={() => { setRegistrationMode("new"); setExistingPlayer(null); setFormStatus("idle"); }}
-                  className={`flex-1 py-3 rounded-xl text-[12px] font-bold transition-all ${registrationMode === "new" ? "bg-white text-jcc-navy shadow-sm border border-jcc-border" : "text-jcc-muted hover:text-jcc-navy"}`}
+                  className={`flex-1 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all ${registrationMode === "new" ? "bg-white/10 text-white shadow-xl border border-white/10" : "text-white/40 hover:text-white"}`}
                 >
                   New Member
                 </button>
               </div>
 
               {match.status === "unscheduled" ? (
-                <div className="p-8 rounded-2xl bg-jcc-blue/[0.06] border border-jcc-blue/15 text-center">
-                   <Calendar className="w-10 h-10 text-jcc-blue mx-auto mb-4" />
-                   <h4 className="text-lg font-bold text-jcc-navy mb-2">No Sunday Match Scheduled Yet</h4>
-                   <p className="text-[13px] font-medium text-jcc-muted">Stay tuned — registration will open once the next match is announced.</p>
+                <div className="p-8 rounded-2xl bg-jcc-accent/5 border border-jcc-accent/10 text-center">
+                   <Calendar className="w-10 h-10 text-jcc-accent mx-auto mb-4" />
+                   <h4 className="text-lg font-black text-white mb-2 uppercase">No Sunday Match Scheduled Yet</h4>
+                   <p className="text-[13px] font-medium text-white/40">Stay tuned — registration will open once the next match is announced.</p>
                 </div>
               ) : match.status === "cancelled" ? (
-                <div className="p-8 rounded-2xl bg-jcc-red/[0.06] border border-jcc-red/15 text-center">
-                   <AlertCircle className="w-10 h-10 text-jcc-red mx-auto mb-4" />
-                   <h4 className="text-lg font-bold text-jcc-red mb-2">Match Cancelled</h4>
-                   <p className="text-[13px] font-medium text-jcc-red/80">This match has been cancelled due to unforeseen circumstances. Registered player data has been safely archived below.</p>
+                <div className="p-8 rounded-2xl bg-jcc-ball-red/5 border border-jcc-ball-red/10 text-center">
+                   <AlertCircle className="w-10 h-10 text-jcc-ball-red mx-auto mb-4" />
+                   <h4 className="text-lg font-black text-jcc-ball-red mb-2 uppercase">Match Cancelled</h4>
+                   <p className="text-[13px] font-medium text-jcc-ball-red/60">This match has been cancelled due to unforeseen circumstances.</p>
                 </div>
               ) : match.status === "closed" ? (
-                <div className="p-6 rounded-2xl bg-jcc-red/[0.06] border border-jcc-red/15 text-center">
-                   <AlertCircle className="w-8 h-8 text-jcc-red mx-auto mb-3" />
-                   <p className="text-[14px] font-bold text-jcc-red">Registration is currently closed for this match.</p>
+                <div className="p-6 rounded-2xl bg-jcc-ball-red/5 border border-jcc-ball-red/10 text-center">
+                   <AlertCircle className="w-8 h-8 text-jcc-ball-red mx-auto mb-3" />
+                   <p className="text-[14px] font-black text-jcc-ball-red uppercase tracking-widest">Registration is currently closed.</p>
                 </div>
               ) : formStatus === "pending_approval" ? (
-                <div className="p-8 rounded-2xl bg-jcc-blue/[0.06] border border-jcc-blue/15 text-center">
-                   <div className="w-12 h-12 rounded-full bg-jcc-blue flex items-center justify-center mx-auto mb-4 shadow-lg shadow-jcc-blue/20">
-                     <Clock className="w-6 h-6 text-white" />
+                <div className="p-8 rounded-2xl bg-jcc-accent/10 border border-jcc-accent/20 text-center">
+                   <div className="w-14 h-14 rounded-full bg-jcc-accent flex items-center justify-center mx-auto mb-6 shadow-lg shadow-jcc-accent/40">
+                     <Clock className="w-7 h-7 text-black" />
                    </div>
-                   <h4 className="text-xl font-bold text-jcc-navy mb-2">Request Received!</h4>
-                   <p className="text-jcc-muted text-[14px] mb-6 leading-relaxed">
+                   <h4 className="text-2xl font-black text-white mb-2 uppercase tracking-tight">Request Received!</h4>
+                   <p className="text-white/60 text-[14px] mb-8 leading-relaxed font-medium">
                      Your joining request has been sent to admin for approval. <br />
                      Once approved, you can register for Sunday matches using your phone number.
                    </p>
                    <button 
                     onClick={() => setFormStatus("idle")}
-                    className="text-[12px] font-bold text-jcc-blue-deep hover:underline"
+                    className="text-[11px] font-black text-jcc-accent hover:underline uppercase tracking-widest"
                    >
                      Back to Registration
                    </button>
                 </div>
               ) : formStatus === "success" ? (
-                <div className="p-8 rounded-2xl bg-jcc-turf/[0.06] border border-jcc-turf/15 text-center">
-                   <div className="w-12 h-12 rounded-full bg-jcc-turf flex items-center justify-center mx-auto mb-4 shadow-lg shadow-jcc-turf/20">
-                     <CheckCircle2 className="w-6 h-6 text-white" />
+                <div className="p-8 rounded-2xl bg-emerald-400/10 border border-emerald-400/20 text-center">
+                   <div className="w-14 h-14 rounded-full bg-emerald-400 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-400/40">
+                     <CheckCircle2 className="w-7 h-7 text-black" />
                    </div>
-                   <h4 className="text-xl font-bold text-jcc-navy mb-2">Registration Successful!</h4>
-                   <p className="text-jcc-muted text-[14px] mb-6">You&apos;ve been added to the {registrations.filter(r => r.phone === formData.phone)[0]?.status || 'match'} list. See you on the pitch!</p>
+                   <h4 className="text-2xl font-black text-white mb-2 uppercase tracking-tight">Registration Successful!</h4>
+                   <p className="text-white/60 text-[14px] mb-8 font-medium">You&apos;ve been added to the {registrations.filter(r => r.phone === formData.phone)[0]?.status || 'match'} list. See you on the pitch!</p>
                    <button 
                     onClick={() => setFormStatus("idle")}
-                    className="text-[12px] font-bold text-jcc-blue-deep hover:underline"
+                    className="text-[11px] font-black text-emerald-400 hover:underline uppercase tracking-widest"
                    >
                      Register another player
                    </button>
@@ -465,34 +472,34 @@ export default function RegisterPage() {
               ) : registrationMode === "existing" ? (
                 <div className="space-y-6">
                   {!existingPlayer ? (
-                    <form onSubmit={handleLookup} className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-[11px] font-bold text-jcc-muted uppercase tracking-widest px-1">Registered Phone Number</label>
+                    <form onSubmit={handleLookup} className="space-y-6">
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Registered Phone Number</label>
                         <div className="relative">
                           <input 
                             required
                             type="tel"
                             placeholder="e.g. 9876543210"
-                            className="w-full px-5 py-3.5 rounded-xl bg-jcc-bg border border-jcc-border focus:border-jcc-blue outline-none transition-all text-jcc-navy text-[14px] font-medium"
+                            className="w-full px-6 py-4 rounded-2xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black placeholder:text-white/10 shadow-inner"
                             value={formData.phone}
                             onChange={(e) => setFormData({...formData, phone: e.target.value})}
                           />
                           <button 
                             type="submit"
                             disabled={lookupLoading || !formData.phone}
-                            className="absolute right-2 top-2 bottom-2 px-4 rounded-lg bg-jcc-navy text-white text-[11px] font-bold hover:bg-jcc-blue transition-colors disabled:opacity-50"
+                            className="absolute right-2 top-2 bottom-2 px-6 rounded-xl bg-white text-black text-[11px] font-black uppercase tracking-widest hover:bg-jcc-accent transition-colors disabled:opacity-50"
                           >
-                            {lookupLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Verify"}
+                            {lookupLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Verify"}
                           </button>
                         </div>
                         {lookupError && (
-                          <div className="flex flex-col gap-3 mt-4">
-                            <p className="text-[12px] text-jcc-red font-medium flex items-center gap-2">
-                              <AlertCircle className="w-3.5 h-3.5" /> {lookupError}
+                          <div className="flex flex-col gap-4 mt-6">
+                            <p className="text-[12px] text-jcc-ball-red font-black uppercase tracking-widest flex items-center gap-2">
+                              <AlertCircle className="w-4 h-4" /> {lookupError}
                             </p>
                             <button 
                               onClick={() => setRegistrationMode("new")}
-                              className="text-[11px] font-bold text-jcc-blue hover:underline self-start"
+                              className="text-[11px] font-black text-jcc-accent hover:underline self-start uppercase tracking-widest"
                             >
                               Register as a new member instead →
                             </button>
@@ -501,26 +508,26 @@ export default function RegisterPage() {
                       </div>
                     </form>
                   ) : (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                      <div className="p-6 rounded-2xl bg-jcc-blue/[0.04] border border-jcc-blue/10 flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-white border border-jcc-border flex items-center justify-center overflow-hidden shrink-0">
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+                      <div className="p-6 rounded-2xl bg-jcc-accent/10 border border-jcc-accent/20 flex items-center gap-5">
+                        <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 shadow-xl">
                           {existingPlayer.image_url ? (
                             <img src={existingPlayer.image_url} alt={existingPlayer.name} className="w-full h-full object-cover" />
                           ) : (
-                            <Users className="w-6 h-6 text-jcc-muted" />
+                            <Users className="w-7 h-7 text-white/20" />
                           )}
                         </div>
-                        <div>
-                          <h4 className="font-bold text-jcc-navy">{existingPlayer.name}</h4>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[10px] font-bold text-jcc-blue uppercase tracking-widest">{existingPlayer.cricket_role}</span>
-                            <span className="w-1 h-1 rounded-full bg-jcc-border" />
-                            <span className="text-[10px] font-bold text-jcc-muted uppercase tracking-widest">{existingPlayer.team}</span>
+                        <div className="flex-1">
+                          <h4 className="text-lg font-black text-white uppercase tracking-tight">{existingPlayer.name}</h4>
+                          <div className="flex items-center gap-3 mt-1">
+                            <span className="text-[10px] font-black text-jcc-accent uppercase tracking-[0.2em]">{existingPlayer.cricket_role}</span>
+                            <span className="w-1 h-1 rounded-full bg-white/20" />
+                            <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">{existingPlayer.team}</span>
                           </div>
                         </div>
                         <button 
                           onClick={() => setExistingPlayer(null)}
-                          className="ml-auto text-[10px] font-bold text-jcc-muted hover:text-jcc-red transition-colors"
+                          className="text-[10px] font-black text-white/30 hover:text-jcc-ball-red transition-colors uppercase tracking-widest"
                         >
                           Change
                         </button>
@@ -528,30 +535,30 @@ export default function RegisterPage() {
 
                       <form onSubmit={handleRegister}>
                         {existingPlayer.approval_status === "pending" ? (
-                          <div className="p-4 rounded-xl bg-jcc-blue/[0.06] border border-jcc-blue/15 flex items-start gap-3 text-jcc-blue text-[13px] font-bold mb-4 leading-relaxed">
+                          <div className="p-5 rounded-2xl bg-jcc-accent/10 border border-jcc-accent/20 flex items-start gap-4 text-jcc-accent text-[13px] font-black uppercase tracking-widest mb-4 leading-relaxed italic">
                             <Clock className="w-4 h-4 shrink-0 mt-0.5" />
-                            Your membership request is pending admin approval. You can register for matches once approved.
+                            Wait! Membership request is pending admin approval.
                           </div>
                         ) : existingPlayer.approval_status === "rejected" ? (
-                          <div className="p-4 rounded-xl bg-jcc-red/[0.06] border border-jcc-red/15 flex items-start gap-3 text-jcc-red text-[13px] font-bold mb-4 leading-relaxed">
+                          <div className="p-5 rounded-2xl bg-jcc-ball-red/10 border border-jcc-ball-red/20 flex items-start gap-4 text-jcc-ball-red text-[13px] font-black uppercase tracking-widest mb-4 leading-relaxed italic">
                             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                            Your membership request was not approved. Please contact admin for details.
+                            Membership request was not approved.
                           </div>
                         ) : (
                           <>
                             {formStatus === "duplicate" && (
-                              <div className="p-4 rounded-xl bg-jcc-gold/[0.06] border border-jcc-gold/15 flex items-center gap-3 text-jcc-gold text-[13px] font-bold mb-4">
+                              <div className="p-5 rounded-2xl bg-jcc-gold/10 border border-jcc-gold/20 flex items-center gap-4 text-jcc-gold text-[13px] font-black uppercase tracking-widest mb-4">
                                 <AlertCircle className="w-4 h-4" />
-                                You are already registered for this match.
+                                Already registered for this match!
                               </div>
                             )}
                             <button 
                               disabled={submitting}
                               type="submit"
-                              className="w-full py-4 rounded-xl bg-jcc-turf text-white font-bold text-[14px] shadow-lg shadow-jcc-turf/20 hover:bg-jcc-turf-dim transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2"
+                              className="w-full py-5 rounded-2xl btn-vibrant-blue text-black text-[14px] disabled:opacity-50 flex items-center justify-center gap-3"
                             >
-                              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                              Confirm Registration
+                              {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                              CONFIRM SUNDAY SPOT
                             </button>
                           </>
                         )}
@@ -560,76 +567,81 @@ export default function RegisterPage() {
                   )}
                 </div>
               ) : (
-                <form onSubmit={handleRegister} className="space-y-5">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <div className="space-y-2">
-                      <label className="text-[11px] font-bold text-jcc-muted uppercase tracking-widest px-1">Full Name</label>
+                <form onSubmit={handleRegister} className="space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Full Name</label>
                       <input 
                         required
                         type="text"
                         placeholder="e.g. Rahul Sharma"
-                        className="w-full px-5 py-3.5 rounded-xl bg-jcc-bg border border-jcc-border focus:border-jcc-blue focus:ring-4 focus:ring-jcc-blue/5 outline-none transition-all text-jcc-navy text-[14px] font-medium"
+                        className="w-full px-6 py-4 rounded-2xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black placeholder:text-white/10 shadow-inner"
                         value={formData.name}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-[11px] font-bold text-jcc-muted uppercase tracking-widest px-1">Phone Number</label>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Phone Number</label>
                       <input 
                         required
                         type="tel"
                         placeholder="e.g. 9876543210"
-                        className="w-full px-5 py-3.5 rounded-xl bg-jcc-bg border border-jcc-border focus:border-jcc-blue focus:ring-4 focus:ring-jcc-blue/5 outline-none transition-all text-jcc-navy text-[14px] font-medium"
+                        className="w-full px-6 py-4 rounded-2xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black placeholder:text-white/10 shadow-inner"
                         value={formData.phone}
                         onChange={(e) => setFormData({...formData, phone: e.target.value})}
                       />
                     </div>
                   </div>
                   
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-jcc-muted uppercase tracking-widest px-1">Primary Role</label>
-                    <select 
-                      className="w-full px-5 py-3.5 rounded-xl bg-jcc-bg border border-jcc-border focus:border-jcc-blue focus:ring-4 focus:ring-jcc-blue/5 outline-none transition-all text-jcc-navy text-[14px] font-medium appearance-none"
-                      value={formData.cricket_role}
-                      onChange={(e) => setFormData({...formData, cricket_role: e.target.value})}
-                    >
-                      <option value="all-rounder">All-Rounder</option>
-                      <option value="batter">Batter</option>
-                      <option value="bowler">Bowler</option>
-                      <option value="wicketkeeper">Wicketkeeper</option>
-                    </select>
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Primary Role</label>
+                    <div className="relative">
+                      <select 
+                        className="w-full px-6 py-4 rounded-2xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black appearance-none shadow-inner"
+                        value={formData.cricket_role}
+                        onChange={(e) => setFormData({...formData, cricket_role: e.target.value})}
+                      >
+                        <option value="all-rounder" className="bg-jcc-navy">All-Rounder</option>
+                        <option value="batter" className="bg-jcc-navy">Batter</option>
+                        <option value="bowler" className="bg-jcc-navy">Bowler</option>
+                        <option value="wicketkeeper" className="bg-jcc-navy">Wicketkeeper</option>
+                      </select>
+                      <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-white/20">
+                        <Users className="w-4 h-4" />
+                      </div>
+                    </div>
                   </div>
 
                   {formStatus === "duplicate" && (
-                    <div className="p-4 rounded-xl bg-jcc-gold/[0.06] border border-jcc-gold/15 flex items-center gap-3 text-jcc-gold text-[13px] font-bold">
+                    <div className="p-5 rounded-2xl bg-jcc-gold/10 border border-jcc-gold/20 flex items-center gap-4 text-jcc-gold text-[13px] font-black uppercase tracking-widest">
                       <AlertCircle className="w-4 h-4" />
-                      You are already registered for this match.
+                      Already registered for this match!
                     </div>
                   )}
 
                   {formStatus === "error" && (
-                    <div className="p-4 rounded-xl bg-jcc-red/[0.06] border border-jcc-red/15 flex items-center gap-3 text-jcc-red text-[13px] font-bold">
+                    <div className="p-5 rounded-2xl bg-jcc-ball-red/10 border border-jcc-ball-red/20 flex items-center gap-4 text-jcc-ball-red text-[13px] font-black uppercase tracking-widest">
                       <AlertCircle className="w-4 h-4" />
-                      Something went wrong. Please try again.
+                      System error. Try again later.
                     </div>
                   )}
 
                   <button 
                     disabled={submitting}
                     type="submit"
-                    className="w-full py-4 rounded-xl bg-jcc-turf text-white font-bold text-[14px] shadow-lg shadow-jcc-turf/20 hover:bg-jcc-turf-dim transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="w-full py-5 rounded-2xl btn-vibrant-blue text-black text-[14px] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
                   >
                     {submitting ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-5 h-5 animate-spin" />
                     ) : (
                       <>
-                        <Send className="w-4 h-4" />
-                        {isMatchFull ? "Join Waitlist" : "Register Now"}
+                        <Send className="w-5 h-5" />
+                        {isMatchFull ? "JOIN WAITLIST" : "CLAIM SUNDAY SPOT"}
                       </>
                     )}
                   </button>
-                  <p className="text-[11px] text-jcc-muted text-center font-medium">
-                    By registering, you agree to follow the match-day protocols.
+                  <p className="text-[11px] text-white/20 text-center font-black uppercase tracking-[0.2em]">
+                    Subject to match-day protocols & brotherhood spirit.
                   </p>
                 </form>
               )}
@@ -643,65 +655,65 @@ export default function RegisterPage() {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4 }}
-                className="glass-card p-6"
+                className="premium-card p-6"
               >
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-[11px] font-bold text-jcc-navy uppercase tracking-wider">Confirmed Slots</span>
-                  <span className="text-[11px] font-mono text-jcc-muted tabular-nums font-bold">{slotsUsed} / {slotsTotal}</span>
+                  <span className="text-[11px] font-black text-white uppercase tracking-widest">Confirmed Slots</span>
+                  <span className="text-[11px] font-mono text-white/40 tabular-nums font-black">{slotsUsed} / {slotsTotal}</span>
                 </div>
-                <div className="w-full h-2 rounded-full bg-jcc-border overflow-hidden mb-4">
+                <div className="w-full h-2.5 rounded-full bg-white/5 border border-white/10 overflow-hidden mb-5 shadow-inner">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${fillPct}%` }}
                     transition={{ duration: 1.5, delay: 0.5 }}
-                    className={`h-full rounded-full bg-gradient-to-r ${isMatchFull ? 'from-jcc-gold/60 to-jcc-gold' : 'from-jcc-blue-deep/60 to-jcc-blue-deep'}`}
+                    className={`h-full rounded-full ${isMatchFull ? 'bg-jcc-gold' : 'bg-jcc-accent'} shadow-[0_0_15px_rgba(0,194,255,0.4)]`}
                   />
                 </div>
                 {isMatchFull && (
-                  <div className="flex items-start gap-2 p-3 rounded-xl bg-jcc-gold/[0.06] border border-jcc-gold/15 text-[11px] text-jcc-gold font-bold leading-relaxed">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                    <span>Squad limit reached. New entries will join the standby list.</span>
+                  <div className="flex items-start gap-3 p-4 rounded-2xl bg-jcc-gold/10 border border-jcc-gold/20 text-[11px] text-jcc-gold font-black uppercase tracking-widest leading-relaxed italic">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>Squad limit reached. STANDBY ONLY.</span>
                   </div>
                 )}
               </motion.div>
 
               {/* Squad Lists */}
-              <div className="space-y-4">
-                <div className="glass-card p-6">
-                  <h3 className="text-[11px] font-bold text-jcc-navy uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-jcc-turf" />
-                    Squad ({confirmed.length})
+              <div className="space-y-6">
+                <div className="premium-card p-6">
+                  <h3 className="text-[11px] font-black text-white uppercase tracking-[0.3em] mb-5 flex items-center gap-3">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    SQUAD ({confirmed.length})
                   </h3>
-                  <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin">
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin">
                     {confirmed.length > 0 ? confirmed.map((player, i) => (
-                      <div key={player.id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-jcc-bg/50 border border-jcc-border group hover:border-jcc-turf/30 transition-all duration-300">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[9px] font-bold text-jcc-muted w-3">{i + 1}</span>
-                          <span className="text-[12px] text-jcc-navy font-bold truncate max-w-[100px]">{player.name}</span>
+                      <div key={player.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-white/[0.03] border border-white/5 group hover:border-jcc-accent/30 hover:bg-jcc-accent/[0.02] transition-all duration-300">
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] font-black text-white/20 w-4">{i + 1}</span>
+                          <span className="text-[13px] text-white font-black uppercase tracking-tight truncate max-w-[120px]">{player.name}</span>
                         </div>
-                        <span className="text-[9px] text-jcc-muted font-bold uppercase tracking-widest">{player.cricket_role}</span>
+                        <span className="text-[9px] text-white/30 font-black uppercase tracking-widest">{player.cricket_role}</span>
                       </div>
                     )) : (
-                      <p className="text-[11px] text-jcc-muted italic font-medium">No confirmed players yet.</p>
+                      <p className="text-[11px] text-white/20 italic font-black uppercase tracking-widest text-center py-4">Waiting for first signup...</p>
                     )}
                   </div>
                 </div>
 
-                <div className="glass-card p-6">
-                  <h3 className="text-[11px] font-bold text-jcc-navy uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                    <Wifi className="w-3.5 h-3.5 text-jcc-gold" />
-                    Stand-by ({waitlist.length})
+                <div className="premium-card p-6">
+                  <h3 className="text-[11px] font-black text-white uppercase tracking-[0.3em] mb-5 flex items-center gap-3">
+                    <Wifi className="w-4 h-4 text-jcc-gold" />
+                    STAND-BY ({waitlist.length})
                   </h3>
-                  <div className="space-y-1.5 max-h-[200px] overflow-y-auto pr-2 scrollbar-thin">
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin">
                     {waitlist.length > 0 ? waitlist.map((player, i) => (
-                      <div key={player.id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-jcc-bg/50 border border-jcc-border group hover:border-jcc-gold/30 transition-all duration-300">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[9px] font-bold text-jcc-muted w-3">W{i + 1}</span>
-                          <span className="text-[12px] text-jcc-muted font-bold truncate max-w-[100px]">{player.name}</span>
+                      <div key={player.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-white/[0.03] border border-white/5 group hover:border-jcc-gold/30 hover:bg-jcc-gold/[0.02] transition-all duration-300">
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] font-black text-white/20 w-4">W{i + 1}</span>
+                          <span className="text-[13px] text-white/40 font-black uppercase tracking-tight truncate max-w-[120px]">{player.name}</span>
                         </div>
                       </div>
                     )) : (
-                      <p className="text-[11px] text-jcc-muted italic font-medium">Waitlist is empty.</p>
+                      <p className="text-[11px] text-white/10 italic font-black uppercase tracking-widest text-center py-4">Waitlist empty.</p>
                     )}
                   </div>
                 </div>
@@ -712,16 +724,17 @@ export default function RegisterPage() {
 
         {/* Rules Section */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="glass-card p-8 mt-12"
+          variants={staggerContainer}
+          initial="hidden"
+          whileInView="visible"
+          viewport={VIEWPORT_CONFIG}
+          className="premium-card p-10 mt-16"
         >
-          <h3 className="text-[13px] font-bold text-jcc-navy uppercase tracking-widest mb-6 flex items-center gap-3">
-            <ClipboardList className="w-5 h-5 text-jcc-turf" />
+          <motion.h3 variants={fadeUp} className="text-[14px] font-black text-white uppercase tracking-[0.4em] mb-8 flex items-center gap-4">
+            <ClipboardList className="w-6 h-6 text-jcc-accent" />
             Match-Day Protocol
-          </h3>
-          <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          </motion.h3>
+          <motion.ul variants={staggerContainer} className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {[
               "Arrive 15 minutes before match time for warm-up.",
               "Wear proper cricket attire and sports shoes.",
@@ -730,14 +743,18 @@ export default function RegisterPage() {
               "Confirm your attendance by Saturday 8 PM.",
               "Stay hydrated — carry your own water bottle.",
             ].map((rule, i) => (
-              <li key={i} className="flex items-start gap-4 p-4 rounded-2xl bg-jcc-bg/30 border border-jcc-border">
-                <span className="w-6 h-6 rounded-lg bg-white border border-jcc-border text-jcc-blue-deep text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+              <motion.li 
+                key={i} 
+                variants={fadeUp}
+                className="flex items-start gap-5 p-5 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-white/10 transition-colors"
+              >
+                <span className="w-7 h-7 rounded-lg bg-jcc-accent text-black text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5 shadow-lg shadow-jcc-accent/20">
                   {i + 1}
                 </span>
-                <span className="text-[13px] text-jcc-muted leading-relaxed font-medium">{rule}</span>
-              </li>
+                <span className="text-[14px] text-white/60 leading-relaxed font-medium">{rule}</span>
+              </motion.li>
             ))}
-          </ul>
+          </motion.ul>
         </motion.div>
       </div>
     </div>

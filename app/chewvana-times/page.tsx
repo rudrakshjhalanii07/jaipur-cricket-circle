@@ -7,6 +7,7 @@ import SectionHeading from "@/components/SectionHeading";
 import { BlogPost } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { useState, useEffect } from "react";
+import { fadeUp, staggerContainer, VIEWPORT_CONFIG } from "@/lib/animations";
 
 export default function ChewvanaTimesPage() {
   const [articles, setArticles] = useState<BlogPost[]>([]);
@@ -65,7 +66,11 @@ export default function ChewvanaTimesPage() {
     : articles.filter(p => p.tags.includes(selectedTag));
 
   return (
-    <div className="min-h-screen pt-28 pb-20 noise-overlay bg-jcc-bg">
+    <div className="min-h-screen pt-28 pb-20 relative overflow-hidden hero-gradient">
+      {/* Cinematic Background Elements */}
+      <div className="absolute inset-0 stadium-glow opacity-50 z-0" />
+      <div className="absolute inset-0 noise-overlay opacity-20 pointer-events-none z-0" />
+      
       <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
         {/* Header Badge */}
         <div className="text-center mb-6">
@@ -73,10 +78,10 @@ export default function ChewvanaTimesPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-jcc-purple/[0.06] border border-jcc-purple/15 mb-6"
+            className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/[0.05] border border-white/10 mb-6"
           >
-            <Newspaper className="w-3.5 h-3.5 text-jcc-purple" />
-            <span className="text-[10px] font-bold text-jcc-purple tracking-[0.25em] uppercase">
+            <Newspaper className="w-3.5 h-3.5 text-purple-400" />
+            <span className="text-[10px] font-black text-white/50 tracking-[0.25em] uppercase">
               Weekly Archive & Reports
             </span>
           </motion.div>
@@ -99,10 +104,10 @@ export default function ChewvanaTimesPage() {
             <button
               key={tag}
               onClick={() => setSelectedTag(tag)}
-              className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all duration-300 shadow-sm ${
+              className={`px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 ${
                 selectedTag === tag 
-                  ? "bg-jcc-purple text-white shadow-jcc-purple/20" 
-                  : "bg-white text-jcc-muted border border-jcc-border hover:border-jcc-purple/30 hover:text-jcc-purple"
+                  ? "bg-purple-600 text-white shadow-lg shadow-purple-600/20" 
+                  : "bg-white/5 text-white/60 border border-white/10 hover:border-purple-400/40 hover:text-white"
               }`}
             >
               {tag}
@@ -113,19 +118,25 @@ export default function ChewvanaTimesPage() {
         {/* Blog grid */}
         {loading ? (
           <div className="flex justify-center py-20">
-            <Loader2 className="w-10 h-10 animate-spin text-jcc-purple opacity-20" />
+            <Loader2 className="w-10 h-10 animate-spin text-purple-400 opacity-40" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <motion.div 
+            variants={staggerContainer}
+            initial="hidden"
+            whileInView="visible"
+            viewport={VIEWPORT_CONFIG}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          >
             {filteredArticles.map((post, i) => (
               <BlogPreviewCard key={post.id} post={post} index={i} />
             ))}
-          </div>
+          </motion.div>
         )}
 
         {filteredArticles.length === 0 && !loading && (
-            <div className="text-center py-20 glass-card">
-                <p className="text-jcc-muted italic font-medium">No stories found in the archive yet.</p>
+            <div className="text-center py-20 premium-card">
+                <p className="text-white/40 italic font-black uppercase tracking-widest">No stories found in the archive yet.</p>
             </div>
         )}
       </div>

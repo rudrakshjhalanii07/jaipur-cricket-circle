@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import FloatingWhatsApp from "@/components/FloatingWhatsApp";
 import LoaderWrapper from "@/components/LoaderWrapper";
 import PageTransition from "@/components/PageTransition";
+import { Providers } from "@/components/Providers";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -46,14 +47,16 @@ export default function RootLayout({
       className={`${inter.variable} ${fraunces.variable} ${plexMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-jcc-bg text-jcc-navy">
-        <LoaderWrapper>
-          <Navbar />
-          <main className="flex-1">
-            <PageTransition>{children}</PageTransition>
-          </main>
-          <Footer />
-          <FloatingWhatsApp />
-        </LoaderWrapper>
+        <Providers>
+          <LoaderWrapper>
+            <Navbar />
+            <main className="flex-1">
+              <PageTransition>{children}</PageTransition>
+            </main>
+            <Footer />
+            <FloatingWhatsApp />
+          </LoaderWrapper>
+        </Providers>
       </body>
     </html>
   );
