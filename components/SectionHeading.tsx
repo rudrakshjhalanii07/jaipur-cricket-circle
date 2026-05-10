@@ -25,7 +25,7 @@ export default function SectionHeading({ title, subtitle, align = "center", acce
         {title}
       </h2>
       {subtitle && (
-        <p className="text-[14px] sm:text-[16px] text-jcc-text-soft/60 max-w-2xl mx-auto leading-relaxed font-bold uppercase tracking-widest opacity-80">
+        <p className="text-[14px] sm:text-[16px] text-jcc-text-soft/80 max-w-2xl mx-auto leading-relaxed font-bold uppercase tracking-widest">
           {subtitle}
         </p>
       )}

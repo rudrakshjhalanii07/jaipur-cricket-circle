@@ -2,28 +2,46 @@
 
 import { use, useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Calendar, Clock, User, ArrowLeft, Tag, Loader2, Search, AlertCircle, HelpCircle, Target, Trophy, CheckCircle } from "lucide-react";
+import { ArrowLeft, Loader2, Search, HelpCircle, Trophy, CheckCircle } from "lucide-react";
 import Link from "next/link";
-import { BlogPost } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+interface Article {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  coverImage: string;
+  category: string;
+  date: string;
+  isDb?: boolean;
+  content: string;
+  subtitle?: string;
+  editor_name?: string;
+  reporter_alias?: string;
+  tone?: string;
+  key_question?: string;
+  match_summary?: string;
+  accused_moment?: string;
+  turning_point?: string;
+  closing_verdict?: string;
+  player_of_the_match?: string;
+  contentSections?: { type: string; content: string; caption?: string }[];
+}
+
 export default function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
-  const [post, setPost] = useState<any>(null);
+  const [post, setPost] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchPost();
-  }, [slug]);
-
-  const fetchPost = async () => {
+  async function fetchPost() {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("chewvana_articles")
         .select("*")
         .eq("slug", slug)
@@ -43,7 +61,15 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchPost();
+    }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug]);
 
   if (loading) {
     return (
@@ -58,7 +84,11 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
   }
 
   return (
-    <div className="min-h-screen pt-28 pb-20 noise-overlay bg-jcc-bg">
+    <div className="min-h-screen pt-28 pb-20 bg-jcc-bg relative overflow-hidden">
+      {/* Cinematic Background Layers */}
+      <div className="absolute inset-0 noise-overlay opacity-20 pointer-events-none z-0" />
+      <div className="absolute inset-0 bg-gradient-to-b from-jcc-navy-deep/40 via-transparent to-jcc-navy-deep/60 pointer-events-none z-0" />
+      
       <div className="max-w-4xl mx-auto px-4 sm:px-6 relative z-10">
         {/* Newspaper Header Label */}
         <div className="text-center mb-12 border-b-2 border-white/5 pb-8">
@@ -70,7 +100,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
             Chewvana Times Investigation Desk
           </motion.div>
           
-          <div className="flex items-center justify-center gap-8 text-[9px] font-black text-white/40 uppercase tracking-widest">
+          <div className="flex items-center justify-center gap-8 text-[10px] font-black text-white/60 uppercase tracking-widest">
             <span>Vol. 2025 • Issue 04</span>
             <span className="w-1.5 h-1.5 rounded-full bg-jcc-accent" />
             <span>Jaipur, Rajasthan</span>
@@ -87,7 +117,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
         >
           <Link
             href="/chewvana-times"
-            className="inline-flex items-center gap-2 text-[10px] text-white/40 hover:text-jcc-accent transition-colors duration-300 group font-black uppercase tracking-widest"
+            className="inline-flex items-center gap-2 text-[11px] text-white/60 hover:text-jcc-accent transition-colors duration-300 group font-black uppercase tracking-widest"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             Return to Archives
@@ -115,26 +145,26 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
           </h1>
 
           {post.subtitle && (
-            <p className="text-xl md:text-2xl text-white/60 font-medium italic border-l-4 border-jcc-accent pl-6 py-2 mb-10 max-w-2xl font-[var(--font-heading)]">
+            <p className="text-xl md:text-2xl text-white/80 font-medium italic border-l-4 border-jcc-accent pl-6 py-2 mb-10 max-w-2xl font-[var(--font-heading)]">
               {post.subtitle}
             </p>
           )}
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-8 border-t border-white/5">
             <div className="space-y-1">
-              <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">Editor Name</span>
+              <span className="text-[9px] font-black text-white/50 uppercase tracking-widest">Editor Name</span>
               <p className="text-sm font-black text-white news-headline uppercase italic">{post.editor_name || "Chewvana Desk"}</p>
             </div>
             <div className="space-y-1">
-              <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">Reporter Alias</span>
+              <span className="text-[9px] font-black text-white/50 uppercase tracking-widest">Reporter Alias</span>
               <p className="text-sm font-black text-white news-headline uppercase italic">{post.reporter_alias || "Anonymous Source"}</p>
             </div>
             <div className="space-y-1">
-              <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">Match Date</span>
+              <span className="text-[9px] font-black text-white/50 uppercase tracking-widest">Match Date</span>
               <p className="text-sm font-black text-white news-headline italic">{new Date(post.date).toLocaleDateString()}</p>
             </div>
             <div className="space-y-1">
-              <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">Report Status</span>
+              <span className="text-[9px] font-black text-white/50 uppercase tracking-widest">Report Status</span>
               <p className="text-sm font-black text-emerald-400 flex items-center gap-1.5 uppercase tracking-widest">
                 <CheckCircle className="w-3.5 h-3.5" /> Filed & Verified
               </p>
@@ -153,7 +183,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
             >
               <HelpCircle className="absolute -top-4 -right-4 w-24 h-24 text-jcc-accent/5 rotate-12" />
               <h3 className="text-[11px] font-black text-jcc-accent uppercase tracking-widest mb-4">The Central Question</h3>
-              <p className="text-2xl font-black text-white leading-snug news-headline italic">"{post.key_question || "What actually happened out there?"}"</p>
+              <p className="text-2xl font-black text-white leading-snug news-headline italic">&quot;{post.key_question || "What actually happened out there?"}&quot;</p>
             </motion.div>
 
             <motion.div 
@@ -164,7 +194,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
             >
               <Search className="absolute -top-4 -right-4 w-24 h-24 text-purple-500/5 -rotate-12" />
               <h3 className="text-[11px] font-black text-purple-400 uppercase tracking-widest mb-4">What Actually Happened?</h3>
-              <p className="text-sm font-medium text-white/60 leading-relaxed italic">{post.match_summary || "Chaos ensued, as per standard protocol."}</p>
+              <p className="text-sm font-medium text-white/80 leading-relaxed italic">{post.match_summary || "Chaos ensued, as per standard protocol."}</p>
             </motion.div>
 
             <motion.div 
@@ -182,22 +212,22 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
                 <div className="flex-1 space-y-6">
                   <div>
                     <h3 className="text-[10px] font-black text-jcc-accent uppercase tracking-widest mb-3">Moment Under Investigation</h3>
-                    <p className="text-4xl font-black leading-tight news-headline italic uppercase">"{post.accused_moment || "That one catch that wasn't."}"</p>
+                    <p className="text-4xl font-black leading-tight news-headline italic uppercase">&quot;{post.accused_moment || "That one catch that wasn't."}&quot;</p>
                   </div>
                   <div className="flex gap-12 border-t border-white/10 pt-6">
                     <div>
-                      <h4 className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-2">Turning Point</h4>
+                      <h4 className="text-[9px] font-black text-white/50 uppercase tracking-widest mb-2">Turning Point</h4>
                       <p className="text-base font-black text-jcc-accent news-headline italic uppercase">{post.turning_point || "Undetermined"}</p>
                     </div>
                     <div>
-                      <h4 className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-2">Verdict</h4>
+                      <h4 className="text-[9px] font-black text-white/50 uppercase tracking-widest mb-2">Verdict</h4>
                       <p className="text-base font-black text-white news-headline italic uppercase">{post.closing_verdict || "Vibes only."}</p>
                     </div>
                   </div>
                 </div>
                 <div className="w-full md:w-48 text-center shrink-0 border-l border-white/10 pl-0 md:pl-10">
                   <Trophy className="w-12 h-12 text-jcc-gold mx-auto mb-4" />
-                  <h4 className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-2">Player of the Match</h4>
+                  <h4 className="text-[9px] font-black text-white/50 uppercase tracking-widest mb-2">Player of the Match</h4>
                   <p className="text-2xl font-black text-white news-headline italic uppercase">{post.player_of_the_match || "The Umpire"}</p>
                 </div>
               </div>
@@ -242,7 +272,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
             </div>
           ) : (
             <div className="space-y-10">
-              {post.contentSections?.map((section: any, idx: number) => {
+              {post.contentSections?.map((section, idx: number) => {
                 if (section.type === "heading") {
                   return (
                     <h2
@@ -257,7 +287,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
                   return (
                     <p
                       key={idx}
-                      className="text-lg sm:text-xl text-white/60 leading-[1.8] font-medium"
+                      className="text-lg sm:text-xl text-white/80 leading-[1.8] font-medium"
                     >
                       {section.content}
                     </p>
@@ -294,9 +324,9 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
                <span className="text-[11px] font-black text-white uppercase tracking-[0.5em]">End of Investigation</span>
                <div className="w-12 h-[2px] bg-white/5" />
             </div>
-            <p className="text-[10px] text-white/30 font-black uppercase tracking-widest max-w-md mx-auto leading-relaxed">
-               All findings reported here are subject to post-match banter and extreme Sunday morning exaggeration.
-            </p>
+             <p className="text-[10px] text-white/50 font-black uppercase tracking-widest max-w-md mx-auto leading-relaxed">
+                All findings reported here are subject to post-match banter and extreme Sunday morning exaggeration.
+             </p>
         </div>
       </div>
       

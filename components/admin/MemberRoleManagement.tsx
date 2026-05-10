@@ -2,23 +2,43 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Shield, Star, User, Loader2, CheckCircle2, AlertCircle, Search, Trophy, Phone, Info } from "lucide-react";
+import { Star, User, Loader2, AlertCircle, Search, Trophy, Phone, Info } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
+interface Match {
+  id: string;
+  match_date: string;
+  match_time: string;
+  location_name: string;
+  location_map_url: string;
+  player_limit: number;
+  status: string;
+}
+
+interface PlayerRegistration {
+  player_id: string;
+  name: string;
+  phone: string;
+  cricket_role: string;
+  status: string;
+}
+
+interface MatchRole {
+  player_id: string;
+  role: string;
+  match_id: string;
+}
+
 export default function MemberRoleManagement({ adminPassword }: { adminPassword?: string }) {
-  const [match, setMatch] = useState<any>(null);
-  const [players, setPlayers] = useState<any[]>([]);
-  const [matchRoles, setMatchRoles] = useState<any[]>([]);
+  const [match, setMatch] = useState<Match | null>(null);
+  const [players, setPlayers] = useState<PlayerRegistration[]>([]);
+  const [matchRoles, setMatchRoles] = useState<MatchRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  async function fetchData() {
     try {
       setLoading(true);
       setError(null);
@@ -58,13 +78,20 @@ export default function MemberRoleManagement({ adminPassword }: { adminPassword?
 
       if (roleError) throw roleError;
       setMatchRoles(roleData || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Critical Error fetching admin data:", err);
-      setError(err.message || "Failed to load squad data.");
+      setError(err instanceof Error ? err.message : "Failed to load squad data.");
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchData();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   const getLeadershipRole = (playerId: string) => {
     return matchRoles.find(r => r.player_id === playerId)?.role || "player";
@@ -106,9 +133,9 @@ export default function MemberRoleManagement({ adminPassword }: { adminPassword?
           setMatchRoles([...matchRoles, { player_id: playerId, role: newRole, match_id: match.id }]);
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Role update error:", err);
-      setError(err.message || "Failed to update role.");
+      setError(err instanceof Error ? err.message : "Failed to update role.");
     } finally {
       setUpdating(null);
     }

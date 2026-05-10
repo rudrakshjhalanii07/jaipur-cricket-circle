@@ -436,11 +436,28 @@ export const matchHistory: MatchHistoryItem[] = [
   },
 ];
 
+// Calculate Dynamic Rivalry Data
+const baseStats = {
+  main: { mavericks: 8, neuroStrikers: 7 }, // Base before matchHistory items
+  exhibition: { mavericks: 1, neuroStrikers: 1 },
+  totalMatchesBase: 17
+};
+
 export const rivalryData = {
-  mainSeries: { mavericks: 10, neuroStrikers: 10 },
-  exhibitionSeries: { mavericks: 3, neuroStrikers: 1 },
-  totalMatches: 24,
-  recentMatches: matchHistory.slice(0, 5),
+  mainSeries: {
+    mavericks: baseStats.main.mavericks + matchHistory.filter(m => m.type === 'main' && m.winner === 'Mavericks').length,
+    neuroStrikers: baseStats.main.neuroStrikers + matchHistory.filter(m => m.type === 'main' && m.winner === 'NeuroStrikers').length,
+  },
+  exhibitionSeries: {
+    mavericks: baseStats.exhibition.mavericks + matchHistory.filter(m => m.type === 'exhibition' && m.winner === 'Mavericks').length,
+    neuroStrikers: baseStats.exhibition.neuroStrikers + matchHistory.filter(m => m.type === 'exhibition' && m.winner === 'NeuroStrikers').length,
+  },
+  get totalMatches() {
+    return baseStats.totalMatchesBase + matchHistory.length;
+  },
+  get recentMatches() {
+    return matchHistory.slice(0, 5);
+  }
 };
 
 // ----- Registration Data -----

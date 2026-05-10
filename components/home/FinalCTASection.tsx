@@ -5,7 +5,6 @@ import Link from "next/link";
 import { ChevronRight, Sparkles, BookOpen } from "lucide-react";
 import {
   FloatingCricketBall,
-  FloatingParticles,
 } from "./CricketDecorations";
 
 export default function FinalCTASection() {

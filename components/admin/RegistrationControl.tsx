@@ -2,19 +2,21 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Users, Trash2, ArrowUpCircle, Loader2, CheckCircle2, Wifi, Search } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Trash2, ArrowUpCircle, Loader2, CheckCircle2, Wifi } from "lucide-react";
+interface PlayerRegistration {
+  id: string;
+  name: string;
+  phone: string;
+  cricket_role: string;
+  status: string;
+}
 
 export default function RegistrationControl({ adminPassword }: { adminPassword?: string }) {
-  const [registrations, setRegistrations] = useState<any[]>([]);
+  const [registrations, setRegistrations] = useState<PlayerRegistration[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchRegistrations();
-  }, []);
-
-  const fetchRegistrations = async () => {
+  async function fetchRegistrations() {
     try {
       // Get the latest match first
       const { data: matchData } = await supabase
@@ -39,7 +41,14 @@ export default function RegistrationControl({ adminPassword }: { adminPassword?:
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchRegistrations();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   const deleteRegistration = async (id: string) => {
     if (!confirm("Are you sure you want to remove this player?")) return;

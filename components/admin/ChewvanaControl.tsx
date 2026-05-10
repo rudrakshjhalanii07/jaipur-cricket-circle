@@ -12,9 +12,7 @@ import {
   Loader2,
   AlertCircle,
   Calendar,
-  Tag,
   User,
-  ChevronRight,
   Image as ImageIcon,
   Layout,
   ExternalLink,
@@ -78,11 +76,7 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastUsedImage, setLastUsedImage] = useState<string>("");
 
-  useEffect(() => {
-    fetchArticles();
-  }, []);
-
-  const fetchArticles = async () => {
+  async function fetchArticles() {
     try {
       setLoading(true);
       const response = await fetch("/api/admin/articles", {
@@ -91,12 +85,20 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
       if (!response.ok) throw new Error("Failed to fetch articles");
       const data = await response.json();
       setArticles(data);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An unknown error occurred");
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchArticles();
+    }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCloseRequest = () => {
     if (isSubmitting) return;
@@ -160,8 +162,8 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
       });
       if (!response.ok) throw new Error("Failed to delete article");
       setArticles(articles.filter(a => a.id !== id));
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to delete article");
     }
   };
 
@@ -186,8 +188,8 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
         // Update local state with the new status
         setArticles(articles.map(a => a.id === article.id ? { ...a, status: nextStatus } : a));
       }
-    } catch (err: any) {
-      alert("Error updating status: " + err.message);
+    } catch (err: unknown) {
+      alert("Error updating status: " + (err instanceof Error ? err.message : "Unknown error"));
     }
   };
 
@@ -231,8 +233,8 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
       }
       setIsModalOpen(false);
       setEditingArticle(null);
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to save article");
     } finally {
       setIsSubmitting(false);
     }
@@ -322,15 +324,15 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
                     </span>
                   </div>
                   <h4 className="text-xl font-black text-white mb-2 truncate uppercase tracking-tight">{article.title}</h4>
-                  <p className="text-[14px] text-white/40 font-medium line-clamp-1 italic">"{article.excerpt || "No intelligence summary provided."}"</p>
+                  <p className="text-[14px] text-white/70 font-medium line-clamp-1 italic">&quot;{article.excerpt || "No intelligence summary provided."}&quot;</p>
 
                   <div className="flex items-center gap-5 mt-4">
-                    <div className="flex items-center gap-2 text-[11px] text-white/50 font-black uppercase tracking-widest">
-                      <User className="w-4 h-4 text-jcc-accent" /> {article.author}
+                    <div className="flex items-center gap-2 text-[11px] text-white/60 font-black uppercase tracking-widest">
+                      <User className="w-3.5 h-3.5 text-jcc-accent" /> {article.reporter_alias || "The Chupa Captain"}
                     </div>
                     {article.match_date && (
-                      <div className="flex items-center gap-2 text-[11px] text-white/50 font-black uppercase tracking-widest">
-                        <Calendar className="w-4 h-4 text-emerald-400" /> {new Date(article.match_date).toLocaleDateString()}
+                      <div className="flex items-center gap-2 text-[11px] text-white/60 font-black uppercase tracking-widest">
+                        <Calendar className="w-3.5 h-3.5 text-purple-400" /> {new Date(article.match_date).toLocaleDateString()}
                       </div>
                     )}
                     <div className="flex items-center gap-2 text-[11px] text-white/20 font-black uppercase tracking-[0.2em]">
@@ -344,7 +346,7 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
                 <a
                   href={`/chewvana-times/${article.slug}`}
                   target="_blank"
-                  className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/40 hover:text-white hover:bg-white/10 transition-all text-[11px] font-black uppercase tracking-widest shadow-lg"
+                  className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all text-[11px] font-black uppercase tracking-widest shadow-lg"
                 >
                   <Eye className="w-4 h-4" />
                   Preview
@@ -362,13 +364,13 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleEdit(article)}
-                    className="w-11 h-11 rounded-2xl bg-black/40 border border-white/10 text-white/20 hover:text-jcc-accent hover:bg-jcc-accent/10 transition-all flex items-center justify-center shadow-lg"
+                    className="w-11 h-11 rounded-2xl bg-black/40 border border-white/10 text-white/60 hover:text-jcc-accent hover:bg-jcc-accent/10 transition-all flex items-center justify-center shadow-lg"
                   >
                     <Edit2 className="w-4.5 h-4.5" />
                   </button>
                   <button
                     onClick={() => handleDelete(article.id)}
-                    className="w-11 h-11 rounded-2xl bg-black/40 border border-white/10 text-white/20 hover:text-jcc-ball-red hover:bg-jcc-ball-red/10 transition-all flex items-center justify-center shadow-lg"
+                    className="w-11 h-11 rounded-2xl bg-black/40 border border-white/10 text-white/60 hover:text-jcc-ball-red hover:bg-jcc-ball-red/10 transition-all flex items-center justify-center shadow-lg"
                   >
                     <Trash2 className="w-4.5 h-4.5" />
                   </button>
@@ -408,7 +410,7 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
                   </div>
                   <div>
                     <h3 className="text-xl font-black text-white uppercase tracking-tight">{editingArticle?.id ? "Modify intelligence" : "Construct Intel report"}</h3>
-                    <p className="text-[10px] text-white/30 font-black uppercase tracking-[0.2em] mt-1">Dossier drafting sequence active</p>
+                    <p className="text-[10px] text-white/60 font-black uppercase tracking-[0.2em] mt-1">Dossier drafting sequence active</p>
                   </div>
                 </div>
                 <button
@@ -416,7 +418,7 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
                   disabled={isSubmitting}
                   className="w-12 h-12 rounded-full hover:bg-white/5 flex items-center justify-center transition-all group"
                 >
-                  <X className="w-7 h-7 text-white/20 group-hover:text-white" />
+                  <X className="w-7 h-7 text-white/40 group-hover:text-white" />
                 </button>
               </div>
 
@@ -427,7 +429,7 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                     <div className="space-y-6">
                       <div className="space-y-3">
-                        <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Codename / Headline *</label>
+                        <label className="text-[10px] font-black text-white/60 uppercase tracking-[0.2em] px-1">Codename / Headline *</label>
                         <input
                           type="text"
                           required
@@ -446,9 +448,9 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
                       </div>
 
                       <div className="space-y-3">
-                        <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Network Path (Slug) *</label>
+                        <label className="text-[10px] font-black text-white/60 uppercase tracking-[0.2em] px-1">Network Path (Slug) *</label>
                         <div className="relative group">
-                          <span className="absolute left-5 top-1/2 -translate-y-1/2 text-white/20 font-black text-sm">/</span>
+                          <span className="absolute left-5 top-1/2 -translate-y-1/2 text-white/40 font-black text-sm">/</span>
                           <input
                             type="text"
                             required

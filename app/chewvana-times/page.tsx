@@ -1,24 +1,20 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Newspaper, Tag, Loader2 } from "lucide-react";
+import { Newspaper, Loader2 } from "lucide-react";
 import BlogPreviewCard from "@/components/BlogPreviewCard";
 import SectionHeading from "@/components/SectionHeading";
 import { BlogPost } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { useState, useEffect } from "react";
-import { fadeUp, staggerContainer, VIEWPORT_CONFIG } from "@/lib/animations";
+import { staggerContainer, VIEWPORT_CONFIG } from "@/lib/animations";
 
 export default function ChewvanaTimesPage() {
   const [articles, setArticles] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTag, setSelectedTag] = useState("All Stories");
 
-  useEffect(() => {
-    fetchArticles();
-  }, []);
-
-  const fetchArticles = async () => {
+  async function fetchArticles() {
     try {
       setLoading(true);
       
@@ -58,7 +54,14 @@ export default function ChewvanaTimesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchArticles();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   const allTags = ["All Stories", ...Array.from(new Set(articles.flatMap((p) => p.tags)))];
   const filteredArticles = selectedTag === "All Stories" 

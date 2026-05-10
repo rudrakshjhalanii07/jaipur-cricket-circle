@@ -1,0 +1,162 @@
+
+> jaipur-cricket-circle@0.1.0 lint
+> eslint
+
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/admin/page.tsx
+  12:3   warning  'Lock' is defined but never used  @typescript-eslint/no-unused-vars
+  48:18  warning  'e' is defined but never used     @typescript-eslint/no-unused-vars
+  76:14  warning  'e' is defined but never used     @typescript-eslint/no-unused-vars
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/api/admin/articles/create/route.ts
+  71:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/api/admin/articles/delete/route.ts
+  27:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/api/admin/articles/publish/route.ts
+  19:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  40:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/api/admin/articles/route.ts
+  21:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/api/admin/articles/update/route.ts
+  47:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  90:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/api/admin/assign-role/route.ts
+  63:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/api/admin/matches/create/route.ts
+  37:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/api/admin/matches/delete/route.ts
+  32:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/api/admin/matches/update/route.ts
+  45:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/api/admin/players/approve/route.ts
+  41:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/api/admin/players/create/route.ts
+  22:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/api/admin/players/deactivate/route.ts
+  27:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/api/admin/players/reject/route.ts
+  29:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/api/admin/players/update/route.ts
+  27:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/api/admin/promote-waitlist/route.ts
+  28:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/api/admin/registrations/archive-past/route.ts
+  46:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/api/admin/remove-registration/route.ts
+  28:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/api/admin/update-match/route.ts
+  28:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/api/admin/verify-password/route.ts
+  16:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/api/player/lookup/route.ts
+  39:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/chewvana-times/[slug]/page.tsx
+  242:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  296:25  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/members/[id]/page.tsx
+   5:21  warning  'Mail' is defined but never used                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+  19:9   warning  'team' is assigned a value but never used                                                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
+  52:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/register/page.tsx
+  529:29  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/app/rivalry/page.tsx
+    4:10  warning  'Swords' is defined but never used    @typescript-eslint/no-unused-vars
+    4:34  warning  'Calendar' is defined but never used  @typescript-eslint/no-unused-vars
+    8:18  warning  'scaleIn' is defined but never used   @typescript-eslint/no-unused-vars
+   84:37  warning  'i' is defined but never used         @typescript-eslint/no-unused-vars
+  153:24  warning  'i' is defined but never used         @typescript-eslint/no-unused-vars
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/components/BlogPreviewCard.tsx
+   4:20  warning  'Clock' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+  30:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/components/FloatingWhatsApp.tsx
+  3:10  warning  'useState' is defined but never used         @typescript-eslint/no-unused-vars
+  4:18  warning  'AnimatePresence' is defined but never used  @typescript-eslint/no-unused-vars
+  5:10  warning  'MessageCircle' is defined but never used    @typescript-eslint/no-unused-vars
+  5:25  warning  'X' is defined but never used                @typescript-eslint/no-unused-vars
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/components/MemberCard.tsx
+  46:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/components/ScorelineCard.tsx
+  57:3  warning  'isDark' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/components/admin/ChewvanaControl.tsx
+   88:19  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  165:19  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  191:19  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  236:19  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  306:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  638:29  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/components/admin/MatchControl.tsx
+  192:14  warning  'err' is defined but never used  @typescript-eslint/no-unused-vars
+  219:14  warning  'err' is defined but never used  @typescript-eslint/no-unused-vars
+  245:14  warning  'err' is defined but never used  @typescript-eslint/no-unused-vars
+  276:14  warning  'err' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/components/admin/MemberControl.tsx
+  228:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/components/admin/MemberRoleManagement.tsx
+   81:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  136:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/components/admin/PastVenuesModal.tsx
+  28:9  error  Error: Cannot access variable before it is declared
+
+`fetchVenues` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/components/admin/PastVenuesModal.tsx:28:9
+  26 |     if (isOpen) {
+  27 |       const timer = setTimeout(() => {
+> 28 |         fetchVenues();
+     |         ^^^^^^^^^^^ `fetchVenues` accessed before it is declared
+  29 |       }, 0);
+  30 |       return () => clearTimeout(timer);
+  31 |     }
+
+/Users/rudrakshjhalani/Projects/jaipur-cricket-circle/components/admin/PastVenuesModal.tsx:34:3
+  32 |   }, [isOpen]);
+  33 |
+> 34 |   async function fetchVenues() {
+     |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 35 |     setLoading(true);
+     | ^^^^^^^^^^^^^^^^^^^^^
+> 36 |     try {
+     …
+     | ^^^^^^^^^^^^^^^^^^^^^
+> 61 |     }
+     | ^^^^^^^^^^^^^^^^^^^^^
+> 62 |   }
+     | ^^^^ `fetchVenues` is declared here
+  63 |
+  64 |   const filteredVenues = venues.filter(v => 
+  65 |     v.location_name.toLowerCase().includes(search.toLowerCase())  react-hooks/immutability
+
+✖ 58 problems (29 errors, 29 warnings)
+

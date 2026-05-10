@@ -149,7 +149,12 @@ export default function RivalryPage() {
             { label: "Matches Played", value: rivalryData.totalMatches, icon: History, color: "text-jcc-accent" },
             { label: "Mavericks Wins", value: rivalryData.mainSeries.mavericks + rivalryData.exhibitionSeries.mavericks, icon: Trophy, color: "text-jcc-accent" },
             { label: "NeuroStrikers Wins", value: rivalryData.mainSeries.neuroStrikers + rivalryData.exhibitionSeries.neuroStrikers, icon: Trophy, color: "text-jcc-ball-red" },
-            { label: "Win Rate", value: "50%", icon: TrendingUp, color: "text-jcc-gold" },
+            { 
+              label: "Mavs Win Rate", 
+              value: Math.round(((rivalryData.mainSeries.mavericks + rivalryData.exhibitionSeries.mavericks) / rivalryData.totalMatches) * 100) + "%", 
+              icon: TrendingUp, 
+              color: "text-jcc-gold" 
+            },
           ].map((stat, i) => (
             <motion.div
               key={stat.label}

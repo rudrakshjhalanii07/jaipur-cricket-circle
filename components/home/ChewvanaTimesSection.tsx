@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
-import { Newspaper, ChevronRight, Calendar, Clock, User } from "lucide-react";
+import { Newspaper, ChevronRight, Calendar } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
@@ -19,11 +19,6 @@ interface Article {
   published_at: string;
   author_name?: string;
 }
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6 } }
-};
 
 export default function ChewvanaTimesSection() {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -56,7 +51,7 @@ export default function ChewvanaTimesSection() {
           })));
         }
       } catch (err) {
-        console.warn("Chewvana: Supabase fetch inactive or failed, using local fallback.");
+        console.warn("Chewvana: Supabase fetch inactive or failed, using local fallback.", err);
         // Fallback on error
         setArticles(blogPosts.slice(0, 3).map(bp => ({
           id: bp.id,
@@ -145,7 +140,7 @@ export default function ChewvanaTimesSection() {
                     {article.title}
                   </h3>
                   <p className="text-white/60 text-[15px] font-medium line-clamp-3 mb-8 flex-1 leading-relaxed italic">
-                    "{article.excerpt}"
+                    &quot;{article.excerpt}&quot;
                   </p>
                   <Link
                     href={`/chewvana-times/${article.slug}`}

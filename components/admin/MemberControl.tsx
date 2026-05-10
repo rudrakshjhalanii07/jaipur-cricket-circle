@@ -3,29 +3,41 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { 
-  Users, UserPlus, Search, Edit2, Trash2, Shield, 
-  Trophy, Star, Activity, Loader2, Save, X, Clock,
-  ChevronRight, Phone, Mail, Award, CheckCircle2, AlertCircle
+  Users, UserPlus, Search, Edit2, 
+  Star, Activity, Loader2, Save, X, Clock,
+  ChevronRight, Phone, CheckCircle2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
+interface Player {
+  id: string;
+  name: string;
+  phone: string;
+  cricket_role: string;
+  team: string;
+  member_tag: string;
+  group_role: string;
+  is_active: boolean;
+  approval_status: string;
+  image_url?: string;
+  short_bio?: string;
+  batting_style?: string;
+  bowling_style?: string;
+  created_at: string;
+}
+
 export default function MemberControl({ adminPassword }: { adminPassword?: string }) {
-  const [players, setPlayers] = useState<any[]>([]);
+  const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [editingPlayer, setEditingPlayer] = useState<any>(null);
+  const [editingPlayer, setEditingPlayer] = useState<Partial<Player> | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
 
   const [view, setView] = useState<"all" | "pending">("all");
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchPlayers();
-  }, []);
-
-  const fetchPlayers = async () => {
+  async function fetchPlayers() {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -40,7 +52,14 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchPlayers();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleApproval = async (id: string, action: "approve" | "reject") => {
     setIsProcessing(id);
@@ -67,7 +86,7 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    setStatus("idle");
+    setSaving(true);
 
     const endpoint = isAdding ? "/api/admin/players/create" : "/api/admin/players/update";
     const body = isAdding ? { ...editingPlayer, approval_status: 'approved' } : { id: editingPlayer.id, updates: editingPlayer };
@@ -84,14 +103,11 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
 
       if (!response.ok) throw new Error("Operation failed");
 
-      setStatus("success");
       fetchPlayers();
       setEditingPlayer(null);
       setIsAdding(false);
-      setTimeout(() => setStatus("idle"), 3000);
     } catch (err) {
       console.error("Error saving player:", err);
-      setStatus("error");
     } finally {
       setSaving(false);
     }

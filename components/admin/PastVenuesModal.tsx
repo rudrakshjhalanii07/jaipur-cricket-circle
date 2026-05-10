@@ -22,13 +22,7 @@ export default function PastVenuesModal({ isOpen, onClose, onSelect }: PastVenue
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchVenues();
-    }
-  }, [isOpen]);
-
-  const fetchVenues = async () => {
+  async function fetchVenues() {
     setLoading(true);
     try {
       // Select distinct venue names and their latest URLs/dates
@@ -43,7 +37,7 @@ export default function PastVenuesModal({ isOpen, onClose, onSelect }: PastVenue
       const uniqueVenues: Venue[] = [];
       const seenNames = new Set();
       
-      data?.forEach((v: any) => {
+      (data as Venue[])?.forEach((v) => {
         if (!seenNames.has(v.location_name)) {
           seenNames.add(v.location_name);
           uniqueVenues.push(v);
@@ -56,7 +50,16 @@ export default function PastVenuesModal({ isOpen, onClose, onSelect }: PastVenue
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        fetchVenues();
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
 
   const filteredVenues = venues.filter(v => 
     v.location_name.toLowerCase().includes(search.toLowerCase())

@@ -8,7 +8,7 @@ import SectionHeading from "@/components/SectionHeading";
 import { members } from "@/lib/data";
 import type { Member, MemberTag } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
-import { fadeUp, staggerContainer, VIEWPORT_CONFIG } from "@/lib/animations";
+import { staggerContainer, VIEWPORT_CONFIG } from "@/lib/animations";
 
 type FilterKey = "all" | MemberTag;
 
@@ -27,11 +27,7 @@ export default function MembersPage() {
   const [dbPlayers, setDbPlayers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchPlayers();
-  }, []);
-
-  const fetchPlayers = async () => {
+  async function fetchPlayers() {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -57,7 +53,7 @@ export default function MembersPage() {
             role: p.group_role ? (p.group_role.charAt(0).toUpperCase() + p.group_role.slice(1)) : (p.cricket_role.charAt(0).toUpperCase() + p.cricket_role.slice(1)),
             tags: tags,
             image: p.image,
-            cricketRole: p.cricket_role as any,
+            cricketRole: p.cricket_role as Member["cricketRole"],
             battingStyle: p.batting_style || "Right-hand bat",
             bowlingStyle: p.bowling_style || "N/A",
             shortBio: p.bio || "A valued member of the circle.",
@@ -71,7 +67,14 @@ export default function MembersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchPlayers();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   const currentMembers = dbPlayers.length > 0 ? dbPlayers : members;
 

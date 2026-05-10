@@ -56,14 +56,14 @@ export default function BlogPreviewCard({ post, index }: { post: BlogPost; index
               {post.excerpt}
             </p>
             <div className="flex items-center gap-3 pt-3 border-t border-white/10">
-              <span className="flex items-center gap-1.5 text-[10px] text-white/60 font-black uppercase tracking-widest">
+              <span className="flex items-center gap-1.5 text-[10px] text-white/80 font-black uppercase tracking-widest">
                 <Calendar className="w-3.5 h-3.5" />
                 {new Date(post.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
               </span>
               <span className="flex items-center gap-1.5 text-[10px] font-black text-purple-400 uppercase tracking-widest">
                 {post.readTime}
               </span>
-              <span className="ml-auto text-[10px] text-white/50 font-black uppercase tracking-widest truncate max-w-[120px] text-right" title={post.author}>
+              <span className="ml-auto text-[10px] text-white/70 font-black uppercase tracking-widest truncate max-w-[120px] text-right" title={post.author}>
                 {post.author}
               </span>
             </div>

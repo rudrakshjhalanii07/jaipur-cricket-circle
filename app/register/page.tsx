@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   CalendarCheck,
   Clock,
@@ -14,12 +14,11 @@ import {
   ExternalLink,
   Loader2,
   Send,
-  Trophy,
   Calendar,
 } from "lucide-react";
 import SectionHeading from "@/components/SectionHeading";
 import { supabase } from "@/lib/supabase";
-import { fadeUp, scaleIn, staggerContainer, VIEWPORT_CONFIG } from "@/lib/animations";
+import { fadeUp, staggerContainer, VIEWPORT_CONFIG } from "@/lib/animations";
 
 interface Match {
   id: string;
@@ -39,6 +38,16 @@ interface Registration {
   status: "confirmed" | "waitlist";
 }
 
+interface Player {
+  id: string;
+  name: string;
+  phone: string;
+  cricket_role: string;
+  approval_status: "pending" | "approved" | "rejected";
+  team?: string;
+  image_url?: string;
+}
+
 export default function RegisterPage() {
   const [match, setMatch] = useState<Match | null>(null);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
@@ -53,12 +62,9 @@ export default function RegisterPage() {
 
   const [registrationMode, setRegistrationMode] = useState<"existing" | "new">("existing");
   const [lookupLoading, setLookupLoading] = useState(false);
-  const [existingPlayer, setExistingPlayer] = useState<any>(null);
+  const [existingPlayer, setExistingPlayer] = useState<Player | null>(null);
   const [lookupError, setLookupError] = useState("");
 
-  useEffect(() => {
-    fetchMatchAndRegistrations();
-  }, []);
 
   const handleLookup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,13 +91,14 @@ export default function RegisterPage() {
         setLookupError("No member found with this number. Please register as a new member.");
       }
     } catch (err) {
+      console.error("Lookup error:", err);
       setLookupError("Error looking up member. Please try again.");
     } finally {
       setLookupLoading(false);
     }
   };
 
-  const fetchMatchAndRegistrations = async () => {
+  async function fetchMatchAndRegistrations() {
     try {
       setLoading(true);
       const today = new Date().toISOString().split('T')[0];
@@ -124,12 +131,19 @@ export default function RegisterPage() {
         if (regError) throw regError;
         setRegistrations(regData || []);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error fetching match data details:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchMatchAndRegistrations();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,7 +156,7 @@ export default function RegisterPage() {
       // 3. New Member Mode: Just create player and wait for approval
       if (registrationMode === "new") {
         // 1. Check if player exists by phone
-        let { data: playerData, error: playerError } = await supabase
+        const { data: playerData, error: playerError } = await supabase
           .from("players")
           .select("id, approval_status")
           .eq("phone", formData.phone)
@@ -181,7 +195,7 @@ export default function RegisterPage() {
       }
 
       // Existing Member Mode
-      let player_id = existingPlayer?.id;
+      const player_id = existingPlayer?.id;
       if (!player_id) throw new Error("Player context lost");
 
       // 3. Check for duplicate registration for same match
@@ -213,7 +227,7 @@ export default function RegisterPage() {
       setFormData({ name: "", phone: "", cricket_role: "all-rounder" });
       setExistingPlayer(null);
       fetchMatchAndRegistrations(); 
-    } catch (error: any) {
+    } catch (error) {
       console.error("Registration error:", error);
       setFormStatus("error");
     } finally {

@@ -5,14 +5,13 @@ import Link from "next/link";
 import {
   ChevronRight,
   Users,
-  Newspaper,
   CalendarCheck,
   TrendingUp,
   ChevronDown,
 } from "lucide-react";
 import { LightRays, DotGrid, FloatingParticles } from "./CricketDecorations";
 import { clubStats } from "@/lib/data";
-import { fadeUp, scaleIn, staggerContainer, VIEWPORT_CONFIG } from "@/lib/animations";
+import { fadeUp, scaleIn, staggerContainer } from "@/lib/animations";
 
 // ---- Hero Cricket Animation (Bat striking Ball) ----
 function CricketHeroAnimation() {

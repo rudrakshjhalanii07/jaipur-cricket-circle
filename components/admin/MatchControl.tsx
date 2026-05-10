@@ -5,14 +5,24 @@ import { supabase } from "@/lib/supabase";
 import { 
   Calendar, Clock, MapPin, Users, Save, Lock, Unlock, Loader2, 
   CheckCircle2, AlertCircle, Edit3, Trash2, PlusCircle, X, ChevronRight,
-  ExternalLink, History, Timer, Map, Trophy, ArrowRight
+  ExternalLink, History, Timer, Trophy
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ConfirmDialog from "./ConfirmDialog";
 import PastVenuesModal from "./PastVenuesModal";
 
+interface Match {
+  id: string;
+  match_date: string;
+  match_time: string;
+  location_name: string;
+  location_map_url: string;
+  player_limit: number;
+  status: string;
+}
+
 export default function MatchControl({ adminPassword }: { adminPassword?: string }) {
-  const [match, setMatch] = useState<any>(null);
+  const [match, setMatch] = useState<Match | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
@@ -20,7 +30,7 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
   // UX States
   const [isEditing, setIsEditing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [editData, setEditData] = useState<any>(null);
+  const [editData, setEditData] = useState<Match | null>(null);
   const [showVenues, setShowVenues] = useState(false);
   
   // New UI states
@@ -43,19 +53,7 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
     variant: "primary"
   });
 
-  useEffect(() => {
-    fetchMatch();
-  }, []);
-
-  useEffect(() => {
-    if (match) {
-      updateCountdown(); // Run immediately
-      const interval = setInterval(updateCountdown, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [match]);
-
-  const updateCountdown = () => {
+  function updateCountdown() {
     if (!match?.match_date) {
       setTimeLeft("Scheduling...");
       return;
@@ -105,9 +103,9 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
       console.error("Countdown error:", err);
       setTimeLeft("Date Error");
     }
-  };
+  }
 
-  const fetchMatch = async () => {
+  async function fetchMatch() {
     try {
       const { data, error } = await supabase
         .from("matches")
@@ -127,9 +125,9 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
           .eq("match_id", data.id);
         
         if (regs) {
-          const confirmed = regs.filter(r => r.status === 'confirmed').length;
-          const waitlist = regs.filter(r => r.status === 'waitlist').length;
-          setRegCounts({ confirmed, waitlist });
+          const confirmedCount = regs.filter(r => r.status === 'confirmed').length;
+          const waitlistCount = regs.filter(r => r.status === 'waitlist').length;
+          setRegCounts({ confirmed: confirmedCount, waitlist: waitlistCount });
         }
       }
     } catch (err) {
@@ -137,7 +135,28 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchMatch();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (match) {
+      const timer = setTimeout(() => {
+        updateCountdown();
+      }, 0);
+      const interval = setInterval(updateCountdown, 1000);
+      return () => {
+        clearTimeout(timer);
+        clearInterval(interval);
+      };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [match]);
 
   const handleUpdate = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -157,8 +176,8 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
             match_time: editData.match_time,
             location_name: editData.location_name,
             location_map_url: editData.location_map_url,
-            player_limit: parseInt(editData.player_limit),
-            status: editData.status
+            player_limit: parseInt(editData?.player_limit.toString() || "18"),
+            status: editData?.status
           }
         }),
       });
@@ -450,7 +469,7 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
                       <div className="space-y-3">
                         <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Player Limit</label>
                         <input type="number" className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none text-white text-[15px] font-black shadow-inner" 
-                          value={editData.player_limit} onChange={e => setEditData({...editData, player_limit: e.target.value})} />
+                          value={editData?.player_limit} onChange={e => setEditData({...editData!, player_limit: parseInt(e.target.value)})} />
                       </div>
                     </div>
                     <div className="space-y-3">

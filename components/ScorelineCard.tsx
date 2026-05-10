@@ -56,7 +56,8 @@ export default function ScorelineCard({
   team2Color,
   isDark = false,
 }: ScorelineCardProps) {
-  const leader = team1Score > team2Score ? team1 : team2;
+  const isTied = team1Score === team2Score;
+  const leader = team1Score > team2Score ? team1 : (team2Score > team1Score ? team2 : null);
 
   return (
     <motion.div
@@ -69,7 +70,7 @@ export default function ScorelineCard({
     >
       <div
         className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent ${
-          leader === team1 ? "via-jcc-accent" : "via-jcc-ball-red"
+          isTied ? "via-jcc-gold" : (leader === team1 ? "via-jcc-accent" : "via-jcc-ball-red")
         } to-transparent opacity-40`}
       />
       
@@ -79,10 +80,10 @@ export default function ScorelineCard({
         >
           <span
             className={`w-2 h-2 rounded-full ${
-              leader === team1 ? "bg-jcc-accent shadow-[0_0_10px_#00C2FF]" : "bg-jcc-ball-red shadow-[0_0_10px_#FF4D4D]"
+              isTied ? "bg-jcc-gold shadow-[0_0_10px_#FFB800]" : (leader === team1 ? "bg-jcc-accent shadow-[0_0_10px_#00C2FF]" : "bg-jcc-ball-red shadow-[0_0_10px_#FF4D4D]")
             } animate-pulse`}
           />
-          {label}
+          {label} {isTied && <span className="ml-2 text-jcc-gold opacity-100">— Series Tied</span>}
         </span>
       </div>
 
@@ -97,6 +98,9 @@ export default function ScorelineCard({
             <AnimatedNumber target={team1Score} color={team1Color} />
             {leader === team1 && (
                <div className="absolute inset-0 bg-jcc-accent/20 blur-[40px] opacity-20" />
+            )}
+            {isTied && (
+               <div className="absolute inset-0 bg-jcc-gold/10 blur-[40px] opacity-10" />
             )}
           </div>
           {leader === team1 && (
@@ -134,6 +138,9 @@ export default function ScorelineCard({
             <AnimatedNumber target={team2Score} color={team2Color} />
             {leader === team2 && (
                <div className="absolute inset-0 bg-jcc-ball-red/20 blur-[40px] opacity-20" />
+            )}
+            {isTied && (
+               <div className="absolute inset-0 bg-jcc-gold/10 blur-[40px] opacity-10" />
             )}
           </div>
           {leader === team2 && (

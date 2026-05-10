@@ -81,7 +81,7 @@ export default function RivalrySection() {
 
         {/* Timeline Refinement */}
         <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: false, amount: 0.2 }} transition={{ delay: 0.5 }} className="mt-12 flex items-center justify-center gap-3">
-          {matchHistory.slice(0, 10).map((match, i) => (
+          {matchHistory.slice(0, 10).map((match) => (
             <div
               key={match.id}
               className="w-2.5 h-2.5 rounded-full border border-white/10"
