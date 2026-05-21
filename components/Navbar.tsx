@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { fadeDown } from "@/lib/animations";
+import LiveTicker from "./LiveTicker";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -13,6 +14,7 @@ const navLinks = [
   { href: "/members", label: "Members" },
   { href: "/rivalry", label: "Rivalry" },
   { href: "/register", label: "Register" },
+  { href: "/profile", label: "Profile" },
   { href: "/about", label: "About" },
 ];
 
@@ -34,6 +36,7 @@ export default function Navbar() {
       animate="visible"
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? "bg-jcc-navy/80 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.3)]" : "bg-transparent"}`}
     >
+      <LiveTicker isNavbarScrolled={scrolled} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
           <Link href="/" className="flex items-center gap-2.5 group">

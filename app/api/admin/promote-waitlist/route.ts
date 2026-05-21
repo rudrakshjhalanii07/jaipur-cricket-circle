@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     // 2. Promote Player
     const { error } = await supabaseAdmin
       .from("registrations")
-      .update({ status: "confirmed" })
+      .update({ status: "registered" })
       .eq("id", registration_id);
 
     if (error) throw error;

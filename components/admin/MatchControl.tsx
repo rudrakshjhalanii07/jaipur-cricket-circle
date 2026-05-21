@@ -125,7 +125,7 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
           .eq("match_id", data.id);
         
         if (regs) {
-          const confirmedCount = regs.filter(r => r.status === 'confirmed').length;
+          const confirmedCount = regs.filter(r => r.status === 'registered').length;
           const waitlistCount = regs.filter(r => r.status === 'waitlist').length;
           setRegCounts({ confirmed: confirmedCount, waitlist: waitlistCount });
         }

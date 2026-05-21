@@ -84,7 +84,7 @@ export interface Team {
 export interface RegisteredPlayer {
   id: string;
   name: string;
-  status: "confirmed" | "waitlist";
+  status: "registered" | "waitlist";
 }
 
 export interface RegistrationData {
@@ -472,21 +472,21 @@ export const registrationData: RegistrationData = {
   playerLimit: 18,
   registrationStatus: "full",
   registeredPlayers: [
-    { id: "rp1", name: "Opal Chaudhary", status: "confirmed" },
-    { id: "rp2", name: "Nitin Setia", status: "confirmed" },
-    { id: "rp3", name: "Sagar Sharma", status: "confirmed" },
-    { id: "rp4", name: "Abhijeet Singh Shekhawat", status: "confirmed" },
-    { id: "rp5", name: "DJ Nitesh", status: "confirmed" },
-    { id: "rp6", name: "Rohit Meena", status: "confirmed" },
-    { id: "rp7", name: "Arjun Rathore", status: "confirmed" },
-    { id: "rp8", name: "Vikram Joshi", status: "confirmed" },
-    { id: "rp9", name: "Karan Patel", status: "confirmed" },
-    { id: "rp10", name: "Harsh Tanwar", status: "confirmed" },
-    { id: "rp11", name: "Deepak Saini", status: "confirmed" },
-    { id: "rp12", name: "Manish Yadav", status: "confirmed" },
-    { id: "rp13", name: "Prateek Kulhari", status: "confirmed" },
-    { id: "rp14", name: "Rajat Choudhary", status: "confirmed" },
-    { id: "rp15", name: "Aditya Verma", status: "confirmed" },
+    { id: "rp1", name: "Opal Chaudhary", status: "registered" },
+    { id: "rp2", name: "Nitin Setia", status: "registered" },
+    { id: "rp3", name: "Sagar Sharma", status: "registered" },
+    { id: "rp4", name: "Abhijeet Singh Shekhawat", status: "registered" },
+    { id: "rp5", name: "DJ Nitesh", status: "registered" },
+    { id: "rp6", name: "Rohit Meena", status: "registered" },
+    { id: "rp7", name: "Arjun Rathore", status: "registered" },
+    { id: "rp8", name: "Vikram Joshi", status: "registered" },
+    { id: "rp9", name: "Karan Patel", status: "registered" },
+    { id: "rp10", name: "Harsh Tanwar", status: "registered" },
+    { id: "rp11", name: "Deepak Saini", status: "registered" },
+    { id: "rp12", name: "Manish Yadav", status: "registered" },
+    { id: "rp13", name: "Prateek Kulhari", status: "registered" },
+    { id: "rp14", name: "Rajat Choudhary", status: "registered" },
+    { id: "rp15", name: "Aditya Verma", status: "registered" },
     { id: "rp16", name: "Sahil Bhatt", status: "waitlist" },
     { id: "rp17", name: "Yash Goyal", status: "waitlist" },
     { id: "rp18", name: "Tarun Kapoor", status: "waitlist" },

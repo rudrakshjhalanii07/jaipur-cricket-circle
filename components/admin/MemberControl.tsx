@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import { 
   Users, UserPlus, Search, Edit2, 
@@ -36,6 +37,7 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
 
   const [view, setView] = useState<"all" | "pending">("all");
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   async function fetchPlayers() {
     try {
@@ -55,6 +57,7 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
   }
 
   useEffect(() => {
+    setMounted(true);
     const timer = setTimeout(() => {
       fetchPlayers();
     }, 0);
@@ -228,7 +231,9 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
               {player.image_url ? (
                 <img src={player.image_url} alt={player.name} className="w-full h-full object-cover" />
               ) : (
-                <Users className="w-8 h-8 text-white/5" />
+                <div className="text-lg font-black text-jcc-accent uppercase select-none tracking-wider">
+                  {player.name ? player.name.split(" ").map(n => n[0]).join("").toUpperCase().substring(0, 2) : "🏏"}
+                </div>
               )}
               {player.member_tag === 'founding-member' && (
                 <div className="absolute top-1 right-1 w-6 h-6 rounded-lg bg-black/60 backdrop-blur-md flex items-center justify-center border border-white/10">
@@ -328,129 +333,144 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
       </div>
 
       <AnimatePresence>
-        {editingPlayer && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="premium-card w-full max-w-2xl overflow-hidden shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] border-white/20"
-            >
-              <div className="p-8 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
-                <div>
-                  <h3 className="text-xl font-black text-white uppercase tracking-tight">
-                    {isAdding ? "Register Personnel" : "Edit Profile"}
-                  </h3>
-                  {!isAdding && <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mt-1">{editingPlayer?.name}</p>}
-                </div>
-                <button onClick={() => setEditingPlayer(null)} className="w-10 h-10 rounded-full hover:bg-white/5 flex items-center justify-center transition-colors">
-                  <X className="w-6 h-6 text-white/20" />
-                </button>
-              </div>
-
-              <form onSubmit={handleSave} className="p-8 sm:p-10 space-y-8">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] px-1">Full Identity</label>
-                    <input 
-                      required
-                      className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black shadow-inner"
-                      value={editingPlayer?.name || ""}
-                      onChange={e => setEditingPlayer(prev => prev ? {...prev, name: e.target.value} : null)}
-                    />
+        {editingPlayer && mounted && createPortal(
+          <div className="fixed inset-0 z-[60] overflow-y-auto bg-black/60 backdrop-blur-md flex justify-center p-4 sm:p-6">
+            <div className="flex items-center justify-center min-h-full w-full max-w-2xl">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="premium-card w-full overflow-hidden shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] border-white/20 my-8"
+              >
+                <div className="p-8 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
+                  <div>
+                    <h3 className="text-xl font-black text-white uppercase tracking-tight">
+                      {isAdding ? "Register Personnel" : "Edit Profile"}
+                    </h3>
+                    {!isAdding && <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mt-1">{editingPlayer?.name}</p>}
                   </div>
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] px-1">Contact Link</label>
-                    <input 
-                      required
-                      className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black shadow-inner"
-                      value={editingPlayer?.phone || ""}
-                      onChange={e => setEditingPlayer(prev => prev ? {...prev, phone: e.target.value} : null)}
-                    />
-                  </div>
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] px-1">Specialization</label>
-                    <select 
-                      className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black shadow-inner appearance-none"
-                      value={editingPlayer?.cricket_role || ""}
-                      onChange={e => setEditingPlayer(prev => prev ? {...prev, cricket_role: e.target.value} : null)}
-                    >
-                      <option value="all-rounder" className="bg-[#050E17]">All-Rounder</option>
-                      <option value="batter" className="bg-[#050E17]">Batter</option>
-                      <option value="bowler" className="bg-[#050E17]">Bowler</option>
-                      <option value="wicketkeeper" className="bg-[#050E17]">Wicketkeeper</option>
-                    </select>
-                  </div>
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] px-1">Tactical Deployment</label>
-                    <select 
-                      className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black shadow-inner appearance-none"
-                      value={editingPlayer?.team || ""}
-                      onChange={e => setEditingPlayer(prev => prev ? {...prev, team: e.target.value} : null)}
-                    >
-                      <option value="Unassigned" className="bg-[#050E17]">Unassigned</option>
-                      <option value="Mavericks" className="bg-[#050E17]">Mavericks</option>
-                      <option value="NeuroStrikers" className="bg-[#050E17]">NeuroStrikers</option>
-                    </select>
-                  </div>
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] px-1">Service Tag</label>
-                    <select 
-                      className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black shadow-inner appearance-none"
-                      value={editingPlayer?.member_tag || ""}
-                      onChange={e => setEditingPlayer(prev => prev ? {...prev, member_tag: e.target.value} : null)}
-                    >
-                      <option value="member" className="bg-[#050E17]">Member</option>
-                      <option value="founding-member" className="bg-[#050E17]">Founding Member</option>
-                    </select>
-                  </div>
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] px-1">Command Authority</label>
-                    <select 
-                      className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black shadow-inner appearance-none"
-                      value={editingPlayer?.group_role || ""}
-                      onChange={e => setEditingPlayer(prev => prev ? {...prev, group_role: e.target.value} : null)}
-                    >
-                      <option value="member" className="bg-[#050E17]">Member</option>
-                      <option value="captain" className="bg-[#050E17]">Captain</option>
-                      <option value="vice-captain" className="bg-[#050E17]">Vice Captain</option>
-                      <option value="founding-member" className="bg-[#050E17]">Founding Member</option>
-                      <option value="admin" className="bg-[#050E17]">Admin</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] px-1">Personnel Dossier</label>
-                  <textarea 
-                    rows={3}
-                    className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black shadow-inner resize-none placeholder:text-white/10"
-                    value={editingPlayer?.short_bio || ""}
-                    onChange={e => setEditingPlayer(prev => prev ? {...prev, short_bio: e.target.value} : null)}
-                    placeholder="Brief history of achievements..."
-                  />
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-center gap-4 pt-6">
-                  <button
-                    disabled={saving}
-                    type="submit"
-                    className="w-full sm:flex-1 py-5 rounded-2xl btn-vibrant-blue text-black font-black text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-3 uppercase tracking-widest shadow-xl"
-                  >
-                    {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                    Save Identity
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditingPlayer(null)}
-                    className="w-full sm:w-auto px-12 py-5 rounded-2xl bg-white/5 border border-white/10 text-white/40 font-black text-sm hover:text-white transition-all uppercase tracking-widest"
-                  >
-                    Cancel
+                  <button onClick={() => setEditingPlayer(null)} className="w-10 h-10 rounded-full hover:bg-white/5 flex items-center justify-center transition-colors">
+                    <X className="w-6 h-6 text-white/20" />
                   </button>
                 </div>
-              </form>
-            </motion.div>
-          </div>
+
+                <form onSubmit={handleSave} className="p-8 sm:p-10 space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] px-1">Full Identity</label>
+                      <input 
+                        required
+                        className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black shadow-inner"
+                        value={editingPlayer?.name || ""}
+                        onChange={e => setEditingPlayer(prev => prev ? {...prev, name: e.target.value} : null)}
+                      />
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] px-1">Contact Link</label>
+                      <input 
+                        required
+                        className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black shadow-inner"
+                        value={editingPlayer?.phone || ""}
+                        onChange={e => setEditingPlayer(prev => prev ? {...prev, phone: e.target.value} : null)}
+                      />
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] px-1">Specialization</label>
+                      <div className="relative">
+                        <select 
+                          className="w-full pl-5 pr-12 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black shadow-inner appearance-none cursor-pointer"
+                          value={editingPlayer?.cricket_role || ""}
+                          onChange={e => setEditingPlayer(prev => prev ? {...prev, cricket_role: e.target.value} : null)}
+                        >
+                          <option value="all-rounder" className="bg-[#050E17]">All-Rounder</option>
+                          <option value="batter" className="bg-[#050E17]">Batter</option>
+                          <option value="bowler" className="bg-[#050E17]">Bowler</option>
+                          <option value="wicketkeeper" className="bg-[#050E17]">Wicketkeeper</option>
+                        </select>
+                        <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 rotate-90 pointer-events-none text-white/30 transition-colors" />
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] px-1">Tactical Deployment</label>
+                      <div className="relative">
+                        <select 
+                          className="w-full pl-5 pr-12 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black shadow-inner appearance-none cursor-pointer"
+                          value={editingPlayer?.team || ""}
+                          onChange={e => setEditingPlayer(prev => prev ? {...prev, team: e.target.value} : null)}
+                        >
+                          <option value="Unassigned" className="bg-[#050E17]">Unassigned</option>
+                          <option value="Mavericks" className="bg-[#050E17]">Mavericks</option>
+                          <option value="NeuroStrikers" className="bg-[#050E17]">NeuroStrikers</option>
+                        </select>
+                        <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 rotate-90 pointer-events-none text-white/30 transition-colors" />
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] px-1">Service Tag</label>
+                      <div className="relative">
+                        <select 
+                          className="w-full pl-5 pr-12 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black shadow-inner appearance-none cursor-pointer"
+                          value={editingPlayer?.member_tag || ""}
+                          onChange={e => setEditingPlayer(prev => prev ? {...prev, member_tag: e.target.value} : null)}
+                        >
+                          <option value="member" className="bg-[#050E17]">Member</option>
+                          <option value="founding-member" className="bg-[#050E17]">Founding Member</option>
+                        </select>
+                        <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 rotate-90 pointer-events-none text-white/30 transition-colors" />
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] px-1">Command Authority</label>
+                      <div className="relative">
+                        <select 
+                          className="w-full pl-5 pr-12 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black shadow-inner appearance-none cursor-pointer"
+                          value={editingPlayer?.group_role || ""}
+                          onChange={e => setEditingPlayer(prev => prev ? {...prev, group_role: e.target.value} : null)}
+                        >
+                          <option value="member" className="bg-[#050E17]">Member</option>
+                          <option value="captain" className="bg-[#050E17]">Captain</option>
+                          <option value="vice-captain" className="bg-[#050E17]">Vice Captain</option>
+                          <option value="founding-member" className="bg-[#050E17]">Founding Member</option>
+                          <option value="admin" className="bg-[#050E17]">Admin</option>
+                        </select>
+                        <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 rotate-90 pointer-events-none text-white/30 transition-colors" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] px-1">Personnel Dossier</label>
+                    <textarea 
+                      rows={3}
+                      className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black shadow-inner resize-none placeholder:text-white/10"
+                      value={editingPlayer?.short_bio || ""}
+                      onChange={e => setEditingPlayer(prev => prev ? {...prev, short_bio: e.target.value} : null)}
+                      placeholder="Brief history of achievements..."
+                    />
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-4 pt-6">
+                    <button
+                      disabled={saving}
+                      type="submit"
+                      className="w-full sm:flex-1 py-5 rounded-2xl btn-vibrant-blue text-black font-black text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-3 uppercase tracking-widest shadow-xl"
+                    >
+                      {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                      Save Identity
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingPlayer(null)}
+                      className="w-full sm:w-auto px-12 py-5 rounded-2xl bg-white/5 border border-white/10 text-white/40 font-black text-sm hover:text-white transition-all uppercase tracking-widest"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </div>
+          </div>,
+          document.body
         )}
       </AnimatePresence>
     </div>

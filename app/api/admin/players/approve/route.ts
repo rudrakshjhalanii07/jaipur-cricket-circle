@@ -37,6 +37,54 @@ export async function POST(request: Request) {
 
     if (error) throw error;
 
+    // Auto-register approved player for the upcoming match
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const { data: matchData } = await supabaseAdmin
+        .from("matches")
+        .select("*")
+        .gte("match_date", today)
+        .order("match_date", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (matchData) {
+        // Check if already registered
+        const { data: existingReg } = await supabaseAdmin
+          .from("registrations")
+          .select("id")
+          .eq("match_id", matchData.id)
+          .eq("player_id", id)
+          .maybeSingle();
+
+        if (!existingReg) {
+          // Fetch current registrations count to check limit
+          const { data: regs } = await supabaseAdmin
+            .from("registrations")
+            .select("status")
+            .eq("match_id", matchData.id);
+
+          const registeredCount = regs?.filter(r => r.status === "registered").length || 0;
+          const registrationStatus = registeredCount < matchData.player_limit ? "registered" : "waitlist";
+
+          // Insert registration
+          await supabaseAdmin
+            .from("registrations")
+            .insert({
+              match_id: matchData.id,
+              player_id: id,
+              name: data.name,
+              phone: data.phone,
+              cricket_role: data.cricket_role,
+              status: registrationStatus
+            });
+        }
+      }
+    } catch (regErr) {
+      // Log error but do not fail the overall approval response
+      console.error("Auto-registration error on approval:", regErr);
+    }
+
     return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error("Admin Player Approve Error:", error);

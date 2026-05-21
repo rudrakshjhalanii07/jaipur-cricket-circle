@@ -93,7 +93,7 @@ export default function RegistrationControl({ adminPassword }: { adminPassword?:
         throw new Error(result.error || "Failed to promote player");
       }
 
-      setRegistrations(registrations.map(r => r.id === id ? { ...r, status: "confirmed" } : r));
+      setRegistrations(registrations.map(r => r.id === id ? { ...r, status: "registered" } : r));
     } catch (err) {
       console.error("Promotion error:", err);
     } finally {
@@ -103,7 +103,7 @@ export default function RegistrationControl({ adminPassword }: { adminPassword?:
 
   if (loading) return <div className="p-20 text-center"><Loader2 className="w-10 h-10 animate-spin mx-auto text-jcc-accent opacity-20" /></div>;
 
-  const confirmed = registrations.filter(r => r.status === "confirmed");
+  const confirmed = registrations.filter(r => r.status === "registered");
   const waitlist = registrations.filter(r => r.status === "waitlist");
 
   return (
@@ -116,7 +116,7 @@ export default function RegistrationControl({ adminPassword }: { adminPassword?:
         <div className="flex items-center gap-4">
           <div className="px-4 py-2 rounded-xl bg-emerald-400/10 border border-emerald-400/20 flex items-center gap-2 shadow-lg">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span className="text-[11px] font-black text-white uppercase tracking-widest">{confirmed.length} Confirmed</span>
+            <span className="text-[11px] font-black text-white uppercase tracking-widest">{confirmed.length} Registered</span>
           </div>
           <div className="px-4 py-2 rounded-xl bg-jcc-gold/10 border border-jcc-gold/20 flex items-center gap-2 shadow-lg">
             <Wifi className="w-4 h-4 text-jcc-gold" />
@@ -151,11 +151,11 @@ export default function RegistrationControl({ adminPassword }: { adminPassword?:
                   </td>
                   <td className="px-6 py-5">
                     <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] border ${
-                      player.status === "confirmed" 
+                      player.status === "registered" 
                         ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/10" 
                         : "bg-jcc-gold/10 text-jcc-gold border-jcc-gold/10"
                     }`}>
-                      {player.status === "confirmed" ? <CheckCircle2 className="w-3 h-3" /> : <Wifi className="w-3 h-3" />}
+                      {player.status === "registered" ? <CheckCircle2 className="w-3 h-3" /> : <Wifi className="w-3 h-3" />}
                       {player.status}
                     </span>
                   </td>

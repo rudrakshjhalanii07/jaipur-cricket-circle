@@ -9,7 +9,7 @@ export default function FloatingWhatsApp() {
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
       {/* Main WhatsApp Pill Button */}
       <motion.a
-        href="https://wa.me/919999999999"
+        href="https://chat.whatsapp.com/LtuFpx2EcKO4E5yZWP8aue?mode=gi_t"
         target="_blank"
         rel="noopener noreferrer"
         initial={{ scale: 0.8, opacity: 0 }}

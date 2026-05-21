@@ -72,7 +72,7 @@ export default function Footer() {
             </h3>
             <div className="space-y-4">
               <a
-                href="https://wa.me/919999999999"
+                href="https://chat.whatsapp.com/LtuFpx2EcKO4E5yZWP8aue?mode=gi_t"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-4 text-[13px] text-white/50 hover:text-[#25D366] transition-all duration-300 font-black uppercase tracking-[0.15em] hover:tracking-[0.2em] group/wa"

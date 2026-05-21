@@ -203,7 +203,7 @@ export default function MemberRoleManagement({ adminPassword }: { adminPassword?
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-widest border ${
-                      player.status === "confirmed" ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/10" : "bg-jcc-gold/10 text-jcc-gold border-jcc-gold/10"
+                      player.status === "registered" ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/10" : "bg-jcc-gold/10 text-jcc-gold border-jcc-gold/10"
                     }`}>
                       {player.status}
                     </span>

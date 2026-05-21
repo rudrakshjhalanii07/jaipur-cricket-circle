@@ -7,6 +7,7 @@ import FloatingWhatsApp from "@/components/FloatingWhatsApp";
 import LoaderWrapper from "@/components/LoaderWrapper";
 import PageTransition from "@/components/PageTransition";
 import { Providers } from "@/components/Providers";
+import MotionCanvas from "@/components/MotionCanvas";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -48,6 +49,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-jcc-bg text-jcc-navy">
         <Providers>
+          <MotionCanvas />
           <LoaderWrapper>
             <Navbar />
             <main className="flex-1">

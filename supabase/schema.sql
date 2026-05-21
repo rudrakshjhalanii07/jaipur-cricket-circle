@@ -71,3 +71,33 @@ CREATE POLICY "Allow public all access to match_player_roles" ON match_player_ro
 CREATE POLICY "Allow public update to matches" ON matches FOR UPDATE TO public USING (true);
 CREATE POLICY "Allow public update to registrations" ON registrations FOR UPDATE TO public USING (true);
 CREATE POLICY "Allow public delete to registrations" ON registrations FOR DELETE TO public USING (true);
+
+-- 7. Additional Columns (Updates)
+ALTER TABLE public.players ADD COLUMN IF NOT EXISTS image_url TEXT;
+
+-- 8. Create Rivalry Seasons Table
+CREATE TABLE IF NOT EXISTS public.rivalry_seasons (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  season_label TEXT,
+  status TEXT NOT NULL CHECK (status IN ('active', 'archived')),
+  mavericks_captain TEXT NOT NULL,
+  neurostrikers_captain TEXT NOT NULL,
+  mavericks_main_wins INTEGER DEFAULT 0,
+  neurostrikers_main_wins INTEGER DEFAULT 0,
+  mavericks_exhibition_wins INTEGER DEFAULT 0,
+  neurostrikers_exhibition_wins INTEGER DEFAULT 0,
+  total_matches_played INTEGER DEFAULT 0,
+  started_at DATE,
+  ended_at DATE,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 9. Set up RLS for rivalry_seasons
+ALTER TABLE public.rivalry_seasons ENABLE ROW LEVEL SECURITY;
+
+-- 10. Policies for rivalry_seasons
+CREATE POLICY "Allow public read access to rivalry_seasons" ON public.rivalry_seasons FOR SELECT TO public USING (true);
+

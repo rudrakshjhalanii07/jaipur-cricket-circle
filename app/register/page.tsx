@@ -15,10 +15,12 @@ import {
   Loader2,
   Send,
   Calendar,
+  Camera,
 } from "lucide-react";
 import SectionHeading from "@/components/SectionHeading";
 import { supabase } from "@/lib/supabase";
 import { fadeUp, staggerContainer, VIEWPORT_CONFIG } from "@/lib/animations";
+import { optimizeImage } from "@/lib/image-optimize";
 
 interface Match {
   id: string;
@@ -35,7 +37,7 @@ interface Registration {
   name: string;
   phone: string;
   cricket_role: string;
-  status: "confirmed" | "waitlist";
+  status: "registered" | "waitlist";
 }
 
 interface Player {
@@ -64,6 +66,72 @@ export default function RegisterPage() {
   const [lookupLoading, setLookupLoading] = useState(false);
   const [existingPlayer, setExistingPlayer] = useState<Player | null>(null);
   const [lookupError, setLookupError] = useState("");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string>("");
+  const [avatarError, setAvatarError] = useState<string>("");
+  const [registrationError, setRegistrationError] = useState<string>("");
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStage, setUploadStage] = useState<"idle" | "optimizing" | "uploading" | "saving">("idle");
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    setAvatarError("");
+    
+    if (!file) {
+      return;
+    }
+
+    // 1. Verify original file type
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      setAvatarError("Invalid file type. Only JPG, JPEG, PNG, and WEBP are allowed.");
+      return;
+    }
+
+    // 2. Reject files larger than 10MB before processing
+    const maxOriginalSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxOriginalSize) {
+      setAvatarError("Image is too large. Please upload a photo under 10MB.");
+      return;
+    }
+
+    // 3. Trigger image optimization asynchronously
+    setIsOptimizing(true);
+    setUploadStage("optimizing");
+    optimizeImage(file)
+      .then((result) => {
+        setAvatarFile(result.file);
+        setAvatarPreview(result.previewUrl);
+        console.log(`[JCC Image Optimizer] Original size: ${Math.round(result.originalSize / 1024)}KB | Optimized WebP size: ${Math.round(result.optimizedSize / 1024)}KB (${result.width}x${result.height})`);
+      })
+      .catch((err: any) => {
+        setAvatarError(err.message || "Image optimization failed.");
+        setAvatarFile(null);
+        setAvatarPreview("");
+      })
+      .finally(() => {
+        setIsOptimizing(false);
+        setUploadStage("idle");
+      });
+  };
+
+  const handleRemoveAvatar = () => {
+    setAvatarFile(null);
+    if (avatarPreview) {
+      URL.revokeObjectURL(avatarPreview);
+      setAvatarPreview("");
+    }
+    setAvatarError("");
+  };
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreview) {
+        URL.revokeObjectURL(avatarPreview);
+      }
+    };
+  }, [avatarPreview]);
 
 
   const handleLookup = async (e: React.FormEvent) => {
@@ -145,6 +213,46 @@ export default function RegisterPage() {
     return () => clearTimeout(timer);
   }, []);
 
+  const uploadWithProgress = (file: File, onProgress: (pct: number) => void): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/api/player/upload-avatar", true);
+      
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const pct = Math.round((event.loaded / event.total) * 100);
+          onProgress(pct);
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const resData = JSON.parse(xhr.responseText);
+            resolve(resData.publicUrl);
+          } catch (e) {
+            reject(new Error("Invalid server response."));
+          }
+        } else {
+          try {
+            const resData = JSON.parse(xhr.responseText);
+            reject(new Error(resData.error || "Failed to upload profile picture."));
+          } catch (e) {
+            reject(new Error(`Upload failed with status code ${xhr.status}.`));
+          }
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(new Error("Network error during upload. Please check your connection."));
+      };
+
+      const formData = new FormData();
+      formData.append("file", file);
+      xhr.send(formData);
+    });
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!match) return;
@@ -152,6 +260,7 @@ export default function RegisterPage() {
     try {
       setSubmitting(true);
       setFormStatus("idle");
+      setRegistrationError("");
 
       // 3. New Member Mode: Just create player and wait for approval
       if (registrationMode === "new") {
@@ -175,7 +284,22 @@ export default function RegisterPage() {
           return;
         }
 
-        // 2. Create new player with pending status
+        // Upload image first if file selected
+        let imageUrl = null;
+        if (avatarFile) {
+          setUploadStage("uploading");
+          setUploadProgress(0);
+          try {
+            imageUrl = await uploadWithProgress(avatarFile, (progress) => {
+              setUploadProgress(progress);
+            });
+            setUploadStage("saving");
+          } catch (uploadErr: any) {
+            throw new Error(uploadErr.message || "Failed to upload profile picture.");
+          }
+        }
+
+        // 2. Create new player with pending status and avatar url
         const { error: createError } = await supabase
           .from("players")
           .insert([
@@ -183,11 +307,20 @@ export default function RegisterPage() {
               name: formData.name,
               phone: formData.phone,
               cricket_role: formData.cricket_role,
-              approval_status: "pending"
+              approval_status: "pending",
+              image_url: imageUrl
             },
           ]);
 
         if (createError) throw createError;
+        
+        // Clean up avatar state on success
+        setAvatarFile(null);
+        if (avatarPreview) {
+          URL.revokeObjectURL(avatarPreview);
+          setAvatarPreview("");
+        }
+        
         setFormStatus("pending_approval");
         setFormData({ name: "", phone: "", cricket_role: "all-rounder" });
         setSubmitting(false);
@@ -206,8 +339,8 @@ export default function RegisterPage() {
         return;
       }
 
-      const confirmedCount = registrations.filter((r) => r.status === "confirmed").length;
-      const registrationStatus = confirmedCount < match.player_limit ? "confirmed" : "waitlist";
+      const registeredCount = registrations.filter((r) => r.status === "registered").length;
+      const registrationStatus = registeredCount < match.player_limit ? "registered" : "waitlist";
 
       // 4. Create registration
       const { error: regError } = await supabase.from("registrations").insert([
@@ -227,11 +360,14 @@ export default function RegisterPage() {
       setFormData({ name: "", phone: "", cricket_role: "all-rounder" });
       setExistingPlayer(null);
       fetchMatchAndRegistrations(); 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Registration error:", error);
+      setRegistrationError(error.message || "System error. Try again later.");
       setFormStatus("error");
     } finally {
       setSubmitting(false);
+      setUploadStage("idle");
+      setUploadProgress(0);
     }
   };
 
@@ -267,12 +403,21 @@ export default function RegisterPage() {
     );
   }
 
-  const confirmed = registrations.filter((p) => p.status === "confirmed");
+  const confirmed = registrations.filter((p) => p.status === "registered");
   const waitlist = registrations.filter((p) => p.status === "waitlist");
   const slotsUsed = confirmed.length;
   const slotsTotal = match.player_limit;
   const fillPct = Math.min((slotsUsed / slotsTotal) * 100, 100);
   const isMatchFull = slotsUsed >= slotsTotal;
+
+  const getRoleAbbreviation = (role: string) => {
+    const r = role.toLowerCase().trim();
+    if (r === "all-rounder") return "A";
+    if (r === "batter") return "BM";
+    if (r === "bowler") return "BW";
+    if (r === "wicketkeeper") return "WK";
+    return role;
+  };
 
   const statusConfig = {
     open: {
@@ -569,10 +714,19 @@ export default function RegisterPage() {
                             <button 
                               disabled={submitting}
                               type="submit"
-                              className="w-full py-5 rounded-2xl btn-vibrant-blue text-black text-[14px] disabled:opacity-50 flex items-center justify-center gap-3"
+                              className="w-full py-5 rounded-2xl btn-vibrant-blue text-black text-[14px] disabled:opacity-50 flex items-center justify-center gap-3 uppercase tracking-wider font-black"
                             >
-                              {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-                              CONFIRM SUNDAY SPOT
+                              {submitting ? (
+                                <>
+                                  <Loader2 className="w-5 h-5 animate-spin" />
+                                  <span>RESERVING SPOT...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="w-5 h-5" />
+                                  <span>CONFIRM SUNDAY SPOT</span>
+                                </>
+                              )}
                             </button>
                           </>
                         )}
@@ -626,6 +780,74 @@ export default function RegisterPage() {
                     </div>
                   </div>
 
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">
+                      Profile Photo (Optional)
+                    </label>
+                    <div className="flex flex-col sm:flex-row items-center gap-6 p-6 rounded-2xl bg-black/40 border border-white/10 hover:border-white/20 transition-all duration-300">
+                      <div className="relative group w-20 h-20 rounded-full overflow-hidden bg-white/5 border border-white/10 flex items-center justify-center shrink-0 shadow-2xl transition-all hover:border-jcc-accent">
+                        {isOptimizing ? (
+                          <div className="flex items-center justify-center">
+                            <Loader2 className="w-6 h-6 text-jcc-accent animate-spin" />
+                          </div>
+                        ) : avatarPreview ? (
+                          <>
+                            <img src={avatarPreview} alt="Preview" className="w-full h-full object-cover" />
+                            {uploadStage === "uploading" && (
+                              <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center">
+                                <Loader2 className="w-5 h-5 text-jcc-accent animate-spin mb-1" />
+                                <span className="text-[10px] font-black text-jcc-accent">{uploadProgress}%</span>
+                              </div>
+                            )}
+                            {uploadStage === "saving" && (
+                              <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center">
+                                <Loader2 className="w-5 h-5 text-emerald-400 animate-spin mb-1" />
+                                <span className="text-[9px] font-black text-emerald-400">SAVING...</span>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center text-white/20 group-hover:text-jcc-accent transition-colors">
+                            <Camera className="w-6 h-6" />
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex-1 text-center sm:text-left space-y-2">
+                        <div className="flex flex-wrap justify-center sm:justify-start gap-2">
+                          <label className={`px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[11px] font-black uppercase tracking-wider text-white hover:bg-white/10 hover:text-jcc-accent transition-all cursor-pointer ${(isOptimizing || submitting) ? 'opacity-50 pointer-events-none' : ''}`}>
+                            Choose Photo
+                            <input 
+                              type="file"
+                              accept="image/png, image/jpeg, image/jpg, image/webp"
+                              className="hidden"
+                              disabled={isOptimizing || submitting}
+                              onChange={handleFileChange}
+                            />
+                          </label>
+                          {avatarPreview && !isOptimizing && !submitting && (
+                            <button
+                              type="button"
+                              onClick={handleRemoveAvatar}
+                              className="px-4 py-2 rounded-xl bg-jcc-ball-red/10 border border-jcc-ball-red/20 text-[11px] font-black uppercase tracking-wider text-jcc-ball-red hover:bg-jcc-ball-red/20 transition-all"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-white/40 font-bold uppercase tracking-wider leading-relaxed">
+                          Accepted: JPG, JPEG, PNG, WEBP (Max 10MB). <br />
+                          <span className="text-jcc-accent">Automatically optimized to WebP (512x512) before upload.</span>
+                        </p>
+                        {avatarError && (
+                          <p className="text-[11px] text-jcc-ball-red font-black uppercase tracking-wider flex items-center justify-center sm:justify-start gap-1">
+                            <AlertCircle className="w-3.5 h-3.5" /> {avatarError}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
                   {formStatus === "duplicate" && (
                     <div className="p-5 rounded-2xl bg-jcc-gold/10 border border-jcc-gold/20 flex items-center gap-4 text-jcc-gold text-[13px] font-black uppercase tracking-widest">
                       <AlertCircle className="w-4 h-4" />
@@ -636,21 +858,27 @@ export default function RegisterPage() {
                   {formStatus === "error" && (
                     <div className="p-5 rounded-2xl bg-jcc-ball-red/10 border border-jcc-ball-red/20 flex items-center gap-4 text-jcc-ball-red text-[13px] font-black uppercase tracking-widest">
                       <AlertCircle className="w-4 h-4" />
-                      System error. Try again later.
+                      {registrationError || "System error. Try again later."}
                     </div>
                   )}
 
                   <button 
                     disabled={submitting}
                     type="submit"
-                    className="w-full py-5 rounded-2xl btn-vibrant-blue text-black text-[14px] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                    className="w-full py-5 rounded-2xl btn-vibrant-blue text-black text-[14px] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 uppercase tracking-wider font-black"
                   >
                     {submitting ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        {uploadStage === "optimizing" && <span>Optimizing Photo...</span>}
+                        {uploadStage === "uploading" && <span>Uploading Photo... {uploadProgress}%</span>}
+                        {uploadStage === "saving" && <span>Saving Record...</span>}
+                        {uploadStage === "idle" && <span>Processing...</span>}
+                      </>
                     ) : (
                       <>
                         <Send className="w-5 h-5" />
-                        {isMatchFull ? "JOIN WAITLIST" : "CLAIM SUNDAY SPOT"}
+                        {isMatchFull ? <span>JOIN WAITLIST</span> : <span>CLAIM SUNDAY SPOT</span>}
                       </>
                     )}
                   </button>
@@ -672,7 +900,7 @@ export default function RegisterPage() {
                 className="premium-card p-6"
               >
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-[11px] font-black text-white uppercase tracking-widest">Confirmed Slots</span>
+                  <span className="text-[11px] font-black text-white uppercase tracking-widest">Registered Slots</span>
                   <span className="text-[11px] font-mono text-white/40 tabular-nums font-black">{slotsUsed} / {slotsTotal}</span>
                 </div>
                 <div className="w-full h-2.5 rounded-full bg-white/5 border border-white/10 overflow-hidden mb-5 shadow-inner">
@@ -700,12 +928,12 @@ export default function RegisterPage() {
                   </h3>
                   <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin">
                     {confirmed.length > 0 ? confirmed.map((player, i) => (
-                      <div key={player.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-white/[0.03] border border-white/5 group hover:border-jcc-accent/30 hover:bg-jcc-accent/[0.02] transition-all duration-300">
-                        <div className="flex items-center gap-3">
-                          <span className="text-[10px] font-black text-white/20 w-4">{i + 1}</span>
-                          <span className="text-[13px] text-white font-black uppercase tracking-tight truncate max-w-[120px]">{player.name}</span>
+                      <div key={player.id} className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/5 group hover:border-jcc-accent/30 hover:bg-jcc-accent/[0.02] transition-all duration-300">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <span className="text-[10px] font-black text-white/20 w-4 flex-shrink-0">{i + 1}</span>
+                          <span className="text-[13px] text-white font-black uppercase tracking-tight truncate">{player.name}</span>
                         </div>
-                        <span className="text-[9px] text-white/30 font-black uppercase tracking-widest">{player.cricket_role}</span>
+                        <span className="text-[9px] text-white/30 font-black uppercase tracking-widest flex-shrink-0 whitespace-nowrap">{getRoleAbbreviation(player.cricket_role)}</span>
                       </div>
                     )) : (
                       <p className="text-[11px] text-white/20 italic font-black uppercase tracking-widest text-center py-4">Waiting for first signup...</p>
@@ -720,10 +948,10 @@ export default function RegisterPage() {
                   </h3>
                   <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin">
                     {waitlist.length > 0 ? waitlist.map((player, i) => (
-                      <div key={player.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-white/[0.03] border border-white/5 group hover:border-jcc-gold/30 hover:bg-jcc-gold/[0.02] transition-all duration-300">
-                        <div className="flex items-center gap-3">
-                          <span className="text-[10px] font-black text-white/20 w-4">W{i + 1}</span>
-                          <span className="text-[13px] text-white/40 font-black uppercase tracking-tight truncate max-w-[120px]">{player.name}</span>
+                      <div key={player.id} className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/5 group hover:border-jcc-gold/30 hover:bg-jcc-gold/[0.02] transition-all duration-300">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <span className="text-[10px] font-black text-white/20 w-4 flex-shrink-0">W{i + 1}</span>
+                          <span className="text-[13px] text-white/40 font-black uppercase tracking-tight truncate">{player.name}</span>
                         </div>
                       </div>
                     )) : (

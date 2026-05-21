@@ -1,13 +1,31 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { ChevronRight, Swords, Zap } from "lucide-react";
 import ScorelineCard from "@/components/ScorelineCard";
-import { rivalryData, matchHistory } from "@/lib/data";
+import { matchHistory } from "@/lib/data";
+import { fetchRivalrySeasons, RivalrySeason, fallbackRivalrySeasons } from "@/lib/rivalry";
 
 export default function RivalrySection() {
   const latestMatch = matchHistory[0];
+  const [activeSeason, setActiveSeason] = useState<RivalrySeason>(fallbackRivalrySeasons[0]);
+
+  useEffect(() => {
+    async function loadActiveSeason() {
+      try {
+        const seasons = await fetchRivalrySeasons();
+        const active = seasons.find((s) => s.status === "active");
+        if (active) {
+          setActiveSeason(active);
+        }
+      } catch (err) {
+        console.error("Failed to load active rivalry season for homepage:", err);
+      }
+    }
+    loadActiveSeason();
+  }, []);
 
   return (
     <section id="rivalry" className="py-24 sm:py-32 relative overflow-hidden section-bg-navy">
@@ -27,14 +45,17 @@ export default function RivalrySection() {
           className="text-center mb-16"
         >
           <span className="inline-flex items-center gap-2.5 text-[11px] uppercase tracking-[0.5em] text-jcc-accent font-black">
-            <Zap className="w-5 h-5" />
-            THE LEGACY RIVALRY
+            <Zap className="w-5 h-5 animate-pulse" />
+            ACTIVE CAPTAIN RIVALRY
           </span>
           <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white tracking-tighter mt-6 uppercase italic">
             Mavericks vs <span className="text-gradient-cyan">NeuroStrikers</span>
           </h2>
+          <p className="mt-4 text-white/50 text-[11px] uppercase tracking-widest font-black">
+            The {activeSeason.title} — Cap: {activeSeason.mavericks_captain} vs {activeSeason.neurostrikers_captain}
+          </p>
           <p className="mt-6 text-white/70 text-xl max-w-2xl mx-auto font-medium leading-relaxed">
-            The battle that defines every Sunday. Two teams, one circle, pure tactical drama.
+            Every new captain pairing writes its own chapter. Two teams, one circle, pure tactical drama.
           </p>
         </motion.div>
 
@@ -54,10 +75,10 @@ export default function RivalrySection() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: false, amount: 0.2 }} transition={{ duration: 0.6 }}>
-              <ScorelineCard label="Main Series" team1="Mavericks" team1Score={rivalryData.mainSeries.mavericks} team1Color="text-jcc-accent" team2="NeuroStrikers" team2Score={rivalryData.mainSeries.neuroStrikers} team2Color="text-jcc-ball-red" isDark={true} />
+              <ScorelineCard label="Main Series Score" team1="Mavericks" team1Score={activeSeason.mavericks_main_wins} team1Color="text-jcc-accent" team2="NeuroStrikers" team2Score={activeSeason.neurostrikers_main_wins} team2Color="text-jcc-ball-red" isDark={true} />
             </motion.div>
             <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: false, amount: 0.2 }} transition={{ duration: 0.6 }}>
-              <ScorelineCard label="Exhibition Series" team1="Mavericks" team1Score={rivalryData.exhibitionSeries.mavericks} team1Color="text-jcc-accent" team2="NeuroStrikers" team2Score={rivalryData.exhibitionSeries.neuroStrikers} team2Color="text-jcc-ball-red" isDark={true} />
+              <ScorelineCard label="Exhibition Series Score" team1="Mavericks" team1Score={activeSeason.mavericks_exhibition_wins} team1Color="text-jcc-accent" team2="NeuroStrikers" team2Score={activeSeason.neurostrikers_exhibition_wins} team2Color="text-jcc-ball-red" isDark={true} />
             </motion.div>
           </div>
         </div>

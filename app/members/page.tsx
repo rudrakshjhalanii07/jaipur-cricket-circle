@@ -52,11 +52,11 @@ export default function MembersPage() {
             team: p.team || "Unassigned",
             role: p.group_role ? (p.group_role.charAt(0).toUpperCase() + p.group_role.slice(1)) : (p.cricket_role.charAt(0).toUpperCase() + p.cricket_role.slice(1)),
             tags: tags,
-            image: p.image,
+            image: p.image_url || p.image,
             cricketRole: p.cricket_role as Member["cricketRole"],
             battingStyle: p.batting_style || "Right-hand bat",
             bowlingStyle: p.bowling_style || "N/A",
-            shortBio: p.bio || "A valued member of the circle.",
+            shortBio: p.short_bio || p.bio || "A valued member of the circle.",
             joinedDate: p.approved_at || p.created_at || new Date().toISOString(),
           };
         });

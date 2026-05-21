@@ -1,0 +1,84 @@
+import { supabase } from "./supabase";
+
+export interface RivalrySeason {
+  id: string;
+  title: string;
+  season_label: string | null;
+  status: "active" | "archived";
+  mavericks_captain: string;
+  neurostrikers_captain: string;
+  mavericks_main_wins: number;
+  neurostrikers_main_wins: number;
+  mavericks_exhibition_wins: number;
+  neurostrikers_exhibition_wins: number;
+  total_matches_played: number;
+  started_at: string | null;
+  ended_at: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const fallbackRivalrySeasons: RivalrySeason[] = [
+  {
+    id: "rawat-sharma-2026",
+    title: "The Rawat-Sharma Era",
+    season_label: "Current Season",
+    status: "active",
+    mavericks_captain: "Anil Rawat",
+    neurostrikers_captain: "Sagar Sharma",
+    total_matches_played: 2,
+    mavericks_main_wins: 1,
+    neurostrikers_main_wins: 1,
+    mavericks_exhibition_wins: 0,
+    neurostrikers_exhibition_wins: 0,
+    started_at: "2026-05-17",
+    ended_at: null,
+    notes: "Current active captain rivalry season.",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: "setia-chaudhary-legacy",
+    title: "The Setia-Chaudhary Era",
+    season_label: "Legacy Season",
+    status: "archived",
+    mavericks_captain: "Mr. Nitin Setia",
+    neurostrikers_captain: "Mr. Opal Chaudhary",
+    total_matches_played: 24,
+    mavericks_main_wins: 10,
+    neurostrikers_main_wins: 10,
+    mavericks_exhibition_wins: 3,
+    neurostrikers_exhibition_wins: 1,
+    started_at: null,
+    ended_at: null,
+    notes: "First recorded rivalry era. Match-by-match records were not maintained, so summary data is seeded manually.",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }
+];
+
+export async function fetchRivalrySeasons(): Promise<RivalrySeason[]> {
+  try {
+    const { data, error } = await supabase
+      .from("rivalry_seasons")
+      .select("*")
+      .order("status", { ascending: true }) // 'active' sorts before 'archived' alphabetically
+      .order("started_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.warn("Error fetching rivalry seasons from Supabase. Using fallback constants:", error.message);
+      return fallbackRivalrySeasons;
+    }
+
+    if (!data || data.length === 0) {
+      return fallbackRivalrySeasons;
+    }
+
+    return data as RivalrySeason[];
+  } catch (err) {
+    console.error("Failed to fetch rivalry seasons:", err);
+    return fallbackRivalrySeasons;
+  }
+}
