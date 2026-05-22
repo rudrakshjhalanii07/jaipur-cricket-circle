@@ -191,7 +191,7 @@ export default function CommunitySection() {
         </motion.div>
 
         {/* Member Grid — Sharp & Premium */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-6">
           {displayMembers.map((member, i) => {
             const isMavericks = member.team === "Mavericks";
             const isNeuroStrikers = member.team === "NeuroStrikers";
@@ -221,7 +221,7 @@ export default function CommunitySection() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: false, amount: 0.2 }}
                 transition={{ delay: i * 0.05 }}
-                className={`premium-card p-5 group transition-all duration-300 ${borderHighlight}`}
+                className={`premium-card p-3 sm:p-5 group transition-all duration-300 ${borderHighlight}`}
               >
                 <div className="relative mb-4">
                   <div className={`aspect-square rounded-xl overflow-hidden bg-white/5 border relative flex items-center justify-center transition-all duration-300 ${avatarBorder}`}>
@@ -244,21 +244,21 @@ export default function CommunitySection() {
                     )}
                   </div>
                   {member.tags.includes("captain") && (
-                    <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-jcc-accent flex items-center justify-center text-white shadow-lg border-2 border-jcc-navy">
-                      <ShieldCheck className="w-4 h-4" />
+                    <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-jcc-accent flex items-center justify-center text-white shadow-lg border-2 border-jcc-navy">
+                      <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     </div>
                   )}
                 </div>
 
-                <div className="space-y-1">
-                  <h3 className="text-base font-black text-white truncate">
+                <div className="space-y-1.5">
+                  <h3 className="text-sm sm:text-base font-black text-white truncate">
                     {member.name}
                   </h3>
-                  <div className="flex items-center justify-between">
-                    <span className={`text-[10px] font-black uppercase tracking-widest transition-colors duration-300 ${teamTextColor}`}>
+                  <div className="flex flex-col gap-1 items-start sm:flex-row sm:items-center sm:justify-between sm:gap-0">
+                    <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-colors duration-300 ${teamTextColor}`}>
                       {member.team || "Circle Member"}
                     </span>
-                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-tighter ${
+                    <span className={`text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-md uppercase tracking-tighter ${
                       member.tags.includes("captain") ? "bg-jcc-accent/20 text-jcc-accent" : "bg-white/5 text-jcc-text-soft"
                     }`}>
                       {member.role}

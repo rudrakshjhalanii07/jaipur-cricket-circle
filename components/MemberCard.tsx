@@ -94,18 +94,17 @@ const matchesPlayed: Record<string, number> = {
 
 function StatBar({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-[8px] font-black uppercase tracking-widest text-white/30 w-8 flex-shrink-0">{label}</span>
+    <div className="flex items-center gap-1.5 sm:gap-2">
+      <span className="text-[7px] sm:text-[8px] font-black uppercase tracking-widest text-white/30 w-6 sm:w-8 flex-shrink-0">{label}</span>
       <div className="flex-1 h-1 rounded-full bg-white/[0.07] overflow-hidden">
         <motion.div
           className={`h-full rounded-full ${color}`}
           initial={{ width: 0 }}
-          whileInView={{ width: `${value}%` }}
-          viewport={{ once: false, amount: 0.3 }}
+          animate={{ width: `${value}%` }}
           transition={{ duration: 0.8, ease: "easeOut", delay: 0.1 }}
         />
       </div>
-      <span className="text-[9px] font-black text-white/40 w-5 text-right">{value}</span>
+      <span className="text-[8px] sm:text-[9px] font-black text-white/40 w-4 sm:w-5 text-right">{value}</span>
     </div>
   );
 }
@@ -125,16 +124,15 @@ export default function MemberCard({ member, index }: { member: Member; index: n
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 40 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: false, amount: 0.15 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.55, delay: index * 0.05, ease: [0.16, 1, 0.3, 1] }}
       whileHover={{ y: -6, transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] } }}
-      className="group h-full"
+      className="group h-full max-w-[310px] sm:max-w-none mx-auto w-full"
     >
       <Link href={`/members/${member.id}`} className="block h-full">
         <div
-          className={`relative rounded-2xl border border-white/[0.08] ${theme.borderHover} overflow-hidden h-full transition-all duration-400 cursor-pointer`}
+          className={`relative rounded-xl sm:rounded-2xl border border-white/[0.08] ${theme.borderHover} overflow-hidden h-full transition-all duration-400 cursor-pointer`}
           style={{
             background: `linear-gradient(160deg, var(--color-jcc-navy-light, #163B61) 0%, #081826 100%)`,
             boxShadow: `0 0 0 0 ${theme.glowColor}`,
@@ -147,34 +145,34 @@ export default function MemberCard({ member, index }: { member: Member; index: n
           }}
         >
           {/* Top Gradient Band */}
-          <div className={`absolute top-0 left-0 right-0 h-[130px] bg-gradient-to-b ${theme.gradient} opacity-80`} />
+          <div className={`absolute top-0 left-0 right-0 h-[110px] sm:h-[130px] bg-gradient-to-b ${theme.gradient} opacity-80`} />
 
           {/* Accent stripe */}
           <div className={`absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r ${theme.accentBar}`} />
 
           {/* ── FIFA Rating Badge (top-left) ── */}
-          <div className="absolute top-4 left-4 z-20 flex flex-col items-center leading-none">
-            <span className={`text-4xl font-black ${theme.ratingColor} leading-none drop-shadow-lg`}>
+          <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-20 flex flex-col items-center leading-none">
+            <span className={`text-2xl sm:text-4xl font-black ${theme.ratingColor} leading-none drop-shadow-lg`}>
               {ratingData.rating}
             </span>
-            <span className="text-[9px] font-black uppercase tracking-widest text-white/40 mt-0.5">
+            <span className="text-[7px] sm:text-[9px] font-black uppercase tracking-widest text-white/40 mt-0">
               {ratingData.pos}
             </span>
           </div>
 
           {/* ── Status Tag (top-right) ── */}
           {primaryTag && (
-            <div className="absolute top-4 right-4 z-20">
-              <span className={`px-2 py-0.5 rounded-full border text-[8px] font-black uppercase tracking-widest ${theme.badgeBg}`}>
+            <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20">
+              <span className={`px-1.5 py-0.5 sm:px-2 rounded-full border text-[7px] sm:text-[8px] font-black uppercase tracking-widest ${theme.badgeBg}`}>
                 {tagLabels[primaryTag]}
               </span>
             </div>
           )}
 
           {/* ── Player Photo / Avatar ── */}
-          <div className="relative z-10 flex justify-center pt-5 pb-3">
+          <div className="relative z-10 flex justify-center pt-6 pb-3 sm:pt-5 sm:pb-3">
             <div
-              className={`w-24 h-24 rounded-2xl border-2 ${theme.avatarBg} overflow-hidden flex items-center justify-center shadow-xl`}
+              className={`w-16 h-16 sm:w-24 sm:h-24 rounded-xl sm:rounded-2xl border sm:border-2 ${theme.avatarBg} overflow-hidden flex items-center justify-center shadow-xl`}
               style={{ boxShadow: `0 8px 30px -5px ${theme.glowColor}` }}
             >
               <img
@@ -191,38 +189,38 @@ export default function MemberCard({ member, index }: { member: Member; index: n
           </div>
 
           {/* ── Name & Role ── */}
-          <div className="relative z-10 text-center px-4 pb-1">
-            <h3 className={`text-base font-black uppercase tracking-tight ${theme.nameColor} leading-tight truncate`}>
+          <div className="relative z-10 text-center px-3 sm:px-4 pb-2">
+            <h3 className={`text-xs sm:text-base font-black uppercase tracking-tight ${theme.nameColor} leading-tight truncate`}>
               {member.name}
             </h3>
-            <p className="text-[10px] font-bold text-white/35 uppercase tracking-[0.2em] mt-0.5">
+            <p className="text-[8px] sm:text-[10px] font-bold text-white/35 uppercase tracking-[0.2em] mt-0">
               {member.team}
             </p>
             {/* Speciality line */}
-            <p className="text-[11px] text-white/50 font-medium mt-2 leading-relaxed italic px-2">
+            <p className="text-[9px] sm:text-[11px] text-white/50 font-medium mt-1.5 sm:mt-2 leading-relaxed italic px-1 sm:px-2 line-clamp-2 sm:line-clamp-none">
               {member.shortBio}
             </p>
           </div>
 
           {/* ── Divider ── */}
-          <div className="relative z-10 mx-4 my-3 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+          <div className="relative z-10 mx-3 sm:mx-4 my-3 sm:my-3 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
           {/* ── Key Stats Row ── */}
-          <div className="relative z-10 grid grid-cols-3 divide-x divide-white/[0.06] px-1 pb-3">
+          <div className="relative z-10 grid grid-cols-3 divide-x divide-white/[0.06] px-1 pb-3 sm:pb-3">
             {[
               { label: "Matches", value: played },
               { label: "MOTM", value: motm },
               { label: "Role", value: member.cricketRole === "all-rounder" ? "AR" : member.cricketRole.slice(0, 3).toUpperCase() },
             ].map((s) => (
-              <div key={s.label} className="flex flex-col items-center py-1 px-2">
-                <span className={`text-lg font-black ${theme.nameColor} leading-none`}>{s.value}</span>
-                <span className="text-[8px] uppercase tracking-widest text-white/25 font-black mt-0.5">{s.label}</span>
+              <div key={s.label} className="flex flex-col items-center py-0.5 sm:py-1 px-1 sm:px-2">
+                <span className={`text-sm sm:text-lg font-black ${theme.nameColor} leading-none`}>{s.value}</span>
+                <span className="text-[7px] sm:text-[8px] uppercase tracking-widest text-white/25 font-black mt-0">{s.label}</span>
               </div>
             ))}
           </div>
 
           {/* ── Stat Bars ── */}
-          <div className="relative z-10 px-4 pb-4 space-y-2">
+          <div className="relative z-10 px-3 sm:px-4 pb-3.5 sm:pb-4 space-y-1.5 sm:space-y-2">
             <StatBar label="BAT" value={stats.bat} color={theme.statBarColor} />
             <StatBar label="BWL" value={stats.bowl} color={theme.statBarColor} />
             <StatBar label="FLD" value={stats.field} color={theme.statBarColor} />
@@ -230,12 +228,12 @@ export default function MemberCard({ member, index }: { member: Member; index: n
           </div>
 
           {/* ── Batting / Bowling style footer ── */}
-          <div className="relative z-10 px-4 pb-4 flex items-center gap-2 flex-wrap">
-            <span className="text-[8px] font-black uppercase tracking-widest text-white/20 px-2 py-0.5 rounded bg-white/[0.04] border border-white/[0.06]">
+          <div className="relative z-10 px-3 sm:px-4 pb-4 sm:pb-4 flex items-center gap-1.5 sm:gap-2 flex-wrap">
+            <span className="text-[7px] sm:text-[8px] font-black uppercase tracking-widest text-white/20 px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/[0.06]">
               {member.battingStyle}
             </span>
             {member.bowlingStyle !== "N/A" && (
-              <span className="text-[8px] font-black uppercase tracking-widest text-white/20 px-2 py-0.5 rounded bg-white/[0.04] border border-white/[0.06]">
+              <span className="text-[7px] sm:text-[8px] font-black uppercase tracking-widest text-white/20 px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/[0.06]">
                 {member.bowlingStyle}
               </span>
             )}

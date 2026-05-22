@@ -48,7 +48,7 @@ export default function RivalrySection() {
             <Zap className="w-5 h-5 animate-pulse" />
             ACTIVE CAPTAIN RIVALRY
           </span>
-          <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white tracking-tighter mt-6 uppercase italic">
+          <h2 className="text-3xl min-[380px]:text-4xl sm:text-6xl lg:text-7xl font-black text-white tracking-tighter mt-6 uppercase italic leading-tight">
             Mavericks vs <span className="text-gradient-cyan">NeuroStrikers</span>
           </h2>
           <p className="mt-4 text-white/50 text-[11px] uppercase tracking-widest font-black">

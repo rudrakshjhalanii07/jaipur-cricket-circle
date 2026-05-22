@@ -68,11 +68,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
           .single();
 
         if (error) {
-          if (error.code === "PGRST116") {
-            console.warn(`Player with ID ${id} not found in database.`);
-          } else {
-            console.error("Error fetching player from database:", error);
-          }
+          console.warn(`Player lookup failed for ID ${id}:`, error.message || error);
           setLoading(false);
           return;
         }

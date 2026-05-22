@@ -258,25 +258,25 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black text-white font-[var(--font-heading)] uppercase tracking-tight">Chewvana Times Archive</h2>
+          <h2 className="text-xl sm:text-2xl font-black text-white font-[var(--font-heading)] uppercase tracking-tight">Chewvana Times Archive</h2>
           <p className="text-[13px] text-white/50 font-medium uppercase tracking-widest mt-1">Editorial & Publication Control</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="relative group">
+        <div className="flex flex-col min-[420px]:flex-row items-stretch min-[420px]:items-center gap-3 w-full sm:w-auto">
+          <div className="relative group w-full min-[420px]:w-auto">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-jcc-accent transition-colors" />
             <input
               type="text"
               placeholder="Search reports..."
-              className="pl-11 pr-4 py-3 rounded-2xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-sm font-black text-white uppercase tracking-widest w-full sm:w-64 placeholder:text-white/10"
+              className="pl-11 pr-4 py-3 rounded-2xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-sm font-black text-white uppercase tracking-widest w-full min-[420px]:w-48 sm:w-64 placeholder:text-white/10"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <button
             onClick={handleCreate}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl btn-vibrant-blue text-black text-sm font-black transition-all uppercase tracking-widest shadow-lg"
+            className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl btn-vibrant-blue text-black text-sm font-black transition-all uppercase tracking-widest shadow-lg w-full min-[420px]:w-auto shrink-0"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 shrink-0" />
             New Intel
           </button>
         </div>
@@ -299,9 +299,9 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
       <div className="grid grid-cols-1 gap-6">
         {filteredArticles.length > 0 ? (
           filteredArticles.map((article) => (
-            <div key={article.id} className="premium-card p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 group">
-              <div className="flex items-start gap-6 flex-1 min-w-0">
-                <div className="w-24 h-24 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden relative shadow-inner">
+            <div key={article.id} className="premium-card p-4 sm:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 group w-full min-w-0 overflow-hidden">
+              <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6 flex-1 min-w-0 w-full">
+                <div className="w-full sm:w-24 h-32 sm:h-24 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden relative shadow-inner">
                   {article.cover_image_url ? (
                     <img src={article.cover_image_url} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                   ) : (
@@ -323,56 +323,60 @@ export default function ChewvanaControl({ adminPassword }: { adminPassword?: str
                       <Clock className="w-3.5 h-3.5" /> {new Date(article.created_at).toLocaleDateString()}
                     </span>
                   </div>
-                  <h4 className="text-xl font-black text-white mb-2 truncate uppercase tracking-tight">{article.title}</h4>
+                  <h4 className="text-xl font-black text-white mb-2 break-words whitespace-normal line-clamp-2 uppercase tracking-tight">{article.title}</h4>
                   <p className="text-[14px] text-white/70 font-medium line-clamp-1 italic">&quot;{article.excerpt || "No intelligence summary provided."}&quot;</p>
-
-                  <div className="flex items-center gap-5 mt-4">
-                    <div className="flex items-center gap-2 text-[11px] text-white/60 font-black uppercase tracking-widest">
+ 
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-4 text-white/60">
+                    <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest">
                       <User className="w-3.5 h-3.5 text-jcc-accent" /> {article.reporter_alias || "The Chupa Captain"}
                     </div>
                     {article.match_date && (
-                      <div className="flex items-center gap-2 text-[11px] text-white/60 font-black uppercase tracking-widest">
+                      <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest">
                         <Calendar className="w-3.5 h-3.5 text-purple-400" /> {new Date(article.match_date).toLocaleDateString()}
                       </div>
                     )}
-                    <div className="flex items-center gap-2 text-[11px] text-white/20 font-black uppercase tracking-[0.2em]">
+                    <div className="flex items-center gap-2 text-[11px] text-white/20 font-black uppercase tracking-[0.2em] truncate min-w-0 max-w-[130px] min-[400px]:max-w-[200px] sm:max-w-none" title={`/${article.slug}`}>
                       /{article.slug}
                     </div>
                   </div>
                 </div>
               </div>
-
-              <div className="flex items-center gap-3 w-full md:w-auto border-t md:border-t-0 border-white/5 pt-6 md:pt-0">
-                <a
-                  href={`/chewvana-times/${article.slug}`}
-                  target="_blank"
-                  className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all text-[11px] font-black uppercase tracking-widest shadow-lg"
-                >
-                  <Eye className="w-4 h-4" />
-                  Preview
-                </a>
-                <button
-                  onClick={() => handleTogglePublish(article)}
-                  className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-2xl border transition-all text-[11px] font-black uppercase tracking-widest shadow-lg ${article.status === 'published'
-                    ? "bg-jcc-ball-red/10 border-jcc-ball-red/20 text-jcc-ball-red hover:bg-jcc-ball-red hover:text-black"
-                    : "bg-emerald-400/10 border-emerald-400/20 text-emerald-400 hover:bg-emerald-400 hover:text-black"
-                    }`}
-                >
-                  {article.status === 'published' ? <XCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-                  {article.status === 'published' ? "Archive" : "Publish"}
-                </button>
-                <div className="flex items-center gap-2">
+ 
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto border-t md:border-t-0 border-white/5 pt-4 md:pt-0">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <a
+                    href={`/chewvana-times/${article.slug}`}
+                    target="_blank"
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 sm:px-4 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all text-[10px] font-black uppercase tracking-widest shadow-lg"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    Preview
+                  </a>
+                  <button
+                    onClick={() => handleTogglePublish(article)}
+                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 sm:px-4 rounded-xl border transition-all text-[10px] font-black uppercase tracking-widest shadow-lg ${article.status === 'published'
+                      ? "bg-jcc-ball-red/10 border-jcc-ball-red/20 text-jcc-ball-red hover:bg-jcc-ball-red hover:text-black"
+                      : "bg-emerald-400/10 border-emerald-400/20 text-emerald-400 hover:bg-emerald-400 hover:text-black"
+                      }`}
+                  >
+                    {article.status === 'published' ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                    {article.status === 'published' ? "Archive" : "Publish"}
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
                   <button
                     onClick={() => handleEdit(article)}
-                    className="w-11 h-11 rounded-2xl bg-black/40 border border-white/10 text-white/60 hover:text-jcc-accent hover:bg-jcc-accent/10 transition-all flex items-center justify-center shadow-lg"
+                    className="flex-1 sm:w-10 sm:h-10 sm:flex-initial rounded-xl bg-black/40 border border-white/10 text-white/60 hover:text-jcc-accent hover:bg-jcc-accent/10 transition-all flex items-center justify-center py-2.5 sm:py-0 shadow-lg gap-2 text-[10px] font-black uppercase tracking-widest"
                   >
-                    <Edit2 className="w-4.5 h-4.5" />
+                    <Edit2 className="w-4 h-4" />
+                    <span className="sm:hidden">Edit</span>
                   </button>
                   <button
                     onClick={() => handleDelete(article.id)}
-                    className="w-11 h-11 rounded-2xl bg-black/40 border border-white/10 text-white/60 hover:text-jcc-ball-red hover:bg-jcc-ball-red/10 transition-all flex items-center justify-center shadow-lg"
+                    className="flex-1 sm:w-10 sm:h-10 sm:flex-initial rounded-xl bg-black/40 border border-white/10 text-white/60 hover:text-jcc-ball-red hover:bg-jcc-ball-red/10 transition-all flex items-center justify-center py-2.5 sm:py-0 shadow-lg gap-2 text-[10px] font-black uppercase tracking-widest"
                   >
-                    <Trash2 className="w-4.5 h-4.5" />
+                    <Trash2 className="w-4 h-4" />
+                    <span className="sm:hidden">Delete</span>
                   </button>
                 </div>
               </div>

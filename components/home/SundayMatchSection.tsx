@@ -13,7 +13,6 @@ import {
   Trophy,
   Flame,
   Shield,
-  Loader2,
 } from "lucide-react";
 import { clubStats, registrationData } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
@@ -43,7 +42,7 @@ function useCountdown(targetDate: string | null) {
       const match = new Date(targetDate);
       const now = new Date();
       
-      let target = new Date(match);
+      const target = new Date(match);
       // If match date is in the past (e.g. today's match ended), we default target or let it hit zero
       if (target <= now) {
         // Set to match date but allow it to show 0 if fully passed
@@ -80,13 +79,13 @@ function useCountdown(targetDate: string | null) {
 function CountdownUnit({ value, label }: { value: number; label: string }) {
   return (
     <div className="flex flex-col items-center gap-1">
-      <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden group-hover:border-jcc-accent/30 transition-colors">
-        <span className="text-2xl sm:text-3xl font-black text-white tabular-nums">
+      <div className="relative w-11 h-11 sm:w-16 sm:h-16 rounded-lg sm:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden group-hover:border-jcc-accent/30 transition-colors">
+        <span className="text-lg sm:text-3xl font-black text-white tabular-nums">
           {String(value).padStart(2, "0")}
         </span>
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-jcc-accent/40 to-transparent" />
       </div>
-      <span className="text-[9px] uppercase tracking-[0.15em] font-black text-white/30">{label}</span>
+      <span className="text-[7.5px] sm:text-[9px] uppercase tracking-[0.15em] font-black text-white/30">{label}</span>
     </div>
   );
 }
@@ -94,22 +93,37 @@ function CountdownUnit({ value, label }: { value: number; label: string }) {
 // Team badge component
 function TeamBadge({ name, color, accent }: { name: string; color: string; accent: string }) {
   return (
-    <div className={`flex flex-col items-center gap-3 px-6 py-5 rounded-2xl border ${color} bg-white/[0.03] flex-1`}>
-      <div className={`w-14 h-14 rounded-2xl ${accent} flex items-center justify-center`}>
-        <Shield className="w-7 h-7 text-white" />
+    <div className={`flex flex-col items-center gap-1.5 sm:gap-3 px-2.5 py-3 sm:px-6 sm:py-5 rounded-2xl border ${color} bg-white/[0.03] flex-1`}>
+      <div className={`w-9 h-9 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl ${accent} flex items-center justify-center`}>
+        <Shield className="w-4.5 h-4.5 sm:w-7 sm:h-7 text-white" />
       </div>
       <div className="text-center">
-        <p className="text-white font-black text-base uppercase tracking-wide leading-tight">{name}</p>
-        <p className="text-[10px] uppercase tracking-widest text-white/30 font-bold mt-0.5">JCC Season 2026</p>
+        <p className="text-white font-black text-xs sm:text-base uppercase tracking-wide leading-tight">{name}</p>
+        <p className="text-[8px] sm:text-[10px] uppercase tracking-widest text-white/30 font-bold mt-0.5">JCC Season 2026</p>
       </div>
     </div>
   );
 }
 
+interface Match {
+  id: string;
+  match_date: string;
+  match_time: string;
+  location_name: string;
+  player_limit: number;
+  status: string;
+}
+
+interface Player {
+  id: string;
+  name: string;
+  status: string;
+}
+
 export default function SundayMatchSection() {
-  const [match, setMatch] = useState<any>(null);
+  const [match, setMatch] = useState<Match | null>(null);
   const [confirmedCount, setConfirmedCount] = useState(0);
-  const [registeredPlayers, setRegisteredPlayers] = useState<any[]>([]);
+  const [registeredPlayers, setRegisteredPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [stats, setStats] = useState({
@@ -148,7 +162,7 @@ export default function SundayMatchSection() {
 
       const activeCount = dbPlayers ? dbPlayers.length : clubStats.totalMembers;
       const totalMatches = rivalrySeasons
-        ? rivalrySeasons.reduce((sum: number, s: any) => sum + (s.total_matches_played || 0), 0)
+        ? rivalrySeasons.reduce((sum: number, s: { total_matches_played: number | null }) => sum + (s.total_matches_played || 0), 0)
         : clubStats.matchesPlayed;
 
       setStats({
@@ -183,7 +197,10 @@ export default function SundayMatchSection() {
   }
 
   useEffect(() => {
-    fetchUpcomingMatch();
+    const timer = setTimeout(() => {
+      fetchUpcomingMatch();
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const countdown = useCountdown(match ? match.match_date : (error ? registrationData.matchDate : null));
@@ -332,7 +349,7 @@ export default function SundayMatchSection() {
     <>
       <section
         id="sunday-match"
-        className="py-24 sm:py-32 relative overflow-hidden"
+        className="pt-12 pb-24 sm:pt-20 sm:pb-32 relative overflow-hidden"
         style={{
           background: "radial-gradient(ellipse at 50% 0%, rgba(0,194,255,0.05) 0%, #081826 55%)",
         }}
@@ -348,9 +365,9 @@ export default function SundayMatchSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-80px" }}
             transition={{ duration: 0.6 }}
-            className="mb-14"
+            className="mb-6 sm:mb-14"
           >
-            <div className="flex items-center gap-3 mb-5">
+            <div className="flex items-center gap-3 mb-3 sm:mb-5">
               <span className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.45em] text-jcc-accent font-black">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-jcc-accent opacity-50" />
@@ -359,10 +376,10 @@ export default function SundayMatchSection() {
                 NEXT MATCH
               </span>
             </div>
-            <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white tracking-tighter uppercase italic">
+            <h2 className="text-4xl sm:text-6xl lg:text-7xl font-black text-white tracking-tighter uppercase italic leading-none">
               Sunday is <span className="text-gradient-cyan">Match Day</span>
             </h2>
-            <p className="mt-5 text-white/50 text-lg max-w-xl font-medium leading-relaxed">
+            <p className="mt-2 sm:mt-4 text-white/50 text-sm sm:text-lg max-w-xl font-medium leading-relaxed">
               Competitive cricket, tactical brilliance, and the brotherhood of Sunday morning.
             </p>
           </motion.div>
@@ -384,10 +401,10 @@ export default function SundayMatchSection() {
                   style={{ background: "radial-gradient(ellipse at 50% -20%, rgba(0,194,255,0.08) 0%, transparent 70%)" }}
                 />
 
-                <div className="p-6 sm:p-8">
+                <div className="p-4 sm:p-8">
 
                   {/* Header: Live + Title */}
-                  <div className="flex items-start justify-between gap-4 mb-8">
+                  <div className="flex items-start justify-between gap-4 mb-3.5 sm:mb-6 md:mb-8">
                     <div>
                       <div className="flex items-center gap-2 mb-2">
                         {isClosed ? (
@@ -407,17 +424,17 @@ export default function SundayMatchSection() {
                           Main Series
                         </span>
                       </div>
-                      <h3 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight">
+                      <h3 className="text-xl sm:text-3xl font-black text-white uppercase tracking-tight">
                         Next Sunday Match
                       </h3>
                     </div>
-                    <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                    <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
                       <Trophy className="w-5 h-5 text-jcc-gold" />
                     </div>
                   </div>
 
                   {/* TEAMS vs TEAMS */}
-                  <div className="flex items-center gap-3 mb-8">
+                  <div className="flex items-center gap-1.5 sm:gap-3 mb-3.5 sm:mb-6 md:mb-8">
                     <TeamBadge
                       name="Mavericks"
                       color="border-jcc-accent/20"
@@ -425,11 +442,11 @@ export default function SundayMatchSection() {
                     />
 
                     {/* VS divider */}
-                    <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-jcc-accent/20 to-jcc-green/20 border border-white/10 flex items-center justify-center">
-                        <Zap className="w-4 h-4 text-jcc-accent" />
+                    <div className="flex flex-col items-center gap-0.5 sm:gap-1 flex-shrink-0">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-jcc-accent/20 to-jcc-green/20 border border-white/10 flex items-center justify-center">
+                        <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-jcc-accent" />
                       </div>
-                      <span className="text-xs font-black text-white/30 uppercase tracking-widest">vs</span>
+                      <span className="text-[10px] sm:text-xs font-black text-white/30 uppercase tracking-widest">vs</span>
                     </div>
 
                     <TeamBadge
@@ -440,26 +457,26 @@ export default function SundayMatchSection() {
                   </div>
 
                   {/* Venue & Time */}
-                  <div className="flex flex-col sm:flex-row gap-3 mb-8">
-                    <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/[0.07] flex-1 hover:bg-white/[0.08] transition-colors">
-                      <MapPin className="w-4 h-4 text-jcc-accent flex-shrink-0" />
+                  <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 sm:gap-3 mb-3.5 sm:mb-6 md:mb-8">
+                    <div className="col-span-2 sm:col-span-1 flex items-center gap-2 sm:gap-3 px-2.5 py-2 sm:px-4 sm:py-3 rounded-xl bg-white/5 border border-white/[0.07] flex-1 hover:bg-white/[0.08] transition-colors">
+                      <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-jcc-accent flex-shrink-0" />
                       <div>
-                        <p className="text-[10px] uppercase tracking-widest font-black text-white/30">Venue</p>
-                        <p className="text-sm font-bold text-white leading-tight uppercase mt-0.5">{displayMatch.location_name}</p>
+                        <p className="text-[9px] sm:text-[10px] uppercase tracking-widest font-black text-white/30">Venue</p>
+                        <p className="text-xs sm:text-sm font-bold text-white leading-tight uppercase mt-0.5">{displayMatch.location_name}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/[0.07] flex-1 hover:bg-white/[0.08] transition-colors">
-                      <Clock className="w-4 h-4 text-jcc-accent flex-shrink-0" />
+                    <div className="flex items-center gap-2 sm:gap-3 px-2.5 py-2 sm:px-4 sm:py-3 rounded-xl bg-white/5 border border-white/[0.07] flex-1 hover:bg-white/[0.08] transition-colors">
+                      <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-jcc-accent flex-shrink-0" />
                       <div>
-                        <p className="text-[10px] uppercase tracking-widest font-black text-white/30">Reporting Time</p>
-                        <p className="text-sm font-bold text-white uppercase mt-0.5">{displayMatch.match_time}</p>
+                        <p className="text-[9px] sm:text-[10px] uppercase tracking-widest font-black text-white/30">Reporting Time</p>
+                        <p className="text-xs sm:text-sm font-bold text-white uppercase mt-0.5">{displayMatch.match_time}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/[0.07] flex-1 hover:bg-white/[0.08] transition-colors">
-                      <CalendarCheck className="w-4 h-4 text-jcc-accent flex-shrink-0" />
+                    <div className="flex items-center gap-2 sm:gap-3 px-2.5 py-2 sm:px-4 sm:py-3 rounded-xl bg-white/5 border border-white/[0.07] flex-1 hover:bg-white/[0.08] transition-colors">
+                      <CalendarCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-jcc-accent flex-shrink-0" />
                       <div>
-                        <p className="text-[10px] uppercase tracking-widest font-black text-white/30">Date</p>
-                        <p className="text-sm font-bold text-white mt-0.5">
+                        <p className="text-[9px] sm:text-[10px] uppercase tracking-widest font-black text-white/30">Date</p>
+                        <p className="text-xs sm:text-sm font-bold text-white mt-0.5">
                           {new Date(displayMatch.match_date).toLocaleDateString("en-IN", {
                             day: "numeric",
                             month: "short",
@@ -471,25 +488,25 @@ export default function SundayMatchSection() {
                   </div>
 
                   {/* Countdown Timer */}
-                  <div className="mb-8">
-                    <p className="text-[10px] uppercase tracking-[0.3em] font-black text-white/30 mb-3">
+                  <div className="mb-3.5 sm:mb-6 md:mb-8">
+                    <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.3em] font-black text-white/30 mb-2">
                       Countdown to Match Day
                     </p>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-start gap-2 sm:gap-3">
                       <CountdownUnit value={countdown.days} label="Days" />
-                      <span className="text-2xl font-black text-white/20 mb-4">:</span>
+                      <span className="text-lg sm:text-2xl font-black text-white/20 h-11 sm:h-16 flex items-center">:</span>
                       <CountdownUnit value={countdown.hours} label="Hrs" />
-                      <span className="text-2xl font-black text-white/20 mb-4">:</span>
+                      <span className="text-lg sm:text-2xl font-black text-white/20 h-11 sm:h-16 flex items-center">:</span>
                       <CountdownUnit value={countdown.minutes} label="Min" />
-                      <span className="text-2xl font-black text-white/20 mb-4">:</span>
+                      <span className="text-lg sm:text-2xl font-black text-white/20 h-11 sm:h-16 flex items-center">:</span>
                       <CountdownUnit value={countdown.seconds} label="Sec" />
                     </div>
                   </div>
 
                   {/* Registration Progress */}
-                  <div className="mb-8">
+                  <div className="mb-3.5 sm:mb-6 md:mb-8">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-white/40">
+                      <span className="flex items-center gap-2 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-white/40">
                         <Users className="w-3.5 h-3.5" />
                         {isClosed ? "Registration Closed" : "Registration"}
                       </span>
@@ -529,23 +546,25 @@ export default function SundayMatchSection() {
                       />
                     </div>
                     {/* Player initials row */}
-                    <div className="flex items-center gap-1.5 mt-4 flex-wrap">
-                      {finalRegisteredPlayers.slice(0, 8).map((p, i) => (
-                        <div
-                          key={p.id}
-                          className="w-7 h-7 rounded-full bg-gradient-to-br from-jcc-accent/40 to-jcc-navy-light border border-white/10 flex items-center justify-center text-[9px] font-black text-white uppercase shadow-lg"
-                          style={{ zIndex: 8 - i }}
-                          title={p.name}
-                        >
-                          {p.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().substring(0, 2)}
-                        </div>
-                      ))}
-                      {finalConfirmedCount > 8 && (
-                        <div className="w-7 h-7 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-[9px] font-black text-white/60">
-                          +{finalConfirmedCount - 8}
-                        </div>
-                      )}
-                      <span className="ml-2 text-[11px] text-white/30 font-black uppercase tracking-widest">registered</span>
+                    <div className="flex items-center mt-3 sm:mt-4 flex-wrap">
+                      <div className="flex items-center pl-2 select-none">
+                        {finalRegisteredPlayers.slice(0, 8).map((p, i) => (
+                          <div
+                            key={p.id}
+                            className="w-7 h-7 rounded-full bg-gradient-to-br from-jcc-accent/40 to-jcc-navy-light border-2 border-[#102339] flex items-center justify-center text-[9px] font-black text-white uppercase shadow-lg -ml-2 first:ml-0 hover:scale-110 hover:z-20 transition-all duration-200 cursor-default"
+                            style={{ zIndex: 10 - i }}
+                            title={p.name}
+                          >
+                            {p.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().substring(0, 2)}
+                          </div>
+                        ))}
+                        {finalConfirmedCount > 8 && (
+                          <div className="w-7 h-7 rounded-full bg-white/10 border-2 border-[#102339] flex items-center justify-center text-[9px] font-black text-white/60 -ml-2 shadow-lg relative z-0">
+                            +{finalConfirmedCount - 8}
+                          </div>
+                        )}
+                      </div>
+                      <span className="ml-2.5 text-[10px] sm:text-[11px] text-white/30 font-black uppercase tracking-widest">registered</span>
                     </div>
                   </div>
 
@@ -553,7 +572,7 @@ export default function SundayMatchSection() {
                   {isClosed ? (
                     <button
                       disabled
-                      className="inline-flex items-center gap-3 bg-white/5 border border-white/10 text-white/30 text-[13px] font-black w-full sm:w-auto justify-center px-6 py-4 rounded-xl cursor-not-allowed uppercase tracking-wider"
+                      className="inline-flex items-center gap-2.5 bg-white/5 border border-white/10 text-white/30 text-[12px] sm:text-[13px] font-black w-full sm:w-auto justify-center px-5 py-3 sm:px-6 sm:py-4 rounded-xl cursor-not-allowed uppercase tracking-wider"
                     >
                       <CalendarCheck className="w-4 h-4" />
                       Registration Closed
@@ -561,7 +580,7 @@ export default function SundayMatchSection() {
                   ) : (
                     <Link
                       href="/register"
-                      className="group/btn inline-flex items-center gap-3 btn-vibrant-blue text-[13px] font-black w-full sm:w-auto justify-center"
+                      className="group/btn inline-flex items-center gap-2.5 btn-vibrant-blue text-[12px] sm:text-[13px] font-black w-full sm:w-auto justify-center px-5 py-3 sm:px-8 sm:py-4 rounded-xl"
                     >
                       <CalendarCheck className="w-4 h-4" />
                       {isFull ? "JOIN WAITLIST" : "REGISTER FOR SUNDAY"}

@@ -165,8 +165,9 @@ export function optimizeImage(file: File): Promise<OptimizationResult> {
               originalSize,
               optimizedSize: resultBlob.size,
             });
-          } catch (err: any) {
-            reject(new Error(err.message || "Failed to process image canvas."));
+          } catch (err) {
+            const error = err as Error;
+            reject(new Error(error.message || "Failed to process image canvas."));
           }
         })();
       };

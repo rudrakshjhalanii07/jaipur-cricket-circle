@@ -190,17 +190,17 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
           <h2 className="text-2xl font-black text-white font-[var(--font-heading)] uppercase tracking-tight">Member Management</h2>
           <p className="text-[13px] text-white/50 font-medium uppercase tracking-widest mt-1">Personnel & Profile Operations</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex p-1 bg-white/5 border border-white/10 rounded-2xl mr-2 shadow-inner">
+        <div className="flex flex-col min-[420px]:flex-row items-stretch min-[420px]:items-center gap-3 w-full sm:w-auto">
+          <div className="flex p-1 bg-white/5 border border-white/10 rounded-2xl mr-0 min-[420px]:mr-2 shadow-inner w-full min-[420px]:w-auto">
             <button 
               onClick={() => setView("all")}
-              className={`px-5 py-2 rounded-xl text-[11px] font-black transition-all uppercase tracking-widest ${view === "all" ? "bg-white text-black shadow-lg" : "text-white/40 hover:text-white/60"}`}
+              className={`flex-1 text-center px-5 py-2 rounded-xl text-[11px] font-black transition-all uppercase tracking-widest ${view === "all" ? "bg-white text-black shadow-lg" : "text-white/40 hover:text-white/60"}`}
             >
               Active ({approvedPlayers.length})
             </button>
             <button 
               onClick={() => setView("pending")}
-              className={`px-5 py-2 rounded-xl text-[11px] font-black transition-all relative uppercase tracking-widest ${view === "pending" ? "bg-white text-black shadow-lg" : "text-white/40 hover:text-white/60"}`}
+              className={`flex-1 text-center px-5 py-2 rounded-xl text-[11px] font-black transition-all relative uppercase tracking-widest ${view === "pending" ? "bg-white text-black shadow-lg" : "text-white/40 hover:text-white/60"}`}
             >
               Pending ({pendingPlayers.length})
               {pendingPlayers.length > 0 && (
@@ -214,9 +214,9 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
               team: "Unassigned", member_tag: "member", group_role: "member",
               batting_style: "Right Hand", bowling_style: "Right Arm Pace", is_active: true
             }); setIsAdding(true); }}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl btn-vibrant-blue text-black font-black text-[12px] transition-all uppercase tracking-widest shadow-lg"
+            className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl btn-vibrant-blue text-black font-black text-[12px] transition-all uppercase tracking-widest shadow-lg w-full min-[420px]:w-auto shrink-0"
           >
-            <UserPlus className="w-4 h-4" /> Add Member
+            <UserPlus className="w-4 h-4 shrink-0" /> Add Member
           </button>
         </div>
       </div>

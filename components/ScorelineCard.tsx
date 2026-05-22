@@ -66,7 +66,7 @@ export default function ScorelineCard({
       viewport={{ once: false, amount: 0.2 }}
       transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
       whileHover={{ scale: 1.02, transition: { duration: 0.3 } }}
-      className="premium-card p-8 sm:p-10 group cursor-default transition-all duration-500 shadow-2xl overflow-hidden relative"
+      className="premium-card p-5 sm:p-10 group cursor-default transition-all duration-500 shadow-2xl overflow-hidden relative"
     >
       <div
         className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent ${
@@ -74,23 +74,23 @@ export default function ScorelineCard({
         } to-transparent opacity-40`}
       />
       
-      <div className="relative z-10 text-center mb-10">
+      <div className="relative z-10 text-center mb-6 sm:mb-10">
         <span
-          className="inline-flex items-center gap-3 text-[11px] uppercase tracking-[0.4em] font-black px-5 py-2 rounded-xl bg-white/[0.03] border border-white/5 text-white/40 group-hover:text-white/60 transition-colors shadow-inner"
+          className="inline-flex items-center gap-2 sm:gap-3 text-[9px] sm:text-[11px] uppercase tracking-[0.2em] sm:tracking-[0.4em] font-black px-3.5 py-1.5 sm:px-5 sm:py-2 rounded-xl bg-white/[0.03] border border-white/5 text-white/40 group-hover:text-white/60 transition-colors shadow-inner"
         >
           <span
             className={`w-2 h-2 rounded-full ${
               isTied ? "bg-jcc-gold shadow-[0_0_10px_#FFB800]" : (leader === team1 ? "bg-jcc-accent shadow-[0_0_10px_#00C2FF]" : "bg-jcc-ball-red shadow-[0_0_10px_#FF4D4D]")
             } animate-pulse`}
           />
-          {label} {isTied && <span className="ml-2 text-jcc-gold opacity-100">— Series Tied</span>}
+          {label} {isTied && <span className="ml-1 sm:ml-2 text-jcc-gold opacity-100">— Series Tied</span>}
         </span>
       </div>
 
       <div className="relative z-10 flex items-center justify-between gap-4">
         <div className="flex-1 text-center">
           <p
-            className={`text-sm sm:text-base font-black mb-4 tracking-[0.2em] uppercase ${team1Color} transition-all group-hover:tracking-[0.25em]`}
+            className={`text-[10px] min-[360px]:text-[11px] min-[385px]:text-xs sm:text-base font-black mb-4 tracking-[0.1em] sm:tracking-[0.2em] uppercase ${team1Color} transition-all sm:group-hover:tracking-[0.25em]`}
           >
             {team1}
           </p>
@@ -111,7 +111,7 @@ export default function ScorelineCard({
               className="flex items-center justify-center gap-2 mt-4"
             >
               <Trophy className="w-4 h-4 text-jcc-gold drop-shadow-lg" />
-              <span className="text-[10px] uppercase tracking-[0.25em] text-jcc-gold font-black">
+              <span className="text-[8px] sm:text-[10px] uppercase tracking-[0.15em] sm:tracking-[0.25em] text-jcc-gold font-black">
                 Leading Series
               </span>
             </motion.div>
@@ -130,7 +130,7 @@ export default function ScorelineCard({
 
         <div className="flex-1 text-center">
           <p
-            className={`text-sm sm:text-base font-black mb-4 tracking-[0.2em] uppercase ${team2Color} transition-all group-hover:tracking-[0.25em]`}
+            className={`text-[10px] min-[360px]:text-[11px] min-[385px]:text-xs sm:text-base font-black mb-4 tracking-[0.1em] sm:tracking-[0.2em] uppercase ${team2Color} transition-all sm:group-hover:tracking-[0.25em]`}
           >
             {team2}
           </p>
@@ -151,7 +151,7 @@ export default function ScorelineCard({
               className="flex items-center justify-center gap-2 mt-4"
             >
               <Trophy className="w-4 h-4 text-jcc-gold drop-shadow-lg" />
-              <span className="text-[10px] uppercase tracking-[0.25em] text-jcc-gold font-black">
+              <span className="text-[8px] sm:text-[10px] uppercase tracking-[0.15em] sm:tracking-[0.25em] text-jcc-gold font-black">
                 Leading Series
               </span>
             </motion.div>

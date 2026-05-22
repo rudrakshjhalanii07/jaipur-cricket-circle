@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Users, Filter, Loader2 } from "lucide-react";
+import { Users, Filter, Loader2, Search, X } from "lucide-react";
 import MemberCard from "@/components/MemberCard";
 import SectionHeading from "@/components/SectionHeading";
 import { members } from "@/lib/data";
 import type { Member, MemberTag } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
-import { staggerContainer, VIEWPORT_CONFIG } from "@/lib/animations";
 
 type FilterKey = "all" | MemberTag;
 
@@ -52,6 +51,7 @@ export default function MembersPage() {
   const [active, setActive] = useState<FilterKey>("all");
   const [dbPlayers, setDbPlayers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   async function fetchPlayers() {
     try {
@@ -113,12 +113,27 @@ export default function MembersPage() {
 
   const currentMembers = dbPlayers.length > 0 ? dbPlayers : members;
 
-  const filtered =
-    active === "all"
-      ? currentMembers
-      : active === "captain"
-      ? currentMembers.filter((m) => m.tags.includes("captain") || m.tags.includes("vice-captain"))
-      : currentMembers.filter((m) => m.tags.includes(active as MemberTag));
+  const filtered = currentMembers.filter((m) => {
+    const matchesCategory =
+      active === "all"
+        ? true
+        : active === "captain"
+        ? m.tags.includes("captain") || m.tags.includes("vice-captain")
+        : m.tags.includes(active as MemberTag);
+
+    const matchesSearch =
+      searchQuery.trim() === ""
+        ? true
+        : m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          m.team.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          m.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (m.cricketRole && m.cricketRole.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (m.battingStyle && m.battingStyle.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (m.bowlingStyle && m.bowlingStyle.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (m.shortBio && m.shortBio.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    return matchesCategory && matchesSearch;
+  });
 
   if (loading) {
     return (
@@ -156,20 +171,50 @@ export default function MembersPage() {
           accentColor="blue"
         />
 
+        {/* Search Bar */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="max-w-md mx-auto mb-8 px-2"
+        >
+          <div className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-jcc-accent/20 to-jcc-green/20 rounded-xl blur opacity-30 group-focus-within:opacity-70 transition duration-300" />
+            <div className="relative flex items-center bg-[#0C1E30]/60 backdrop-blur-xl border border-white/10 group-focus-within:border-jcc-accent/50 rounded-xl transition duration-300">
+              <Search className="w-4 h-4 text-white/30 ml-4 group-focus-within:text-jcc-accent transition duration-300" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by name, team, or role..."
+                className="w-full bg-transparent py-3 px-3 text-xs sm:text-sm text-white placeholder-white/20 focus:outline-none"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="p-2 mr-2 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        </motion.div>
+
         {/* Filter Controls */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="flex flex-wrap justify-center gap-3 mb-16"
+          className="flex flex-wrap justify-center gap-1.5 sm:gap-3 mb-8 sm:mb-16"
         >
           {filters.map((f) => (
             <button
               key={f.key}
               onClick={() => setActive(f.key)}
-              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 border ${
+              className={`px-3 py-1.5 sm:px-6 sm:py-2.5 rounded-lg sm:rounded-xl text-[8px] sm:text-[10px] font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] transition-all duration-300 border ${
                 active === f.key
-                  ? "bg-jcc-accent text-black border-jcc-accent shadow-[0_0_25px_rgba(0,194,255,0.3)]"
+                  ? "bg-jcc-accent text-black border-jcc-accent shadow-[0_0_20px_rgba(0,194,255,0.25)]"
                   : "bg-white/[0.03] text-white/40 border-white/10 hover:border-jcc-accent/40 hover:text-white"
               }`}
             >
@@ -182,10 +227,9 @@ export default function MembersPage() {
         <AnimatePresence mode="wait">
           <motion.div
             key={active}
-            variants={staggerContainer}
-            initial="hidden"
-            whileInView="visible"
-            viewport={VIEWPORT_CONFIG}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
           >
             {filtered.map((member, i) => (
@@ -195,9 +239,21 @@ export default function MembersPage() {
         </AnimatePresence>
 
         {filtered.length === 0 && (
-          <div className="text-center py-24 premium-card">
-            <Filter className="w-8 h-8 text-white/20 mx-auto mb-4" />
-            <p className="text-white/40 italic font-black uppercase tracking-widest">No members found matching the selected filter.</p>
+          <div className="text-center py-16 bg-[#0F2740]/20 border border-white/5 rounded-2xl max-w-md mx-auto">
+            <Filter className="w-6 h-6 text-white/20 mx-auto mb-3" />
+            <p className="text-[10px] text-white/40 font-black uppercase tracking-widest px-4">
+              {searchQuery
+                ? `No legends found for "${searchQuery}"`
+                : "No members found matching the selected filter."}
+            </p>
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="mt-4 px-4 py-2 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white border border-white/10 rounded-lg text-[9px] font-black uppercase tracking-wider transition"
+              >
+                Clear Search
+              </button>
+            )}
           </div>
         )}
       </div>

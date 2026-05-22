@@ -45,6 +45,11 @@
   --jcc-text-muted: rgba(244, 248, 252, 0.6);
 }
 
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5.5rem; /* Offsets sticky navbar (h-16 or h-20) perfectly on all viewports */
+}
+
 body {
   background-color: var(--jcc-bg);
   color: var(--jcc-text-soft);

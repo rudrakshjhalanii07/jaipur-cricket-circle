@@ -259,14 +259,14 @@ function FeatureCard({ article }: { article: Article }) {
               </p>
 
               {/* CTA */}
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <span className="inline-flex items-center gap-2.5 text-[11px] font-black uppercase tracking-widest text-jcc-accent group-hover:text-white transition-colors">
                   READ FULL REPORT
                   <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </span>
                 {article.author_name && (
                   <>
-                    <span className="w-px h-4 bg-white/15" />
+                    <span className="w-px h-4 bg-white/15 hidden min-[350px]:block" />
                     <span className="text-[10px] font-black text-white/25 uppercase tracking-widest">
                       By {article.author_name}
                     </span>

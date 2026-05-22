@@ -216,7 +216,7 @@ export default function AdminPage() {
           </aside>
 
           {/* Content Area */}
-          <main className="flex-1">
+          <main className="flex-1 min-w-0 w-full overflow-hidden">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeSection}
