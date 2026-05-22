@@ -86,9 +86,17 @@ function NewsTicker() {
           }
         });
 
+        // Fetch total matches from rivalry_seasons combined
+        const { data: rivalrySeasonsData } = await supabase
+          .from("rivalry_seasons")
+          .select("total_matches_played");
+        const totalMatchesPlayed = rivalrySeasonsData
+          ? rivalrySeasonsData.reduce((sum: number, s: any) => sum + (s.total_matches_played || 0), 0)
+          : clubStats.matchesPlayed;
+
         // Add club stats
         if (clubStats) {
-          items.push(`👑 SQUAD STATS: ${clubStats.matchesPlayed} matches recorded over ${clubStats.sundaysActive} Sundays active`);
+          items.push(`👑 SQUAD STATS: ${totalMatchesPlayed} matches recorded over ${clubStats.sundaysActive} Sundays active`);
           items.push(`📰 DISPATCH: New dispatch published every Monday post-match`);
         }
 
@@ -130,11 +138,8 @@ function NewsTicker() {
     >
       <div className="flex items-center" style={{ minHeight: "34px" }}>
         {/* Live tag */}
-        <div className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-jcc-ball-red"
-          style={{ boxShadow: "4px 0 10px rgba(255,77,77,0.4)" }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-white animate-live-blink" />
-          <span className="text-[8px] font-black uppercase tracking-[0.3em] text-white">LIVE</span>
+        <div className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-white/[0.05] border-r border-white/10">
+          <span className="text-[8px] font-black uppercase tracking-[0.3em] text-jcc-accent">LATEST ISSUE</span>
         </div>
         {/* Scroll */}
         <div className="flex-1 overflow-hidden">
@@ -176,8 +181,8 @@ function StatsBar({ total, filtered }: { total: number; filtered: number }) {
       </div>
       <div className="w-px h-6 bg-white/10" />
       <div className="flex items-center gap-1.5">
-        <span className="w-1.5 h-1.5 rounded-full bg-jcc-green animate-live-blink" />
-        <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Archive Live</span>
+        <span className="w-1.5 h-1.5 rounded-full bg-jcc-green" />
+        <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Archive Online</span>
       </div>
     </div>
   );
@@ -262,9 +267,8 @@ export default function ChewvanaTimesPage() {
               </div>
               <span className="w-px h-3.5 bg-white/15" />
               <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-jcc-ball-red animate-live-blink" />
-                <span className="text-[9px] font-black uppercase tracking-widest text-jcc-ball-red">
-                  LIVE ARCHIVE
+                <span className="text-[9px] font-black uppercase tracking-widest text-white/40">
+                  UPDATED MONDAYS
                 </span>
               </div>
             </div>

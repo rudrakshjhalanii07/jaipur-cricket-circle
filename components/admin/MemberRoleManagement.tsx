@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Star, User, Loader2, AlertCircle, Search, Trophy, Phone, Info } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { getDiceBearUrl } from "@/lib/avatar";
 
 interface Match {
   id: string;
@@ -21,6 +22,21 @@ interface PlayerRegistration {
   phone: string;
   cricket_role: string;
   status: string;
+  players?: {
+    image_url: string | null;
+    team: string | null;
+    member_tag: string | null;
+    batting_style: string | null;
+    bowling_style: string | null;
+    short_bio: string | null;
+  } | {
+    image_url: string | null;
+    team: string | null;
+    member_tag: string | null;
+    batting_style: string | null;
+    bowling_style: string | null;
+    short_bio: string | null;
+  }[] | null;
 }
 
 interface MatchRole {
@@ -61,10 +77,24 @@ export default function MemberRoleManagement({ adminPassword }: { adminPassword?
       }
       setMatch(matchData);
 
-      // 2. Get registrations for this match (including phone and status)
+      // 2. Get registrations for this match (including phone and status, and join players for full profile & team status details)
       const { data: regData, error: rError } = await supabase
         .from("registrations")
-        .select("player_id, name, phone, cricket_role, status")
+        .select(`
+          player_id, 
+          name, 
+          phone, 
+          cricket_role, 
+          status,
+          players:player_id ( 
+            image_url,
+            team,
+            member_tag,
+            batting_style,
+            bowling_style,
+            short_bio
+          )
+        `)
         .eq("match_id", matchData.id);
 
       if (rError) throw rError;
@@ -144,10 +174,30 @@ export default function MemberRoleManagement({ adminPassword }: { adminPassword?
   if (loading) return <div className="p-20 text-center"><Loader2 className="w-10 h-10 animate-spin mx-auto text-jcc-accent opacity-20" /></div>;
   if (!match) return <div className="p-20 text-center text-white/20 font-black uppercase tracking-[0.2em] premium-card border-white/5">No tactical engagement detected for role management.</div>;
 
-  const filteredPlayers = players.filter(p => 
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.phone.includes(search)
-  );
+  const filteredPlayers = players
+    .filter(p => 
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.phone.includes(search)
+    )
+    .sort((a, b) => {
+      const roleA = getLeadershipRole(a.player_id);
+      const roleB = getLeadershipRole(b.player_id);
+      
+      const getRolePriority = (role: string) => {
+        if (role === "captain") return 1;
+        if (role === "vice-captain") return 2;
+        return 3;
+      };
+      
+      const priorityA = getRolePriority(roleA);
+      const priorityB = getRolePriority(roleB);
+      
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+      
+      return a.name.localeCompare(b.name);
+    });
 
   return (
     <div className="space-y-8">
@@ -185,14 +235,36 @@ export default function MemberRoleManagement({ adminPassword }: { adminPassword?
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {filteredPlayers.length > 0 ? filteredPlayers.map((player) => {
           const leadershipRole = getLeadershipRole(player.player_id);
+          
+          // Resolve player profile data safely supporting both single object or array return structures from Supabase
+          const pData = player.players
+            ? (Array.isArray(player.players) ? player.players[0] : player.players)
+            : null;
+            
+          const imageUrl = pData?.image_url;
+          const team = pData?.team;
+          const memberTag = pData?.member_tag;
+          const battingStyle = pData?.batting_style;
+          const bowlingStyle = pData?.bowling_style;
+          const shortBio = pData?.short_bio;
+
           return (
-            <div key={player.player_id} className="premium-card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-6 group">
+            <div key={player.player_id} className="premium-card p-6 flex flex-col sm:flex-row xl:flex-col 2xl:flex-row sm:items-center xl:items-start 2xl:items-center justify-between gap-6 group">
               <div className="flex items-start gap-5 flex-1 min-w-0">
-                <div className="w-14 h-14 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center shrink-0 shadow-inner">
-                  <User className="w-6 h-6 text-white/10" />
+                <div className="w-14 h-14 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center shrink-0 shadow-inner overflow-hidden">
+                  <img
+                    src={imageUrl || getDiceBearUrl(player.name, team)}
+                    alt={player.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const img = e.currentTarget;
+                      const fallback = getDiceBearUrl(player.name, team);
+                      if (img.src !== fallback) img.src = fallback;
+                    }}
+                  />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h4 className="text-[17px] font-black text-white mb-1 truncate uppercase tracking-tight">{player.name}</h4>
+                  <h4 className="text-[17px] font-black text-white mb-1 truncate uppercase tracking-tight">{player.name || "Unknown Player"}</h4>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-3">
                     <span className="flex items-center gap-1.5 text-[11px] text-white/40 font-black uppercase tracking-widest">
                       <Phone className="w-3.5 h-3.5" /> {player.phone}
@@ -201,12 +273,26 @@ export default function MemberRoleManagement({ adminPassword }: { adminPassword?
                       {player.cricket_role}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className={`text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-widest border ${
                       player.status === "registered" ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/10" : "bg-jcc-gold/10 text-jcc-gold border-jcc-gold/10"
                     }`}>
                       {player.status}
                     </span>
+                    {team && team !== "Unassigned" && (
+                      <span className={`text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-widest border ${
+                        team === "Mavericks" ? "bg-[#00C2FF]/10 text-[#00C2FF] border-[#00C2FF]/20" :
+                        team === "NeuroStrikers" ? "bg-[#22E6A3]/10 text-[#22E6A3] border-[#22E6A3]/20" :
+                        "bg-white/5 text-white/30 border-white/10"
+                      }`}>
+                        {team}
+                      </span>
+                    )}
+                    {memberTag === "founding-member" && (
+                      <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-jcc-gold/10 text-jcc-gold border border-jcc-gold/20 shadow-[0_0_10px_rgba(255,184,0,0.1)]">
+                        <Star className="w-3.5 h-3.5 fill-jcc-gold text-jcc-gold" /> Founding
+                      </span>
+                    )}
                     {leadershipRole !== "player" && (
                       <span className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border shadow-lg ${
                         leadershipRole === "captain" ? "bg-jcc-gold text-black border-jcc-gold" : "bg-jcc-accent text-black border-jcc-accent"
@@ -216,10 +302,37 @@ export default function MemberRoleManagement({ adminPassword }: { adminPassword?
                       </span>
                     )}
                   </div>
+                  
+                  {/* Extra Profile Details (Batting, Bowling, Bio) */}
+                  {(battingStyle || bowlingStyle || shortBio) && (
+                    <div className="mt-3 pt-3 border-t border-white/5 space-y-2 text-[11px]">
+                      {(battingStyle || bowlingStyle) && (
+                        <div className="flex flex-wrap gap-x-4 gap-y-1">
+                          {battingStyle && battingStyle !== "Unassigned" && (
+                            <span className="text-white/40 uppercase font-black tracking-widest">
+                              <span className="text-white/20 font-medium lowercase tracking-normal mr-1">bat:</span>
+                              <span className="text-jcc-accent">{battingStyle}</span>
+                            </span>
+                          )}
+                          {bowlingStyle && bowlingStyle !== "Unassigned" && (
+                            <span className="text-white/40 uppercase font-black tracking-widest">
+                              <span className="text-white/20 font-medium lowercase tracking-normal mr-1">bowl:</span>
+                              <span className="text-[#22E6A3]">{bowlingStyle}</span>
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {shortBio && (
+                        <p className="italic text-white/30 font-medium tracking-wide leading-relaxed bg-black/20 p-2.5 rounded-xl border border-white/5">
+                          "{shortBio}"
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-black/40 border border-white/5 shrink-0 self-end sm:self-center shadow-inner">
+              <div className="flex items-center justify-between sm:justify-start xl:justify-between 2xl:justify-start gap-2 p-1.5 rounded-2xl bg-black/40 border border-white/5 shrink-0 w-full sm:w-auto xl:w-full 2xl:w-auto self-stretch sm:self-center xl:self-stretch 2xl:self-center shadow-inner">
                 {[
                   { role: "captain", icon: Trophy, label: "Captain", activeClass: "bg-jcc-gold text-black shadow-[0_0_20px_rgba(255,184,0,0.3)]" },
                   { role: "vice-captain", icon: Star, label: "VC", activeClass: "bg-jcc-accent text-black shadow-[0_0_20px_rgba(0,224,255,0.3)]" },
@@ -229,7 +342,7 @@ export default function MemberRoleManagement({ adminPassword }: { adminPassword?
                     key={r.role}
                     disabled={updating === player.player_id}
                     onClick={() => updateRole(player.player_id, r.role)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-500 ${
+                    className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-500 flex-1 sm:flex-initial xl:flex-1 2xl:flex-initial ${
                       leadershipRole === r.role 
                         ? r.activeClass 
                         : "text-white/20 hover:text-white hover:bg-white/5"

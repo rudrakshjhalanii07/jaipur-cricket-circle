@@ -507,8 +507,8 @@ export const registrationData: RegistrationData = {
 
 export const clubStats = {
   founded: "2026",
-  totalMembers: 14,
-  matchesPlayed: 24,
+  totalMembers: 11,
+  matchesPlayed: 26,  // Sum of all rivalry_seasons.total_matches_played (24 archived + 2 active)
   sundaysActive: 52,
   citiesRepresented: 1,
   tagline: "Where Sundays Hit Different",

@@ -112,6 +112,10 @@ export default function SundayMatchSection() {
   const [registeredPlayers, setRegisteredPlayers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [stats, setStats] = useState({
+    totalMembers: clubStats.totalMembers,
+    matchesPlayed: clubStats.matchesPlayed,
+  });
 
   async function fetchUpcomingMatch() {
     try {
@@ -130,6 +134,27 @@ export default function SundayMatchSection() {
         .maybeSingle();
 
       if (matchError) throw matchError;
+
+      // Fetch dynamic stats from database
+      const { data: dbPlayers } = await supabase
+        .from("players")
+        .select("id")
+        .eq("approval_status", "approved")
+        .eq("is_active", true);
+
+      const { data: rivalrySeasons } = await supabase
+        .from("rivalry_seasons")
+        .select("total_matches_played");
+
+      const activeCount = dbPlayers ? dbPlayers.length : clubStats.totalMembers;
+      const totalMatches = rivalrySeasons
+        ? rivalrySeasons.reduce((sum: number, s: any) => sum + (s.total_matches_played || 0), 0)
+        : clubStats.matchesPlayed;
+
+      setStats({
+        totalMembers: activeCount,
+        matchesPlayed: totalMatches,
+      });
 
       if (matchData) {
         setMatch(matchData);
@@ -251,7 +276,7 @@ export default function SundayMatchSection() {
                   {
                     icon: "🏏",
                     label: "Active Squad",
-                    value: `${clubStats.totalMembers}+`,
+                    value: `${stats.totalMembers}+`,
                     sub: "registered players",
                     borderColor: "border-white/10",
                     glowColor: "from-white/5",
@@ -260,7 +285,7 @@ export default function SundayMatchSection() {
                   {
                     icon: "⚡",
                     label: "Matches Played",
-                    value: `${clubStats.matchesPlayed}+`,
+                    value: `${stats.matchesPlayed}+`,
                     sub: "since season start",
                     borderColor: "border-white/10",
                     glowColor: "from-white/5",
@@ -555,7 +580,7 @@ export default function SundayMatchSection() {
                 {
                   icon: "🏏",
                   label: "Active Squad",
-                  value: `${clubStats.totalMembers}+`,
+                  value: `${stats.totalMembers}+`,
                   sub: "registered players",
                   borderColor: "border-jcc-accent/20",
                   glowColor: "from-jcc-accent/10",
@@ -564,7 +589,7 @@ export default function SundayMatchSection() {
                 {
                   icon: "⚡",
                   label: "Matches Played",
-                  value: `${clubStats.matchesPlayed}+`,
+                  value: `${stats.matchesPlayed}+`,
                   sub: "since season start",
                   borderColor: "border-yellow-400/20",
                   glowColor: "from-yellow-400/10",

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { clubStats } from "@/lib/data";
 import { fadeUp, scaleIn, staggerContainer } from "@/lib/animations";
+import { supabase } from "@/lib/supabase";
 
 // ---- Detailed Stadium Floodlight Component ----
 function StadiumFloodlight({ side }: { side: "left" | "right" }) {
@@ -389,6 +390,45 @@ function BatAndStumpsComposition() {
 
 export default function HeroSection() {
   const [isMobile, setIsMobile] = useState(true);
+  const [stats, setStats] = useState({
+    activePlayers: `${clubStats.totalMembers}+`,
+    sundayGames: `${clubStats.matchesPlayed}+`,
+    sundaysActive: `${clubStats.sundaysActive}+`,
+    communityLove: "∞"
+  });
+
+  useEffect(() => {
+    async function loadDynamicStats() {
+      try {
+        const { data: dbPlayers, error: playersError } = await supabase
+          .from("players")
+          .select("id")
+          .eq("approval_status", "approved")
+          .eq("is_active", true);
+
+        if (playersError) throw playersError;
+
+        const { data: rivalrySeasons } = await supabase
+          .from("rivalry_seasons")
+          .select("total_matches_played");
+
+        const activeCount = dbPlayers ? dbPlayers.length : 0;
+        const totalMatches = rivalrySeasons
+          ? rivalrySeasons.reduce((sum: number, s: any) => sum + (s.total_matches_played || 0), 0)
+          : 0;
+
+        setStats({
+          activePlayers: `${activeCount}+`,
+          sundayGames: `${totalMatches}+`,
+          sundaysActive: `${clubStats.sundaysActive}+`,
+          communityLove: "∞"
+        });
+      } catch (err) {
+        console.error("Error loading dynamic hero section stats:", err);
+      }
+    }
+    loadDynamicStats();
+  }, []);
 
   // Parallax Motion Values
   const mouseX = useMotionValue(0);
@@ -524,7 +564,7 @@ export default function HeroSection() {
       {/* ============================================================
          CONTENT GRID (Split Screen Desktop / Stacks Mobile)
          ============================================================ */}
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16">
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-36 lg:pt-48 pb-16">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
           
           {/* LEFT SIDE: Cinematic Text & Action Buttons */}
@@ -643,10 +683,10 @@ export default function HeroSection() {
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { emoji: "🏏", label: "Active Squad", value: clubStats.totalMembers + "+", color: "from-jcc-accent/20 to-transparent", border: "border-jcc-accent/20", textColor: "text-jcc-accent" },
-              { emoji: "⚡", label: "Matches Played", value: clubStats.matchesPlayed + "+", color: "from-yellow-400/20 to-transparent", border: "border-yellow-400/20", textColor: "text-yellow-400" },
-              { emoji: "🔥", label: "Win Streak", value: "3", color: "from-orange-500/20 to-transparent", border: "border-orange-500/20", textColor: "text-orange-400" },
-              { emoji: "👑", label: "Sundays Strong", value: clubStats.sundaysActive + "+", color: "from-jcc-green/20 to-transparent", border: "border-jcc-green/20", textColor: "text-jcc-green" },
+              { emoji: "👥", label: "Active Members", value: stats.activePlayers, color: "from-jcc-accent/20 to-transparent", border: "border-jcc-accent/20", textColor: "text-jcc-accent" },
+              { emoji: "🏆", label: "Matches Played", value: stats.sundayGames, color: "from-yellow-400/20 to-transparent", border: "border-yellow-400/20", textColor: "text-yellow-400" },
+              { emoji: "📅", label: "Sundays Active", value: stats.sundaysActive, color: "from-orange-500/20 to-transparent", border: "border-orange-500/20", textColor: "text-orange-400" },
+              { emoji: "❤️", label: "Community Love", value: stats.communityLove, color: "from-jcc-green/20 to-transparent", border: "border-jcc-green/20", textColor: "text-jcc-green" },
             ].map((stat) => (
               <div
                 key={stat.label}

@@ -52,7 +52,7 @@ export default function RivalrySection() {
             Mavericks vs <span className="text-gradient-cyan">NeuroStrikers</span>
           </h2>
           <p className="mt-4 text-white/50 text-[11px] uppercase tracking-widest font-black">
-            The {activeSeason.title} — Cap: {activeSeason.mavericks_captain} vs {activeSeason.neurostrikers_captain}
+            {activeSeason.title} — Cap: {activeSeason.mavericks_captain} vs {activeSeason.neurostrikers_captain}
           </p>
           <p className="mt-6 text-white/70 text-xl max-w-2xl mx-auto font-medium leading-relaxed">
             Every new captain pairing writes its own chapter. Two teams, one circle, pure tactical drama.

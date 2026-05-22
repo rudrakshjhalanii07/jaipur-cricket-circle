@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import type { Member, MemberTag } from "@/lib/data";
+import { getDiceBearUrl } from "@/lib/avatar";
 
 const tagLabels: Record<MemberTag, string> = {
   "founding-member": "Founder",
@@ -176,15 +177,16 @@ export default function MemberCard({ member, index }: { member: Member; index: n
               className={`w-24 h-24 rounded-2xl border-2 ${theme.avatarBg} overflow-hidden flex items-center justify-center shadow-xl`}
               style={{ boxShadow: `0 8px 30px -5px ${theme.glowColor}` }}
             >
-              {member.image ? (
-                <img
-                  src={member.image}
-                  alt={member.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-              ) : (
-                <span className="text-3xl font-black text-white/60 drop-shadow">{member.initials}</span>
-              )}
+              <img
+                src={member.image || getDiceBearUrl(member.name, member.team)}
+                alt={member.name}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                onError={(e) => {
+                  const img = e.currentTarget;
+                  const fallback = getDiceBearUrl(member.name, member.team);
+                  if (img.src !== fallback) img.src = fallback;
+                }}
+              />
             </div>
           </div>
 
@@ -197,8 +199,8 @@ export default function MemberCard({ member, index }: { member: Member; index: n
               {member.team}
             </p>
             {/* Speciality line */}
-            <p className="text-[11px] text-white/50 font-medium mt-2 leading-snug line-clamp-1 italic px-2">
-              {member.shortBio.split(".")[0]}.
+            <p className="text-[11px] text-white/50 font-medium mt-2 leading-relaxed italic px-2">
+              {member.shortBio}
             </p>
           </div>
 

@@ -40,12 +40,12 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="relative w-8 h-8 rounded-lg bg-white/[0.05] border border-white/10 flex items-center justify-center group-hover:border-jcc-accent/40 group-hover:bg-white/[0.1] transition-all duration-300">
-              <span className="text-xs font-bold text-jcc-accent">⬡</span>
+            <div className="relative w-8 h-8 rounded-lg bg-white/[0.05] border border-white/10 flex items-center justify-center group-hover:border-jcc-accent/40 group-hover:bg-white/[0.1] transition-all duration-300 overflow-hidden p-1.5">
+              <img src="/logo.svg" alt="JCC Logo" className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-300" />
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-black text-white tracking-wider font-[var(--font-heading)] uppercase">JCC</span>
-              <span className="text-[8px] text-white/50 tracking-[0.25em] uppercase leading-none font-bold">Cricket Circle</span>
+              <span className="text-sm font-black text-white tracking-wider font-[var(--font-heading)] uppercase">Jaipur Cricket Circle</span>
+              <span className="text-[8px] text-white/50 tracking-[0.25em] uppercase leading-none font-bold">Est. 2026</span>
             </div>
           </Link>
           <div className="hidden md:flex items-center gap-0.5">

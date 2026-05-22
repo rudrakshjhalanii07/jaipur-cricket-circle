@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import SectionHeading from "@/components/SectionHeading";
 import { optimizeImage } from "@/lib/image-optimize";
+import { getDiceBearUrl } from "@/lib/avatar";
 
 // Standard choice lists matching database values
 const CRICKET_ROLES = [
@@ -667,17 +668,16 @@ export default function ProfilePage() {
                       {/* Interactive Avatar Upload Frame */}
                       <div className="flex flex-col items-center">
                         <div className="relative group cursor-pointer w-32 h-32 rounded-full border-2 border-white/10 hover:border-jcc-accent/50 overflow-hidden shadow-2xl transition-all duration-300">
-                          {imageUrl ? (
-                            <img 
-                              src={imageUrl} 
-                              alt={name || "Member Profile"} 
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-white/[0.03] flex items-center justify-center text-4xl font-black text-white/20">
-                              {name ? name.split(" ").map(n => n[0]).slice(0,2).join("").toUpperCase() : "P"}
-                            </div>
-                          )}
+                          <img 
+                            src={imageUrl || getDiceBearUrl(name || verifiedPlayer.name, verifiedPlayer.team)} 
+                            alt={name || "Member Profile"} 
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            onError={(e) => {
+                              const img = e.currentTarget;
+                              const fallback = getDiceBearUrl(name || verifiedPlayer.name, verifiedPlayer.team);
+                              if (img.src !== fallback) img.src = fallback;
+                            }}
+                          />
                           
                           {/* Image update overlay */}
                           <div 

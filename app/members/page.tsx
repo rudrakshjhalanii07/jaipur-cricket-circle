@@ -22,6 +22,32 @@ const filters: { key: FilterKey; label: string }[] = [
   { key: "wicketkeeper", label: "Keepers" },
 ];
 
+function getDisplayRole(memberTag?: string, groupRole?: string, cricketRole?: string): string {
+  const isFounder = memberTag === "founding-member" || groupRole === "founding-member";
+  
+  if (groupRole === "captain") {
+    return isFounder ? "Founder & Captain" : "Captain";
+  }
+  if (groupRole === "vice-captain") {
+    return isFounder ? "Founding Member & Vice Captain" : "Vice Captain";
+  }
+  if (groupRole === "admin") {
+    return isFounder ? "Founding Member & Admin" : "Admin";
+  }
+  
+  if (isFounder) {
+    return "Founding Member";
+  }
+  
+  if (cricketRole) {
+    if (cricketRole === "all-rounder") return "All-Rounder";
+    if (cricketRole === "wicketkeeper") return "Wicketkeeper";
+    return cricketRole.charAt(0).toUpperCase() + cricketRole.slice(1);
+  }
+  
+  return "Member";
+}
+
 export default function MembersPage() {
   const [active, setActive] = useState<FilterKey>("all");
   const [dbPlayers, setDbPlayers] = useState<Member[]>([]);
@@ -42,15 +68,24 @@ export default function MembersPage() {
       if (data && data.length > 0) {
         const mapped: Member[] = data.map((p) => {
           const tags: MemberTag[] = [];
-          if (p.member_tag) tags.push(p.member_tag as MemberTag);
-          if (p.cricket_role) tags.push(p.cricket_role as MemberTag);
+          if (p.member_tag && p.member_tag !== "member") {
+            tags.push(p.member_tag as MemberTag);
+          }
+          if (p.cricket_role) {
+            tags.push(p.cricket_role as MemberTag);
+          }
+          if (p.group_role && (p.group_role === "captain" || p.group_role === "vice-captain")) {
+            if (!tags.includes(p.group_role as MemberTag)) {
+              tags.push(p.group_role as MemberTag);
+            }
+          }
           
           return {
             id: p.id,
             name: p.name,
-            initials: p.name.split(" ").map((n: string) => n[0]).join(""),
+            initials: p.name ? p.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) : "🏏",
             team: p.team || "Unassigned",
-            role: p.group_role ? (p.group_role.charAt(0).toUpperCase() + p.group_role.slice(1)) : (p.cricket_role.charAt(0).toUpperCase() + p.cricket_role.slice(1)),
+            role: getDisplayRole(p.member_tag, p.group_role, p.cricket_role),
             tags: tags,
             image: p.image_url || p.image,
             cricketRole: p.cricket_role as Member["cricketRole"],
@@ -81,6 +116,8 @@ export default function MembersPage() {
   const filtered =
     active === "all"
       ? currentMembers
+      : active === "captain"
+      ? currentMembers.filter((m) => m.tags.includes("captain") || m.tags.includes("vice-captain"))
       : currentMembers.filter((m) => m.tags.includes(active as MemberTag));
 
   if (loading) {

@@ -94,10 +94,26 @@ function LiveTicker() {
           }
         });
 
+        // Fetch active players and matches count from rivalry_seasons (all seasons combined)
+        const { data: dbPlayers } = await supabase
+          .from("players")
+          .select("id")
+          .eq("approval_status", "approved")
+          .eq("is_active", true);
+
+        const { data: rivalrySeasons } = await supabase
+          .from("rivalry_seasons")
+          .select("total_matches_played");
+
+        const activeCount = dbPlayers ? dbPlayers.length : clubStats.totalMembers;
+        const totalMatches = rivalrySeasons
+          ? rivalrySeasons.reduce((sum: number, s: any) => sum + (s.total_matches_played || 0), 0)
+          : clubStats.matchesPlayed;
+
         // Add club stats
         if (clubStats) {
-          items.push(`⚡ SQUAD STATS: ${clubStats.matchesPlayed} matches recorded over ${clubStats.sundaysActive} Sundays active`);
-          items.push(`👥 MEMBERSHIP: ${clubStats.totalMembers} players confirmed in the Circle`);
+          items.push(`⚡ SQUAD STATS: ${totalMatches} matches recorded over ${clubStats.sundaysActive} Sundays active`);
+          items.push(`👥 MEMBERSHIP: ${activeCount} players confirmed in the Circle`);
         }
 
         if (items.length > 0) {
@@ -138,11 +154,8 @@ function LiveTicker() {
     >
       {/* Breaking tag */}
       <div className="flex items-center" style={{ minHeight: "36px" }}>
-        <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-jcc-ball-red z-10"
-          style={{ boxShadow: "4px 0 12px rgba(255,77,77,0.4)" }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-white animate-live-blink" />
-          <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white">LIVE</span>
+        <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-white/[0.05] border-r border-white/10 z-10">
+          <span className="text-[9px] font-black uppercase tracking-[0.25em] text-jcc-accent">LATEST ISSUE</span>
         </div>
 
         {/* Scrolling ticker */}
@@ -440,9 +453,8 @@ export default function ChewvanaTimesSection() {
                 </span>
               </div>
               <span className="w-px h-4 bg-white/15" />
-              <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-jcc-ball-red">
-                <span className="w-1.5 h-1.5 rounded-full bg-jcc-ball-red animate-live-blink" />
-                LIVE COVERAGE
+              <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/40">
+                UPDATED MONDAYS
               </span>
             </div>
 

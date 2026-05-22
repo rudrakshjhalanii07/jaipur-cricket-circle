@@ -16,11 +16,15 @@ import {
   Send,
   Calendar,
   Camera,
+  Crown,
+  Shield,
+  Activity,
 } from "lucide-react";
 import SectionHeading from "@/components/SectionHeading";
 import { supabase } from "@/lib/supabase";
 import { fadeUp, staggerContainer, VIEWPORT_CONFIG } from "@/lib/animations";
 import { optimizeImage } from "@/lib/image-optimize";
+import { getDiceBearUrl } from "@/lib/avatar";
 
 interface Match {
   id: string;
@@ -32,12 +36,29 @@ interface Match {
   status: "open" | "full" | "closed" | "unscheduled" | "cancelled";
 }
 
+interface PlayerJoinedDetails {
+  image_url: string | null;
+  team: string | null;
+  member_tag: string | null;
+  group_role: string | null;
+  batting_style: string | null;
+  bowling_style: string | null;
+}
+
 interface Registration {
   id: string;
+  player_id: string;
   name: string;
   phone: string;
   cricket_role: string;
   status: "registered" | "waitlist";
+  players?: PlayerJoinedDetails | PlayerJoinedDetails[];
+}
+
+interface MatchRole {
+  player_id: string;
+  role: string;
+  match_id: string;
 }
 
 interface Player {
@@ -50,9 +71,154 @@ interface Player {
   image_url?: string;
 }
 
+// Helper functions to safely extract joined player details
+const getPlayerDetails = (player: Registration): PlayerJoinedDetails | null => {
+  const pData = player.players;
+  if (!pData) return null;
+  if (Array.isArray(pData)) {
+    return pData[0] || null;
+  }
+  return pData;
+};
+
+const getRoleBadgeStyle = (role: string) => {
+  const r = role.toLowerCase().trim();
+  if (r === "all-rounder") return "bg-cyan-500/10 border-cyan-500/35 text-cyan-400 border-[1px]";
+  if (r === "batter") return "bg-sky-500/10 border-sky-500/35 text-sky-400 border-[1px]";
+  if (r === "bowler") return "bg-emerald-500/10 border-emerald-500/35 text-emerald-400 border-[1px]";
+  if (r === "wicketkeeper") return "bg-amber-500/10 border-amber-500/35 text-amber-400 border-[1px]";
+  return "bg-white/5 border-white/10 text-white/50 border-[1px]";
+};
+
+const formatCricketStyles = (batting?: string | null, bowling?: string | null) => {
+  if (!batting && !bowling) return "";
+  const parts: string[] = [];
+  if (batting) {
+    if (batting.toLowerCase().includes("right")) parts.push("RHB");
+    else if (batting.toLowerCase().includes("left")) parts.push("LHB");
+    else parts.push(batting);
+  }
+  if (bowling && bowling !== "N/A" && bowling !== "None") {
+    const b = bowling.toLowerCase();
+    if (b.includes("right-arm fast") || b.includes("right arm fast")) parts.push("RAF");
+    else if (b.includes("right-arm medium") || b.includes("right arm medium")) parts.push("RAM");
+    else if (b.includes("right-arm offbreak") || b.includes("offbreak")) parts.push("RAO");
+    else if (b.includes("right-arm legbreak") || b.includes("legbreak")) parts.push("RAL");
+    else if (b.includes("left-arm fast") || b.includes("left arm fast")) parts.push("LAF");
+    else if (b.includes("left-arm medium") || b.includes("left arm medium")) parts.push("LAM");
+    else if (b.includes("left-arm offbreak") || b.includes("orthodox")) parts.push("LAO");
+    else if (b.includes("left-arm legbreak") || b.includes("chinaman")) parts.push("LAC");
+    else parts.push(bowling);
+  }
+  return parts.join(" • ");
+};
+
+const getRoleDetails = (role: string) => {
+  const r = role.toLowerCase().trim();
+  if (r === "all-rounder") return { abbr: "AR", emoji: "⚡" };
+  if (r === "batter") return { abbr: "BAT", emoji: "🏏" };
+  if (r === "bowler") return { abbr: "BOWL", emoji: "🟢" };
+  if (r === "wicketkeeper") return { abbr: "WK", emoji: "🧤" };
+  return { abbr: role.toUpperCase(), emoji: "🏏" };
+};
+
+const renderSpecialBadges = (memberTag?: string | null, groupRole?: string | null, matchRole?: string | null) => {
+  const badges = [];
+  const isFounder = memberTag === "founding-member";
+  
+  if (isFounder) {
+    badges.push(
+      <span key="founder" className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-amber-400/10 border border-amber-400/20 text-amber-400 scale-[0.9] origin-left shadow-sm">
+        <Crown className="w-2.5 h-2.5 shrink-0" />
+        Founder
+      </span>
+    );
+  }
+
+  // Dynamic match leadership roles
+  if (matchRole === "captain") {
+    badges.push(
+      <span key="match-captain" className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-jcc-gold text-black border border-jcc-gold scale-[0.9] origin-left shadow-md flex items-center shrink-0">
+        <Crown className="w-2.5 h-2.5 shrink-0" />
+        Match Captain
+      </span>
+    );
+  } else if (matchRole === "vice-captain") {
+    badges.push(
+      <span key="match-vc" className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-jcc-accent text-black border border-jcc-accent scale-[0.9] origin-left shadow-md flex items-center shrink-0">
+        <Shield className="w-2.5 h-2.5 shrink-0" />
+        Match VC
+      </span>
+    );
+  }
+  
+  if (groupRole === "captain" || memberTag === "captain") {
+    badges.push(
+      <span key="captain" className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-red-500/10 border border-red-500/20 text-red-400 scale-[0.9] origin-left shadow-sm animate-pulse">
+        <Shield className="w-2.5 h-2.5 shrink-0 text-red-400" />
+        Captain
+      </span>
+    );
+  } else if (groupRole === "vice-captain" || memberTag === "vice-captain") {
+    badges.push(
+      <span key="vc" className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-blue-500/10 border border-blue-500/20 text-blue-400 scale-[0.9] origin-left shadow-sm">
+        <Shield className="w-2.5 h-2.5 shrink-0 text-blue-400" />
+        VC
+      </span>
+    );
+  } else if (groupRole === "admin") {
+    badges.push(
+      <span key="admin" className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-purple-500/10 border border-purple-500/20 text-purple-400 scale-[0.9] origin-left shadow-sm">
+        Admin
+      </span>
+    );
+  }
+  
+  return badges.length > 0 ? (
+    <div className="flex gap-1 items-center flex-wrap">
+      {badges}
+    </div>
+  ) : null;
+};
+
+const getTeamCardStyles = (team: string | null) => {
+  const t = team ? team.replace(/\s+/g, '').toLowerCase() : "unassigned";
+  
+  if (t === "mavericks") {
+    return {
+      borderStyle: "border-jcc-accent/10 bg-[#001f33]/15",
+      hoverStyle: "hover:border-jcc-accent/30 hover:bg-[#002e4d]/25",
+      nameColor: "text-jcc-accent font-black",
+      glowColor: "rgba(0, 194, 255, 0.15)",
+      teamBadgeStyle: "bg-cyan-500/5 text-cyan-400 border-cyan-500/20",
+      avatarRingStyle: "border-cyan-400/30 group-hover:border-cyan-400 ring-cyan-400/5 group-hover:ring-cyan-400/20",
+    };
+  } else if (t === "neurostrikers" || t === "neuro strikers") {
+    return {
+      borderStyle: "border-jcc-ball-red/10 bg-[#33000d]/15",
+      hoverStyle: "hover:border-jcc-ball-red/30 hover:bg-[#4d0014]/25",
+      nameColor: "text-jcc-ball-red font-black",
+      glowColor: "rgba(255, 77, 77, 0.12)",
+      teamBadgeStyle: "bg-red-500/5 text-red-400 border-red-500/20",
+      avatarRingStyle: "border-red-500/30 group-hover:border-red-500 ring-red-500/5 group-hover:ring-red-500/20",
+    };
+  }
+  
+  // Unassigned/Default
+  return {
+    borderStyle: "border-white/5 bg-white/[0.02]",
+    hoverStyle: "hover:border-white/20 hover:bg-white/[0.04]",
+    nameColor: "text-white",
+    glowColor: "rgba(255, 255, 255, 0.05)",
+    teamBadgeStyle: "bg-white/5 text-white/40 border-white/10",
+    avatarRingStyle: "border-white/10 group-hover:border-white/30 ring-white/5",
+  };
+};
+
 export default function RegisterPage() {
   const [match, setMatch] = useState<Match | null>(null);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [matchRoles, setMatchRoles] = useState<MatchRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formStatus, setFormStatus] = useState<"idle" | "success" | "error" | "duplicate" | "pending_approval">("idle");
@@ -105,8 +271,9 @@ export default function RegisterPage() {
         setAvatarPreview(result.previewUrl);
         console.log(`[JCC Image Optimizer] Original size: ${Math.round(result.originalSize / 1024)}KB | Optimized WebP size: ${Math.round(result.optimizedSize / 1024)}KB (${result.width}x${result.height})`);
       })
-      .catch((err: any) => {
-        setAvatarError(err.message || "Image optimization failed.");
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : "Image optimization failed.";
+        setAvatarError(msg);
         setAvatarFile(null);
         setAvatarPreview("");
       })
@@ -192,12 +359,23 @@ export default function RegisterPage() {
       if (matchData) {
         const { data: regData, error: regError } = await supabase
           .from("registrations")
-          .select("*")
+          .select("*, players(image_url, team, member_tag, group_role, batting_style, bowling_style)")
           .eq("match_id", matchData.id)
           .order("created_at", { ascending: true });
 
         if (regError) throw regError;
         setRegistrations(regData || []);
+
+        const { data: roleData, error: roleError } = await supabase
+          .from("match_player_roles")
+          .select("*")
+          .eq("match_id", matchData.id);
+
+        if (roleError) {
+          console.error("Error fetching match player roles:", roleError);
+        } else {
+          setMatchRoles(roleData || []);
+        }
       }
     } catch (error) {
       console.error("Error fetching match data details:", error);
@@ -230,14 +408,14 @@ export default function RegisterPage() {
           try {
             const resData = JSON.parse(xhr.responseText);
             resolve(resData.publicUrl);
-          } catch (e) {
+          } catch {
             reject(new Error("Invalid server response."));
           }
         } else {
           try {
             const resData = JSON.parse(xhr.responseText);
             reject(new Error(resData.error || "Failed to upload profile picture."));
-          } catch (e) {
+          } catch {
             reject(new Error(`Upload failed with status code ${xhr.status}.`));
           }
         }
@@ -294,8 +472,9 @@ export default function RegisterPage() {
               setUploadProgress(progress);
             });
             setUploadStage("saving");
-          } catch (uploadErr: any) {
-            throw new Error(uploadErr.message || "Failed to upload profile picture.");
+          } catch (uploadErr: unknown) {
+            const msg = uploadErr instanceof Error ? uploadErr.message : "Failed to upload profile picture.";
+            throw new Error(msg);
           }
         }
 
@@ -360,9 +539,10 @@ export default function RegisterPage() {
       setFormData({ name: "", phone: "", cricket_role: "all-rounder" });
       setExistingPlayer(null);
       fetchMatchAndRegistrations(); 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Registration error:", error);
-      setRegistrationError(error.message || "System error. Try again later.");
+      const errMsg = error instanceof Error ? error.message : "System error. Try again later.";
+      setRegistrationError(errMsg);
       setFormStatus("error");
     } finally {
       setSubmitting(false);
@@ -410,14 +590,12 @@ export default function RegisterPage() {
   const fillPct = Math.min((slotsUsed / slotsTotal) * 100, 100);
   const isMatchFull = slotsUsed >= slotsTotal;
 
-  const getRoleAbbreviation = (role: string) => {
-    const r = role.toLowerCase().trim();
-    if (r === "all-rounder") return "A";
-    if (r === "batter") return "BM";
-    if (r === "bowler") return "BW";
-    if (r === "wicketkeeper") return "WK";
-    return role;
-  };
+  const batterCount = confirmed.filter(p => p.cricket_role.toLowerCase().trim() === "batter").length;
+  const bowlerCount = confirmed.filter(p => p.cricket_role.toLowerCase().trim() === "bowler").length;
+  const allRounderCount = confirmed.filter(p => p.cricket_role.toLowerCase().trim() === "all-rounder").length;
+  const keeperCount = confirmed.filter(p => p.cricket_role.toLowerCase().trim() === "wicketkeeper").length;
+
+
 
   const statusConfig = {
     open: {
@@ -466,7 +644,7 @@ export default function RegisterPage() {
       <div className="absolute inset-0 stadium-glow opacity-50 z-0" />
       <div className="absolute inset-0 noise-overlay opacity-20 pointer-events-none z-0" />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 relative z-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Header Badge */}
         <div className="text-center mb-6">
           <motion.div
@@ -490,63 +668,124 @@ export default function RegisterPage() {
           accentColor="turf"
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-8">
-            {/* Match Info Grid */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="premium-card p-8 sm:p-10"
-            >
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                {[
-                  {
-                    icon: CalendarCheck,
-                    color: "text-jcc-accent",
-                    label: "Match Date",
-                    value: new Date(match.match_date).toLocaleDateString("en-IN", {
-                      weekday: "long", day: "numeric", month: "long", year: "numeric",
-                    }),
-                  },
-                  {
-                    icon: Clock,
-                    color: "text-purple-400",
-                    label: "Reporting Time",
-                    value: match.match_time,
-                  },
-                  {
-                    icon: MapPin,
-                    color: "text-jcc-gold",
-                    label: "Venue",
-                    value: match.location_name,
-                    link: match.location_map_url
-                  },
-                  {
-                    icon: Users,
-                    color: "text-emerald-400",
-                    label: "Squad Size",
-                    value: `${slotsTotal} Players (${slotsTotal / 2} vs ${slotsTotal / 2})`,
-                  },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 shadow-inner">
-                      <item.icon className={`w-5 h-5 ${item.color}`} />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-[10px] text-white/30 uppercase tracking-[0.2em] font-black mb-1">{item.label}</p>
-                      <p className="text-[14px] font-black text-white uppercase tracking-tight leading-tight">{item.value}</p>
-                      {item.link && (
-                          <a href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[11px] text-jcc-accent hover:underline mt-2 font-black uppercase tracking-widest">
-                            View on Map <ExternalLink className="w-3 h-3" />
-                          </a>
-                      )}
-                    </div>
-                  </div>
-                ))}
+        {/* ENLARGED MATCH DETAILS BOX (FULL WIDTH DASHBOARD) */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-10"
+        >
+          {/* Core Match Information */}
+          <div className="lg:col-span-6 premium-card p-8 sm:p-10 flex flex-col justify-between relative overflow-hidden group">
+            {/* Ambient inner gradient */}
+            <div className="absolute inset-0 bg-gradient-to-r from-jcc-accent/5 via-transparent to-transparent pointer-events-none" />
+            
+            <div className="relative z-10">
+              <div className="flex items-center gap-2 mb-6">
+                <Activity className="w-5 h-5 text-jcc-accent animate-pulse" />
+                <span className="text-[10px] font-black text-jcc-accent uppercase tracking-[0.3em]">Official Match fixture</span>
               </div>
-            </motion.div>
+              <h2 className="text-3xl sm:text-4xl font-black text-white uppercase tracking-tight mb-8 leading-none">
+                JCC Weekly Sunday Clash
+              </h2>
+            </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 relative z-10">
+              {[
+                {
+                  icon: CalendarCheck,
+                  color: "text-jcc-accent",
+                  label: "Match Date",
+                  value: new Date(match.match_date).toLocaleDateString("en-IN", {
+                    weekday: "long", day: "numeric", month: "long",
+                  }),
+                  subValue: new Date(match.match_date).toLocaleDateString("en-IN", {
+                    year: "numeric"
+                  }),
+                },
+                {
+                  icon: Clock,
+                  color: "text-purple-400",
+                  label: "Reporting Time",
+                  value: match.match_time,
+                  subValue: "Assemble on Pitch",
+                },
+                {
+                  icon: Users,
+                  color: "text-emerald-400",
+                  label: "Squad Limit",
+                  value: `${slotsTotal} Players`,
+                  subValue: `${slotsTotal / 2} vs ${slotsTotal / 2} Matchup`,
+                },
+              ].map((item) => (
+                <div key={item.label} className="flex flex-col p-4 rounded-2xl bg-white/[0.02] border border-white/5 shadow-inner hover:border-white/10 transition-colors">
+                  <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-3">
+                    <item.icon className={`w-4 h-4 ${item.color}`} />
+                  </div>
+                  <p className="text-[9px] text-white/30 uppercase tracking-[0.15em] font-black mb-1">{item.label}</p>
+                  <p className="text-[15px] font-black text-white uppercase tracking-tight leading-tight">{item.value}</p>
+                  <p className="text-[10px] font-medium text-white/40 mt-1">{item.subValue}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Enormous Venue Map Card */}
+          <div className="lg:col-span-6 premium-card p-8 sm:p-10 flex flex-col justify-between border-jcc-gold/25 relative overflow-hidden group">
+            {/* Background ambient glow */}
+            <div className="absolute inset-0 bg-gradient-to-t from-jcc-gold/5 via-transparent to-transparent pointer-events-none" />
+            
+            <div className="relative z-10 flex flex-col h-full">
+              <div className="flex items-center gap-2 mb-4">
+                <MapPin className="w-4 h-4 text-jcc-gold animate-bounce" />
+                <span className="text-[10px] font-black text-jcc-gold uppercase tracking-[0.3em]">Stadium Location</span>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                <div>
+                  <h3 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight leading-tight">
+                    {match.location_name}
+                  </h3>
+                  <p className="text-[11px] font-bold text-white/40 uppercase tracking-widest leading-relaxed">
+                    JAIPUR, RAJASTHAN
+                  </p>
+                </div>
+                
+                {match.location_map_url && (
+                  <a
+                    href={match.location_map_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-jcc-gold/10 border border-jcc-gold/20 hover:bg-jcc-gold hover:text-black transition-all duration-300 text-[11px] font-black uppercase tracking-wider shrink-0"
+                  >
+                    <span>Get Directions</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
+              </div>
+
+              {/* Responsive Live Interactive Google Map */}
+              {match.location_name && (
+                <div className="relative w-full h-[220px] sm:h-[260px] rounded-2xl overflow-hidden border border-white/10 shadow-inner group/map">
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0 }}
+                    loading="lazy"
+                    allowFullScreen
+                    referrerPolicy="no-referrer-when-downgrade"
+                    src={`https://maps.google.com/maps?q=${encodeURIComponent(match.location_name + ", Jaipur")}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                    className="w-full h-full rounded-2xl grayscale invert opacity-70 group-hover/map:grayscale-0 group-hover/map:invert-0 group-hover/map:opacity-100 transition-all duration-700"
+                  />
+                  <div className="absolute inset-0 pointer-events-none border border-white/10 rounded-2xl" />
+                </div>
+              )}
+            </div>
+          </div>
+        </motion.div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className={`${match.status !== "unscheduled" ? "lg:col-span-5" : "lg:col-span-12"} space-y-8`}>
             {/* Registration Form */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -670,11 +909,17 @@ export default function RegisterPage() {
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
                       <div className="p-6 rounded-2xl bg-jcc-accent/10 border border-jcc-accent/20 flex items-center gap-5">
                         <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 shadow-xl">
-                          {existingPlayer.image_url ? (
-                            <img src={existingPlayer.image_url} alt={existingPlayer.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <Users className="w-7 h-7 text-white/20" />
-                          )}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={existingPlayer.image_url || getDiceBearUrl(existingPlayer.name, existingPlayer.team)}
+                            alt={existingPlayer.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const img = e.currentTarget;
+                              const fallback = getDiceBearUrl(existingPlayer.name, existingPlayer.team);
+                              if (img.src !== fallback) img.src = fallback;
+                            }}
+                          />
                         </div>
                         <div className="flex-1">
                           <h4 className="text-lg font-black text-white uppercase tracking-tight">{existingPlayer.name}</h4>
@@ -792,6 +1037,7 @@ export default function RegisterPage() {
                           </div>
                         ) : avatarPreview ? (
                           <>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={avatarPreview} alt="Preview" className="w-full h-full object-cover" />
                             {uploadStage === "uploading" && (
                               <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center">
@@ -891,7 +1137,7 @@ export default function RegisterPage() {
           </div>
 
           {match.status !== "unscheduled" && (
-            <div className="space-y-8">
+            <div className="lg:col-span-7 space-y-8">
               {/* Utilization Card */}
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
@@ -926,16 +1172,129 @@ export default function RegisterPage() {
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                     SQUAD ({confirmed.length})
                   </h3>
-                  <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin">
-                    {confirmed.length > 0 ? confirmed.map((player, i) => (
-                      <div key={player.id} className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/5 group hover:border-jcc-accent/30 hover:bg-jcc-accent/[0.02] transition-all duration-300">
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <span className="text-[10px] font-black text-white/20 w-4 flex-shrink-0">{i + 1}</span>
-                          <span className="text-[13px] text-white font-black uppercase tracking-tight truncate">{player.name}</span>
-                        </div>
-                        <span className="text-[9px] text-white/30 font-black uppercase tracking-widest flex-shrink-0 whitespace-nowrap">{getRoleAbbreviation(player.cricket_role)}</span>
+
+                  {/* Squad Balance Stats Dashboard */}
+                  {confirmed.length > 0 && (
+                    <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 mb-5 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-1.5">
+                          <Activity className="w-3.5 h-3.5 text-jcc-accent animate-pulse" />
+                          Squad Specialization Balance
+                        </span>
+                        <span className="text-[9px] font-black text-jcc-accent uppercase tracking-widest">
+                          {confirmed.length} Registered
+                        </span>
                       </div>
-                    )) : (
+                      
+                      <div className="grid grid-cols-4 gap-2">
+                        {[
+                          { label: "BAT", count: batterCount, color: "text-sky-400 border-sky-500/20 bg-sky-500/5", emoji: "🏏" },
+                          { label: "AR", count: allRounderCount, color: "text-cyan-400 border-cyan-500/20 bg-cyan-500/5", emoji: "⚡" },
+                          { label: "BWL", count: bowlerCount, color: "text-emerald-400 border-emerald-500/20 bg-emerald-500/5", emoji: "🟢" },
+                          { label: "WK", count: keeperCount, color: "text-amber-400 border-amber-500/20 bg-amber-500/5", emoji: "🧤" },
+                        ].map((stat) => (
+                          <div key={stat.label} className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-xl border ${stat.color} transition-all duration-300 hover:scale-[1.03]`}>
+                            <div className="text-sm font-black leading-none flex items-center gap-1">
+                              <span className="text-xs">{stat.emoji}</span>
+                              <span className="font-mono text-[14px]">{stat.count}</span>
+                            </div>
+                            <span className="text-[8px] font-black uppercase tracking-widest mt-1.5 opacity-60">{stat.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-3.5 max-h-[460px] overflow-y-auto pr-2 scrollbar-thin">
+                    {confirmed.length > 0 ? confirmed.map((player, i) => {
+                      const pDetails = getPlayerDetails(player);
+                      const imageUrl = pDetails?.image_url;
+                      const team = pDetails?.team || "Unassigned";
+                      const initials = player.name ? player.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) : "🏏";
+                      const matchRole = matchRoles.find((r) => r.player_id === player.player_id)?.role;
+                      
+                      const {
+                        borderStyle,
+                        hoverStyle,
+                        nameColor,
+                        glowColor,
+                        teamBadgeStyle,
+                        avatarRingStyle,
+                      } = getTeamCardStyles(team);
+
+                      const roleDetails = getRoleDetails(player.cricket_role);
+                      const styleString = formatCricketStyles(pDetails?.batting_style, pDetails?.bowling_style);
+
+                      return (
+                        <div 
+                          key={player.id} 
+                          className={`relative flex items-center justify-between gap-3 p-4 rounded-2xl border transition-all duration-300 group ${borderStyle} ${hoverStyle}`}
+                          style={{
+                            boxShadow: `0 0 0 0 ${glowColor}`,
+                          }}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLElement).style.boxShadow = `0 12px 28px -6px ${glowColor}, 0 0 0 1px ${glowColor}`;
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLElement).style.boxShadow = `0 0 0 0 ${glowColor}`;
+                          }}
+                        >
+                          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                            {/* Monospace Jersey index */}
+                            <span className="text-[12px] font-mono font-black text-white/20 w-5 flex-shrink-0 tabular-nums">
+                              #{String(i + 1).padStart(2, '0')}
+                            </span>
+                            
+                            {/* Profile Avatar with double ring glow */}
+                            <div className={`w-11 h-11 rounded-xl overflow-hidden bg-white/5 border flex items-center justify-center shrink-0 shadow-lg ring-2 transition-all duration-300 group-hover:scale-105 ${avatarRingStyle}`}>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={imageUrl || getDiceBearUrl(player.name, team)}
+                                alt={player.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const img = e.currentTarget;
+                                  const fallback = getDiceBearUrl(player.name, team);
+                                  if (img.src !== fallback) img.src = fallback;
+                                }}
+                              />
+                            </div>
+                            
+                            {/* Name, Roles, Team details stack */}
+                            <div className="flex flex-col min-w-0 gap-1">
+                              <div className="flex items-center gap-2 flex-wrap text-left">
+                                <span className={`text-[14px] font-black uppercase tracking-tight truncate leading-none ${nameColor}`}>
+                                  {player.name}
+                                </span>
+                                {/* Authority tags */}
+                                {renderSpecialBadges(pDetails?.member_tag, pDetails?.group_role, matchRole)}
+                              </div>
+                              
+                              {/* Subtitle details (Team and Cricket Style) */}
+                              <div className="flex items-center gap-2 flex-wrap leading-none">
+                                <span className={`inline-flex px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border ${teamBadgeStyle}`}>
+                                  {team}
+                                </span>
+                                {styleString && (
+                                  <>
+                                    <span className="w-1 h-1 rounded-full bg-white/10 shrink-0" />
+                                    <span className="text-[9px] font-semibold text-white/40 italic truncate max-w-[150px]">
+                                      {styleString}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Rich Cricket Role Badge */}
+                          <span className={`px-2.5 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-widest shrink-0 whitespace-nowrap shadow-sm flex items-center gap-1 transition-transform group-hover:scale-105 duration-300 ${getRoleBadgeStyle(player.cricket_role)}`}>
+                            <span>{roleDetails.emoji}</span>
+                            <span>{roleDetails.abbr}</span>
+                          </span>
+                        </div>
+                      );
+                    }) : (
                       <p className="text-[11px] text-white/20 italic font-black uppercase tracking-widest text-center py-4">Waiting for first signup...</p>
                     )}
                   </div>
@@ -946,15 +1305,95 @@ export default function RegisterPage() {
                     <Wifi className="w-4 h-4 text-jcc-gold" />
                     STAND-BY ({waitlist.length})
                   </h3>
-                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin">
-                    {waitlist.length > 0 ? waitlist.map((player, i) => (
-                      <div key={player.id} className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/5 group hover:border-jcc-gold/30 hover:bg-jcc-gold/[0.02] transition-all duration-300">
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <span className="text-[10px] font-black text-white/20 w-4 flex-shrink-0">W{i + 1}</span>
-                          <span className="text-[13px] text-white/40 font-black uppercase tracking-tight truncate">{player.name}</span>
+                  <div className="space-y-3.5 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin">
+                    {waitlist.length > 0 ? waitlist.map((player, i) => {
+                      const pDetails = getPlayerDetails(player);
+                      const imageUrl = pDetails?.image_url;
+                      const team = pDetails?.team || "Unassigned";
+                      const initials = player.name ? player.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) : "🏏";
+                      const matchRole = matchRoles.find((r) => r.player_id === player.player_id)?.role;
+                      const roleDetails = getRoleDetails(player.cricket_role);
+                      const styleString = formatCricketStyles(pDetails?.batting_style, pDetails?.bowling_style);
+                      
+                      const {
+                        borderStyle,
+                        hoverStyle,
+                        nameColor,
+                        glowColor,
+                        teamBadgeStyle,
+                        avatarRingStyle,
+                      } = getTeamCardStyles(team);
+
+                      return (
+                        <div 
+                          key={player.id} 
+                          className={`relative flex items-center justify-between gap-3 p-4 rounded-2xl border transition-all duration-300 group ${borderStyle} ${hoverStyle}`}
+                          style={{
+                            boxShadow: `0 0 0 0 ${glowColor}`,
+                          }}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLElement).style.boxShadow = `0 12px 28px -6px ${glowColor}, 0 0 0 1px ${glowColor}`;
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLElement).style.boxShadow = `0 0 0 0 ${glowColor}`;
+                          }}
+                        >
+                          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                            {/* Monospace standby position with gold accent */}
+                            <span className="text-[11px] font-mono font-black text-jcc-gold w-5 flex-shrink-0 tabular-nums shadow-sm">
+                              W{i + 1}
+                            </span>
+                            
+                            {/* Profile Avatar with double ring glow */}
+                            <div className={`w-11 h-11 rounded-xl overflow-hidden bg-white/5 border flex items-center justify-center shrink-0 shadow-lg ring-2 transition-all duration-300 group-hover:scale-105 ${avatarRingStyle}`}>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={imageUrl || getDiceBearUrl(player.name, team)}
+                                alt={player.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const img = e.currentTarget;
+                                  const fallback = getDiceBearUrl(player.name, team);
+                                  if (img.src !== fallback) img.src = fallback;
+                                }}
+                              />
+                            </div>
+                            
+                            {/* Name, Roles, Team details stack */}
+                            <div className="flex flex-col min-w-0 gap-1">
+                              <div className="flex items-center gap-2 flex-wrap text-left">
+                                <span className={`text-[14px] font-black uppercase tracking-tight truncate leading-none ${nameColor}`}>
+                                  {player.name}
+                                </span>
+                                {/* Authority tags */}
+                                {renderSpecialBadges(pDetails?.member_tag, pDetails?.group_role, matchRole)}
+                              </div>
+                              
+                              {/* Subtitle details (Team and Cricket Style) */}
+                              <div className="flex items-center gap-2 flex-wrap leading-none">
+                                <span className={`inline-flex px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border ${teamBadgeStyle}`}>
+                                  {team}
+                                </span>
+                                {styleString && (
+                                  <>
+                                    <span className="w-1 h-1 rounded-full bg-white/10 shrink-0" />
+                                    <span className="text-[9px] font-semibold text-white/40 italic truncate max-w-[150px]">
+                                      {styleString}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Rich Cricket Role Badge */}
+                          <span className={`px-2.5 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-widest shrink-0 whitespace-nowrap shadow-sm flex items-center gap-1 transition-transform group-hover:scale-105 duration-300 ${getRoleBadgeStyle(player.cricket_role)}`}>
+                            <span>{roleDetails.emoji}</span>
+                            <span>{roleDetails.abbr}</span>
+                          </span>
                         </div>
-                      </div>
-                    )) : (
+                      );
+                    }) : (
                       <p className="text-[11px] text-white/10 italic font-black uppercase tracking-widest text-center py-4">Waitlist empty.</p>
                     )}
                   </div>
