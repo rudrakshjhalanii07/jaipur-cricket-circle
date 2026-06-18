@@ -132,9 +132,9 @@ export default function MemberCard({ member, index }: { member: Member; index: n
     >
       <Link href={`/members/${member.id}`} className="block h-full">
         <div
-          className={`relative rounded-xl sm:rounded-2xl border border-white/[0.08] ${theme.borderHover} overflow-hidden h-full transition-all duration-400 cursor-pointer`}
+          className={`theme-static-dark relative rounded-xl sm:rounded-2xl border border-white/[0.08] ${theme.borderHover} overflow-hidden h-full transition-all duration-400 cursor-pointer`}
           style={{
-            background: `linear-gradient(160deg, var(--color-jcc-navy-light, #163B61) 0%, #081826 100%)`,
+            background: `linear-gradient(160deg, #163B61 0%, #081826 100%)`,
             boxShadow: `0 0 0 0 ${theme.glowColor}`,
           }}
           onMouseEnter={(e) => {

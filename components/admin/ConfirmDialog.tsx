@@ -58,7 +58,7 @@ export default function ConfirmDialog({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-jcc-navy/40 backdrop-blur-sm z-[999]"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[999]"
           />
 
           {/* Modal */}
@@ -67,7 +67,7 @@ export default function ConfirmDialog({
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-[32px] border border-jcc-border shadow-2xl w-full max-w-md overflow-hidden pointer-events-auto"
+              className="theme-static-light bg-white rounded-[32px] border border-jcc-border shadow-2xl w-full max-w-md overflow-hidden pointer-events-auto"
             >
               <div className={`p-8 ${style.bg} border-b ${style.border}`}>
                 <div className="flex justify-between items-start mb-6">

@@ -238,7 +238,7 @@ export default function ChewvanaTimesPage() {
 
   return (
     <div
-      className="min-h-screen relative overflow-hidden"
+      className="theme-static-dark min-h-screen relative overflow-hidden"
       style={{ background: "linear-gradient(180deg, #07111F 0%, #0C1E30 60%, #07111F 100%)" }}
     >
       {/* Ambient top glow */}

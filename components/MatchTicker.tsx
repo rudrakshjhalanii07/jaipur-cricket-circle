@@ -148,7 +148,7 @@ export default function MatchTicker({ isNavbarScrolled = false }: MatchTickerPro
 
   if (loading && !match) {
     return (
-      <div className="h-9 w-full bg-[#050e17] border-b border-white/5 flex items-center justify-center">
+      <div className="theme-static-dark h-9 w-full bg-[#050e17] border-b border-white/5 flex items-center justify-center">
         <div className="text-[10px] font-black tracking-[0.2em] text-white/30 uppercase animate-pulse">
           Synchronizing Live Broadcast Stream...
         </div>
@@ -233,7 +233,7 @@ export default function MatchTicker({ isNavbarScrolled = false }: MatchTickerPro
 
   return (
     <div
-      className={`relative w-full bg-[#050e17]/95 border-b border-jcc-accent/15 backdrop-blur-md overflow-hidden transition-all duration-500 ease-in-out z-40 select-none ${
+      className={`theme-static-dark relative w-full bg-[#050e17]/95 border-b border-jcc-accent/15 backdrop-blur-md overflow-hidden transition-all duration-500 ease-in-out z-40 select-none ${
         isNavbarScrolled ? "h-0 opacity-0 border-b-0" : "h-9 opacity-100"
       }`}
     >

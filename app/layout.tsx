@@ -35,9 +35,9 @@ export const metadata: Metadata = {
   description:
     "Jaipur Cricket Circle is a premium community cricket club. Every Sunday, we play hard, compete fiercely, and build bonds that go beyond the boundary.",
   icons: {
-    icon: "/logo.svg",
-    shortcut: "/logo.svg",
-    apple: "/logo.svg",
+    icon: "/jcc-logo.jpeg",
+    shortcut: "/jcc-logo.jpeg",
+    apple: "/jcc-logo.jpeg",
   },
 };
 
@@ -52,7 +52,7 @@ export default function RootLayout({
       data-scroll-behavior="smooth"
       className={`${inter.variable} ${fraunces.variable} ${plexMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-jcc-bg text-jcc-navy">
+      <body className="min-h-full flex flex-col bg-jcc-bg text-jcc-text-primary">
         <Providers>
           <MotionCanvas />
           <LoaderWrapper>

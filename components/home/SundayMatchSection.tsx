@@ -208,7 +208,7 @@ export default function SundayMatchSection() {
   // Loading skeleton screen using premium styling matching the theme
   if (loading) {
     return (
-      <section className="py-24 sm:py-32 relative overflow-hidden bg-[#081826]">
+      <section className="theme-static-dark py-24 sm:py-32 relative overflow-hidden bg-[#081826]">
         <div className="absolute inset-0 dot-pattern opacity-[0.06] pointer-events-none" />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10 animate-pulse">
           <div className="mb-14 space-y-4">
@@ -251,38 +251,37 @@ export default function SundayMatchSection() {
       <>
         <section
           id="sunday-match"
-          className="py-24 sm:py-32 relative overflow-hidden"
-          style={{
-            background: "radial-gradient(ellipse at 50% 0%, rgba(0,194,255,0.03) 0%, #081826 55%)",
-          }}
+          className="theme-static-dark py-24 sm:py-32 relative overflow-hidden"
+          style={{ background: "radial-gradient(ellipse 180% 25% at 50% 0%, rgba(255,255,255,0.018) 0%, #081826 100%)" }}
         >
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-jcc-accent/20 to-transparent" />
-          <div className="absolute inset-0 dot-pattern opacity-[0.06] pointer-events-none" />
+          <div className="absolute inset-0 dot-pattern opacity-[0.10] pointer-events-none" />
+          <div className="absolute inset-0 noise-overlay opacity-[0.06] pointer-events-none" />
 
           <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
             {/* Header */}
             <div className="mb-14">
               <div className="flex items-center gap-3 mb-5">
-                <span className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.45em] text-white/30 font-black">
+                <span className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.45em] text-jcc-accent/70 font-black">
                   NEXT MATCH
                 </span>
               </div>
-              <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white/40 tracking-tighter uppercase italic">
-                Sunday is <span className="text-white/20">Match Day</span>
+              <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white tracking-tighter uppercase italic">
+                Sunday is <span className="text-white/40">Match Day</span>
               </h2>
             </div>
 
             {/* Empty State Card */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-              <div className="lg:col-span-8 flex flex-col items-center justify-center p-12 sm:p-20 text-center rounded-2xl border border-white/5 bg-gradient-to-b from-white/[0.03] to-transparent relative group">
-                <div className="absolute inset-0 rounded-2xl border border-white/5 group-hover:border-white/10 transition-colors" />
+              <div className="lg:col-span-8 flex flex-col items-center justify-center p-12 sm:p-20 text-center rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.05] to-transparent relative group">
+                <div className="absolute inset-0 rounded-2xl border border-white/10 group-hover:border-jcc-accent/20 transition-colors" />
                 <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 shadow-inner text-3xl">
                   🏏
                 </div>
                 <h3 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight mb-3">
                   Next Sunday Match Coming Soon
                 </h3>
-                <p className="text-sm font-medium text-white/40 max-w-md leading-relaxed uppercase tracking-wider">
+                <p className="text-sm font-medium text-white/60 max-w-md leading-relaxed uppercase tracking-wider">
                   The next battle is being planned. Stay tuned and keep your kit ready.
                 </p>
               </div>
@@ -295,38 +294,38 @@ export default function SundayMatchSection() {
                     label: "Active Squad",
                     value: `${stats.totalMembers}+`,
                     sub: "registered players",
-                    borderColor: "border-white/10",
-                    glowColor: "from-white/5",
-                    textColor: "text-white/60",
+                    borderColor: "border-jcc-accent/20",
+                    glowColor: "from-jcc-accent/10",
+                    textColor: "text-jcc-accent",
                   },
                   {
                     icon: "⚡",
                     label: "Matches Played",
                     value: `${stats.matchesPlayed}+`,
                     sub: "since season start",
-                    borderColor: "border-white/10",
-                    glowColor: "from-white/5",
-                    textColor: "text-white/60",
+                    borderColor: "border-yellow-400/20",
+                    glowColor: "from-yellow-400/10",
+                    textColor: "text-yellow-400",
                   },
                   {
                     icon: "🔥",
                     label: "Sundays Strong",
                     value: `${clubStats.sundaysActive}+`,
                     sub: "consecutive Sundays",
-                    borderColor: "border-white/10",
-                    glowColor: "from-white/5",
-                    textColor: "text-white/60",
+                    borderColor: "border-orange-500/20",
+                    glowColor: "from-orange-500/10",
+                    textColor: "text-orange-400",
                   },
                 ].map((item, i) => (
                   <div
                     key={i}
-                    className={`group relative overflow-hidden rounded-2xl border ${item.borderColor} bg-gradient-to-br ${item.glowColor} to-transparent p-5 flex items-center gap-4 cursor-default transition-all duration-300`}
+                    className={`group relative overflow-hidden rounded-2xl border ${item.borderColor} bg-gradient-to-br ${item.glowColor} to-transparent p-5 flex items-center gap-4 cursor-default hover:scale-[1.02] transition-all duration-300`}
                   >
                     <div className="text-3xl flex-shrink-0">{item.icon}</div>
                     <div className="flex-1 min-w-0">
                       <div className={`text-2xl font-black ${item.textColor} leading-none`}>{item.value}</div>
-                      <div className="text-[11px] font-black uppercase tracking-widest text-white/50 mt-0.5">{item.label}</div>
-                      <div className="text-[10px] text-white/20 font-medium mt-0.5">{item.sub}</div>
+                      <div className="text-[11px] font-black uppercase tracking-widest text-white/70 mt-0.5">{item.label}</div>
+                      <div className="text-[10px] text-white/40 font-medium mt-0.5">{item.sub}</div>
                     </div>
                   </div>
                 ))}
@@ -349,13 +348,13 @@ export default function SundayMatchSection() {
     <>
       <section
         id="sunday-match"
-        className="pt-12 pb-24 sm:pt-20 sm:pb-32 relative overflow-hidden"
-        style={{
-          background: "radial-gradient(ellipse at 50% 0%, rgba(0,194,255,0.05) 0%, #081826 55%)",
-        }}
+        className="theme-static-dark pt-12 pb-24 sm:pt-20 sm:pb-32 relative overflow-hidden"
+        style={{ background: "#081826" }}
       >
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-jcc-accent/20 to-transparent" />
-        <div className="absolute inset-0 dot-pattern opacity-[0.06] pointer-events-none" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[480px] h-[240px] bg-jcc-accent/[0.04] rounded-full blur-[90px] pointer-events-none" />
+        <div className="absolute inset-0 dot-pattern opacity-[0.10] pointer-events-none" />
+        <div className="absolute inset-0 noise-overlay opacity-[0.06] pointer-events-none" />
 
         <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
 

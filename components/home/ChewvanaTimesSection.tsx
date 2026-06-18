@@ -428,7 +428,7 @@ export default function ChewvanaTimesSection() {
   const [featured, ...rest] = articles;
 
   return (
-    <section id="chewvana-times" className="relative overflow-hidden"
+    <section id="chewvana-times" className="theme-static-dark relative overflow-hidden"
       style={{ background: "linear-gradient(180deg, #07111F 0%, #0C1E30 50%, #07111F 100%)" }}
     >
       {/* Top divider */}

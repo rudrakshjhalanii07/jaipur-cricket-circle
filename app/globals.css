@@ -1,25 +1,46 @@
 @import "tailwindcss";
 
+/* ============================================================
+   Jaipur Cricket Circle — "Day/Night Seam" Theme
+   ------------------------------------------------------------
+   Colours are pulled from the physical objects of cricket:
+   the leather ball, the waxed seam, the pitch, the willow,
+   flannel whites. The site flips with the device colour scheme:
+     ☀️  light  → red-ball day  (Cherry Red on Flannel)
+     🌙  dark   → pink-ball night (City Pink on Ink)
+   Two constants carry across both modes: the Seam (stitch
+   cream) and the Pitch (live/success green).
+   ============================================================ */
+
 @theme {
-  --color-jcc-navy-deep: #07111F;
-  --color-jcc-navy: #0C1E30;
-  --color-jcc-navy-light: #132B47;
-  
-  --color-jcc-accent: #14B8FF;
-  --color-jcc-accent-glow: rgba(20, 184, 255, 0.4);
-  --color-jcc-green: #22C55E;
-  --color-jcc-ball-red: #FF4D4D;
-  --color-jcc-gold: #FFD700;
-  
-  --color-jcc-ice: #F4F8FC;
-  --color-jcc-blue-light: #EAF2FA;
-  
-  --color-jcc-text-primary: #FFFFFF;
-  --color-jcc-text-soft: #F4F8FC;
-  --color-jcc-text-muted: rgba(244, 248, 252, 0.6);
-  
-  --color-jcc-border: rgba(255, 255, 255, 0.08);
-  --color-jcc-border-bright: rgba(255, 255, 255, 0.18);
+  /* --- Surfaces (DARK / pink-night defaults) --- */
+  --color-jcc-navy-deep: #100B14;   /* deepest ground */
+  --color-jcc-navy: #1E1820;        /* card surface */
+  --color-jcc-navy-light: #2A2230;  /* elevated surface */
+
+  /* --- Hero / accent (City Pink at night) --- */
+  --color-jcc-accent: #E8537E;
+  --color-jcc-accent-glow: rgba(232, 83, 126, 0.4);
+
+  /* --- Constants that hold across modes --- */
+  --color-jcc-green: #2E7D52;       /* Pitch green — live / success */
+  --color-jcc-seam: #EDE3CE;        /* Seam cream — the stitching motif */
+
+  /* --- Secondary accents --- */
+  --color-jcc-ball-red: #E0556E;    /* warm ball-leather red */
+  --color-jcc-gold: #C2703A;        /* Sandstone — highlights / awards */
+
+  --color-jcc-ice: #F6F2E9;
+  --color-jcc-blue-light: #2A2230;
+
+  /* --- Foreground / text (Flannel at night) --- */
+  --color-jcc-text-primary: #F6F2E9;
+  --color-jcc-text-soft: #F6F2E9;
+  --color-jcc-text-muted: rgba(246, 242, 233, 0.6);
+
+  /* --- Borders tinted with seam cream --- */
+  --color-jcc-border: rgba(237, 227, 206, 0.12);
+  --color-jcc-border-bright: rgba(237, 227, 206, 0.24);
 
   --font-heading: var(--font-heading);
   --font-body: var(--font-body);
@@ -29,20 +50,88 @@
   --radius-3xl: 1.5rem;
 }
 
-/* ============================================================
-   Jaipur Cricket Circle — Midnight Sports Tech Theme
-   ============================================================ */
-
+/* ------------------------------------------------------------
+   Foreground remap: the codebase uses `white` as its primary
+   on-dark foreground (text-white, bg-white/5, border-white/10).
+   We make `white` mean "the active foreground ink", so a single
+   token flips ~1400 utility usages between modes.
+   Genuinely-light surfaces opt out via .theme-static-light.
+   ------------------------------------------------------------ */
 :root {
-  --jcc-bg: #07111F;
-  --jcc-navy: #0C1E30;
-  --jcc-navy-light: #132B47;
-  --jcc-accent: #14B8FF;
-  --jcc-green: #22C55E;
-  --jcc-gold: #FFD700;
-  --jcc-border: rgba(255, 255, 255, 0.08);
-  --jcc-text-soft: #F4F8FC;
-  --jcc-text-muted: rgba(244, 248, 252, 0.6);
+  --color-white: #F6F2E9;           /* night foreground = Flannel */
+
+  --jcc-bg: #17121A;                /* Ink Night — page ground */
+  --jcc-navy: #1E1820;
+  --jcc-navy-light: #2A2230;
+  --jcc-accent: #E8537E;
+  --jcc-green: #2E7D52;
+  --jcc-seam: #EDE3CE;
+  --jcc-gold: #C2703A;
+  --jcc-border: rgba(237, 227, 206, 0.12);
+  --jcc-text-soft: #F6F2E9;
+  --jcc-text-muted: rgba(246, 242, 233, 0.6);
+}
+
+/* ☀️ Day — red-ball heritage (Cherry Red on Flannel) */
+@media (prefers-color-scheme: light) {
+  :root {
+    --color-white: #15110E;         /* day foreground = Leather Black */
+
+    --color-jcc-navy-deep: #ECE5D6;
+    --color-jcc-navy: #FFFFFF;
+    --color-jcc-navy-light: #FBF7EE;
+    --color-jcc-accent: #9E1C2E;          /* Cherry Red */
+    --color-jcc-accent-glow: rgba(158, 28, 46, 0.28);
+    --color-jcc-green: #1C5B3B;           /* deep Pitch */
+    --color-jcc-ball-red: #9E1C2E;
+    --color-jcc-gold: #C9A86A;            /* Willow tan */
+    --color-jcc-ice: #15110E;
+    --color-jcc-blue-light: #FBF7EE;
+    --color-jcc-text-primary: #15110E;
+    --color-jcc-text-soft: #15110E;
+    --color-jcc-text-muted: rgba(21, 17, 14, 0.6);
+    --color-jcc-border: rgba(21, 17, 14, 0.1);
+    --color-jcc-border-bright: rgba(21, 17, 14, 0.2);
+
+    --jcc-bg: #F6F2E9;              /* Flannel ground */
+    --jcc-navy: #FFFFFF;
+    --jcc-navy-light: #FBF7EE;
+    --jcc-accent: #9E1C2E;
+    --jcc-green: #1C5B3B;
+    --jcc-gold: #C9A86A;
+    --jcc-border: rgba(21, 17, 14, 0.1);
+    --jcc-text-soft: #15110E;
+    --jcc-text-muted: rgba(21, 17, 14, 0.6);
+  }
+}
+
+/* Opt-out for genuinely-light UI (admin modals built against the old
+   token semantics where `jcc-navy` meant dark text). Pins a stable warm
+   light context in BOTH colour schemes so these popovers never invert. */
+.theme-static-light {
+  color: #15110E;
+  --color-white: #FFFFFF;
+  --color-jcc-navy: #15110E;          /* used as dark text/overlay here */
+  --color-jcc-navy-deep: #0B0A08;
+  --color-jcc-navy-light: #FBF7EE;
+  --color-jcc-accent: #9E1C2E;        /* cherry actions */
+  --color-jcc-green: #1C5B3B;
+  --color-jcc-gold: #C9A86A;
+  --color-jcc-text-primary: #15110E;
+  --color-jcc-text-soft: #15110E;
+  --color-jcc-text-muted: rgba(21, 17, 14, 0.55);
+  --color-jcc-border: rgba(21, 17, 14, 0.12);
+}
+
+/* Always-dark surfaces (scoreboard tickers, LED strips). Keeps a
+   flannel foreground in BOTH schemes so light text stays legible
+   on the dark strip in day mode. */
+.theme-static-dark {
+  color: #F6F2E9;
+  --color-white: #F6F2E9;
+  --color-jcc-text-primary: #F6F2E9;
+  --color-jcc-text-soft: #F6F2E9;
+  --color-jcc-text-muted: rgba(246, 242, 233, 0.6);
 }
 
 html {
@@ -62,33 +151,36 @@ body {
 /* ---- Section Rhythms ---- */
 .section-bg-navy { background-color: var(--jcc-bg); }
 .section-bg-ice { background-color: var(--jcc-navy); }
-.section-bg-deep { background-color: #050E17; } /* Ultra dark for depth */
+.section-bg-deep { background-color: var(--color-jcc-navy-deep); } /* Deepest ground for depth */
 
 /* ---- Typography ---- */
 h1, h2, h3, h4 {
-  color: #FFFFFF;
+  color: var(--color-jcc-text-primary);
   font-family: var(--font-heading);
   font-weight: 900;
   letter-spacing: -0.03em;
   text-transform: uppercase;
 }
 
+/* Hero → Pitch (the signature gradient) */
 .text-gradient-cyan {
-  background: linear-gradient(135deg, #14B8FF 0%, #22C55E 100%);
+  background: linear-gradient(135deg, var(--color-jcc-accent) 0%, var(--color-jcc-green) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
+/* Willow / Sandstone highlight gradient */
 .text-gradient-gold {
-  background: linear-gradient(135deg, #FFD700 0%, #FF8C00 100%);
+  background: linear-gradient(135deg, var(--color-jcc-gold) 0%, var(--color-jcc-ball-red) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
+/* Ball-leather red gradient */
 .text-gradient-red {
-  background: linear-gradient(135deg, #FF4D4D 0%, #FF8C42 100%);
+  background: linear-gradient(135deg, var(--color-jcc-ball-red) 0%, var(--color-jcc-gold) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -96,7 +188,7 @@ h1, h2, h3, h4 {
 
 /* ---- Premium Card System ---- */
 .premium-card {
-  background: rgba(15, 39, 64, 0.4);
+  background: color-mix(in srgb, var(--color-jcc-navy) 55%, transparent);
   backdrop-filter: blur(24px);
   border: 1px solid var(--jcc-border);
   border-radius: 1.5rem;
@@ -105,27 +197,28 @@ h1, h2, h3, h4 {
 }
 
 .premium-card:hover {
-  border-color: rgba(0, 194, 255, 0.4);
-  background: rgba(15, 39, 64, 0.6);
+  border-color: color-mix(in srgb, var(--color-jcc-accent) 40%, transparent);
+  background: color-mix(in srgb, var(--color-jcc-navy) 75%, transparent);
   transform: translateY(-4px) scale(1.01);
-  box-shadow: 0 25px 50px -15px rgba(0, 0, 0, 0.7), 0 0 30px rgba(0, 194, 255, 0.1);
+  box-shadow: 0 25px 50px -15px rgba(0, 0, 0, 0.7), 0 0 30px color-mix(in srgb, var(--color-jcc-accent) 12%, transparent);
 }
 
 .glass-card-dark {
-  background: rgba(255, 255, 255, 0.02);
+  background: color-mix(in srgb, var(--color-white) 3%, transparent);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid color-mix(in srgb, var(--color-white) 6%, transparent);
   border-radius: 1.25rem;
 }
 
 /* ---- Button System (Ultra High Contrast) ---- */
+/* Hero CTA — ball-leather fill, seam-cream label (reads on Pink and Cherry) */
 .btn-vibrant-blue {
-  background: #14B8FF;
-  color: #07111F !important;
+  background: var(--color-jcc-accent);
+  color: var(--color-jcc-seam) !important;
   font-weight: 900;
   border-radius: 1rem;
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 8px 24px rgba(20, 184, 255, 0.30);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-jcc-accent) 30%, transparent);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -139,15 +232,15 @@ h1, h2, h3, h4 {
 }
 
 .btn-vibrant-blue:hover {
-  background: #FFFFFF;
-  box-shadow: 0 12px 40px rgba(20, 184, 255, 0.45), 0 0 20px rgba(255, 255, 255, 0.2);
+  background: color-mix(in srgb, var(--color-jcc-accent) 82%, white);
+  box-shadow: 0 12px 40px color-mix(in srgb, var(--color-jcc-accent) 45%, transparent);
   transform: translateY(-3px) scale(1.02);
 }
 
 .btn-ghost {
-  border: 1.5px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.03);
-  color: #FFFFFF !important;
+  border: 1.5px solid color-mix(in srgb, var(--color-white) 14%, transparent);
+  background: color-mix(in srgb, var(--color-white) 4%, transparent);
+  color: var(--color-jcc-text-primary) !important;
   font-weight: 900;
   border-radius: 1rem;
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
@@ -163,22 +256,25 @@ h1, h2, h3, h4 {
 }
 
 .btn-ghost:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: #00C2FF;
-  color: #00C2FF !important;
+  background: color-mix(in srgb, var(--color-white) 8%, transparent);
+  border-color: var(--color-jcc-accent);
+  color: var(--color-jcc-accent) !important;
   transform: translateY(-2px);
 }
 
 /* ---- Utility Classes ---- */
 .hero-overlay {
-  background: linear-gradient(to bottom, rgba(8, 24, 38, 0.4) 0%, rgba(8, 24, 38, 0.1) 50%, rgba(8, 24, 38, 0.9) 100%);
+  background: linear-gradient(to bottom,
+    color-mix(in srgb, var(--jcc-bg) 40%, transparent) 0%,
+    color-mix(in srgb, var(--jcc-bg) 10%, transparent) 50%,
+    color-mix(in srgb, var(--jcc-bg) 90%, transparent) 100%);
   position: absolute;
   inset: 0;
   z-index: 1;
 }
 
 .stadium-glow {
-  background: radial-gradient(circle at 50% -20%, rgba(20, 184, 255, 0.18) 0%, transparent 65%);
+  background: radial-gradient(circle at 50% -20%, color-mix(in srgb, var(--color-jcc-accent) 18%, transparent) 0%, transparent 65%);
   position: absolute;
   inset: 0;
 }
@@ -204,7 +300,7 @@ h1, h2, h3, h4 {
 
 /* ---- Hero Utilities ---- */
 .hero-gradient {
-  background: radial-gradient(ellipse at 50% 30%, #132B47 0%, #07111F 70%);
+  background: radial-gradient(ellipse at 50% 30%, var(--color-jcc-navy-light) 0%, var(--jcc-bg) 70%);
 }
 
 .noise-overlay {
@@ -214,7 +310,7 @@ h1, h2, h3, h4 {
 }
 
 .dot-pattern {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-image: radial-gradient(color-mix(in srgb, var(--color-white) 10%, transparent) 1px, transparent 1px);
   background-size: 32px 32px;
 }
 
@@ -479,8 +575,8 @@ h1, h2, h3, h4 {
 
 /* Newsroom breaking news flash */
 @keyframes breaking-flash {
-  0%, 100% { background-color: #FF4D4D; }
-  50%       { background-color: #FF8C42; }
+  0%, 100% { background-color: var(--color-jcc-ball-red); }
+  50%       { background-color: var(--color-jcc-gold); }
 }
 
 .animate-breaking-flash {
@@ -520,8 +616,8 @@ h1, h2, h3, h4 {
 
 /* Glow pulse on hover */
 @keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 20px rgba(20, 184, 255, 0.1); }
-  50%       { box-shadow: 0 0 40px rgba(20, 184, 255, 0.3); }
+  0%, 100% { box-shadow: 0 0 20px color-mix(in srgb, var(--color-jcc-accent) 10%, transparent); }
+  50%       { box-shadow: 0 0 40px color-mix(in srgb, var(--color-jcc-accent) 30%, transparent); }
 }
 
 .hover-glow:hover {
@@ -538,7 +634,7 @@ h1, h2, h3, h4 {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-white) 4%, transparent), transparent);
   transform: translateX(-100%) skewX(-12deg);
 }
 
@@ -561,7 +657,7 @@ h1, h2, h3, h4 {
 /* Newsroom masthead editorial line */
 .editorial-rule {
   height: 3px;
-  background: linear-gradient(90deg, #14B8FF, #22C55E, #FFD700, #FF4D4D, #14B8FF);
+  background: linear-gradient(90deg, var(--color-jcc-accent), var(--color-jcc-green), var(--color-jcc-gold), var(--color-jcc-ball-red), var(--color-jcc-accent));
   background-size: 200% 100%;
   animation: editorial-flow 5s linear infinite;
 }
@@ -573,8 +669,8 @@ h1, h2, h3, h4 {
 
 /* Breaking news card border pulse */
 @keyframes border-pulse {
-  0%, 100% { border-color: rgba(255,77,77,0.25); }
-  50%       { border-color: rgba(255,77,77,0.55); }
+  0%, 100% { border-color: color-mix(in srgb, var(--color-jcc-ball-red) 25%, transparent); }
+  50%       { border-color: color-mix(in srgb, var(--color-jcc-ball-red) 55%, transparent); }
 }
 
 .animate-border-pulse {

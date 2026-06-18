@@ -6,7 +6,6 @@ import NextLink from "next/link";
 import { Users, ChevronRight, ShieldCheck, Heart, CalendarCheck, Trophy, Calendar } from "lucide-react";
 import { members, clubStats } from "@/lib/data";
 import type { Member, MemberTag } from "@/lib/data";
-import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { getDiceBearUrl } from "@/lib/avatar";
 
@@ -225,23 +224,17 @@ export default function CommunitySection() {
               >
                 <div className="relative mb-4">
                   <div className={`aspect-square rounded-xl overflow-hidden bg-white/5 border relative flex items-center justify-center transition-all duration-300 ${avatarBorder}`}>
-                    {member.image ? (
-                      <Image
-                        src={member.image}
-                        alt={member.name}
-                        width={200}
-                        height={200}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                    ) : (
-                      // DiceBear auto-avatar: deterministic per name, team-colored
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={getDiceBearUrl(member.name, member.team)}
-                        alt={member.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                    )}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={member.image || getDiceBearUrl(member.name, member.team)}
+                      alt={member.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      onError={(e) => {
+                        const img = e.currentTarget;
+                        const fallback = getDiceBearUrl(member.name, member.team);
+                        if (img.src !== fallback) img.src = fallback;
+                      }}
+                    />
                   </div>
                   {member.tags.includes("captain") && (
                     <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-jcc-accent flex items-center justify-center text-white shadow-lg border-2 border-jcc-navy">

@@ -885,7 +885,7 @@ export default function RegisterPage() {
                           <button 
                             type="submit"
                             disabled={lookupLoading || !formData.phone}
-                            className="absolute right-2 top-2 bottom-2 px-6 rounded-xl bg-white text-black text-[11px] font-black uppercase tracking-widest hover:bg-jcc-accent transition-colors disabled:opacity-50"
+                            className="absolute right-2 top-2 bottom-2 px-6 rounded-xl bg-jcc-accent text-jcc-seam text-[11px] font-black uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-50"
                           >
                             {lookupLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Verify"}
                           </button>

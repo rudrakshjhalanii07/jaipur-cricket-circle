@@ -180,7 +180,7 @@ export default function MembersPage() {
         >
           <div className="relative group">
             <div className="absolute inset-0 bg-gradient-to-r from-jcc-accent/20 to-jcc-green/20 rounded-xl blur opacity-30 group-focus-within:opacity-70 transition duration-300" />
-            <div className="relative flex items-center bg-[#0C1E30]/60 backdrop-blur-xl border border-white/10 group-focus-within:border-jcc-accent/50 rounded-xl transition duration-300">
+            <div className="relative flex items-center bg-jcc-navy/60 backdrop-blur-xl border border-white/10 group-focus-within:border-jcc-accent/50 rounded-xl transition duration-300">
               <Search className="w-4 h-4 text-white/30 ml-4 group-focus-within:text-jcc-accent transition duration-300" />
               <input
                 type="text"
@@ -239,7 +239,7 @@ export default function MembersPage() {
         </AnimatePresence>
 
         {filtered.length === 0 && (
-          <div className="text-center py-16 bg-[#0F2740]/20 border border-white/5 rounded-2xl max-w-md mx-auto">
+          <div className="text-center py-16 bg-jcc-navy/20 border border-white/5 rounded-2xl max-w-md mx-auto">
             <Filter className="w-6 h-6 text-white/20 mx-auto mb-3" />
             <p className="text-[10px] text-white/40 font-black uppercase tracking-widest px-4">
               {searchQuery

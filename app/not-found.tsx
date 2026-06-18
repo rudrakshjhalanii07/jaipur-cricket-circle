@@ -81,7 +81,7 @@ export default function NotFound() {
 
           <div className="space-y-4">
             {/* Blinking decision light box */}
-            <div className="bg-[#050E17] border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center relative overflow-hidden min-h-[90px]">
+            <div className="theme-static-dark bg-[#050E17] border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center relative overflow-hidden min-h-[90px]">
               <AnimatePresence mode="wait">
                 {isHit ? (
                   <motion.div

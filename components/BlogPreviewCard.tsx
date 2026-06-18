@@ -40,7 +40,7 @@ export default function BlogPreviewCard({ post, index }: { post: BlogPost; index
     >
       <Link href={`/chewvana-times/${post.slug}`} className="block h-full group">
         <article
-          className={`relative h-full flex flex-col rounded-2xl overflow-hidden border transition-all duration-400 ${cat.border} hover:border-opacity-80`}
+          className={`theme-static-dark relative h-full flex flex-col rounded-2xl overflow-hidden border transition-all duration-400 ${cat.border} hover:border-opacity-80`}
           style={{ background: "linear-gradient(160deg, #0C1E30 0%, #07111F 100%)" }}
         >
 

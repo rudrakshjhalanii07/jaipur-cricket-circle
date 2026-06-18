@@ -194,13 +194,13 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
           <div className="flex p-1 bg-white/5 border border-white/10 rounded-2xl mr-0 min-[420px]:mr-2 shadow-inner w-full min-[420px]:w-auto">
             <button 
               onClick={() => setView("all")}
-              className={`flex-1 text-center px-5 py-2 rounded-xl text-[11px] font-black transition-all uppercase tracking-widest ${view === "all" ? "bg-white text-black shadow-lg" : "text-white/40 hover:text-white/60"}`}
+              className={`flex-1 text-center px-5 py-2 rounded-xl text-[11px] font-black transition-all uppercase tracking-widest ${view === "all" ? "bg-jcc-accent text-jcc-seam shadow-lg" : "text-white/40 hover:text-white/60"}`}
             >
               Active ({approvedPlayers.length})
             </button>
             <button 
               onClick={() => setView("pending")}
-              className={`flex-1 text-center px-5 py-2 rounded-xl text-[11px] font-black transition-all relative uppercase tracking-widest ${view === "pending" ? "bg-white text-black shadow-lg" : "text-white/40 hover:text-white/60"}`}
+              className={`flex-1 text-center px-5 py-2 rounded-xl text-[11px] font-black transition-all relative uppercase tracking-widest ${view === "pending" ? "bg-jcc-accent text-jcc-seam shadow-lg" : "text-white/40 hover:text-white/60"}`}
             >
               Pending ({pendingPlayers.length})
               {pendingPlayers.length > 0 && (

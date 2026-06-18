@@ -77,7 +77,7 @@ function ActiveScoreboard({ season }: { season: RivalrySeason }) {
   const leader = mavWins > nsWins ? "Mavericks" : nsWins > mavWins ? "NeuroStrikers" : null;
 
   return (
-    <div className="relative rounded-2xl overflow-hidden border border-jcc-accent/20 bg-gradient-to-b from-[#0d2238] via-[#091826] to-[#050e17] shadow-[0_15px_40px_rgba(0,194,255,0.15)] transition-all duration-300">
+    <div className="theme-static-dark relative rounded-2xl overflow-hidden border border-jcc-accent/20 bg-gradient-to-b from-[#0d2238] via-[#091826] to-[#050e17] shadow-[0_15px_40px_rgba(0,194,255,0.15)] transition-all duration-300">
       {/* Glow effects */}
       <div className="absolute top-0 left-0 w-24 h-24 bg-jcc-accent/10 blur-[60px] pointer-events-none" />
       <div className="absolute top-0 right-0 w-24 h-24 bg-jcc-ball-red/10 blur-[60px] pointer-events-none" />
@@ -319,7 +319,7 @@ function SeriesProgression() {
   });
 
   return (
-    <div className="relative rounded-2xl border border-white/[0.08] overflow-hidden p-6 bg-gradient-to-b from-[#0a1f33] to-[#081826]">
+    <div className="theme-static-dark relative rounded-2xl border border-white/[0.08] overflow-hidden p-6 bg-gradient-to-b from-[#0a1f33] to-[#081826]">
       <div className="flex items-center gap-2 mb-5">
         <TrendingUp className="w-4 h-4 text-jcc-accent" />
         <h3 className="text-[11px] font-black uppercase tracking-[0.35em] text-white/50">Historic Match-by-Match Progression</h3>
@@ -382,7 +382,7 @@ function MatchCard({ match }: { match: typeof matchHistory[0]; index: number }) 
   return (
     <motion.div
       variants={fadeUp}
-      className="group relative rounded-xl border border-white/[0.07] overflow-hidden hover:border-white/15 transition-all duration-300"
+      className="theme-static-dark group relative rounded-xl border border-white/[0.07] overflow-hidden hover:border-white/15 transition-all duration-300"
       style={{ background: "linear-gradient(160deg, #0d2033 0%, #081826 100%)" }}
     >
       {/* Winner accent bar */}
@@ -601,7 +601,7 @@ export default function RivalryPage() {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="rounded-2xl border border-jcc-accent/20 bg-gradient-to-br from-[#0a1f33] to-[#050e17] p-8 text-center"
+          className="theme-static-dark rounded-2xl border border-jcc-accent/20 bg-gradient-to-br from-[#0a1f33] to-[#050e17] p-8 text-center"
         >
           <Trophy className="w-8 h-8 text-jcc-gold mx-auto mb-3" />
           <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">

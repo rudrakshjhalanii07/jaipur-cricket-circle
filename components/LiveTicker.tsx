@@ -61,7 +61,7 @@ export default function LiveTicker({ isNavbarScrolled = false }: LiveTickerProps
   if (loading) {
     return (
       <div
-        className={`relative w-full bg-[#050e17]/95 border-b border-white/5 backdrop-blur-md overflow-hidden transition-all duration-500 ease-in-out z-40 select-none flex items-center justify-center ${
+        className={`theme-static-dark relative w-full bg-[#050e17]/95 border-b border-white/5 backdrop-blur-md overflow-hidden transition-all duration-500 ease-in-out z-40 select-none flex items-center justify-center ${
           isNavbarScrolled ? "h-0 opacity-0 border-b-0" : "h-9 opacity-100"
         }`}
       >
@@ -153,7 +153,7 @@ export default function LiveTicker({ isNavbarScrolled = false }: LiveTickerProps
     return (
       <Link
         href="/register"
-        className={`relative w-full bg-[#050e17]/95 border-b border-jcc-accent/15 backdrop-blur-md overflow-hidden transition-all duration-500 ease-in-out z-40 select-none cursor-pointer block hover:border-jcc-accent/35 hover:shadow-[0_0_20px_rgba(20,184,255,0.15)] hover:bg-[#071322]/95 ${
+        className={`theme-static-dark relative w-full bg-[#050e17]/95 border-b border-jcc-accent/15 backdrop-blur-md overflow-hidden transition-all duration-500 ease-in-out z-40 select-none cursor-pointer block hover:border-jcc-accent/35 hover:shadow-[0_0_20px_rgba(20,184,255,0.15)] hover:bg-[#071322]/95 ${
           isNavbarScrolled ? "h-0 opacity-0 border-b-0" : "h-9 opacity-100"
         }`}
       >
@@ -176,7 +176,7 @@ export default function LiveTicker({ isNavbarScrolled = false }: LiveTickerProps
   // Non-clickable container for Stay Tuned state
   return (
     <div
-      className={`relative w-full bg-[#050e17]/95 border-b border-white/5 backdrop-blur-md overflow-hidden transition-all duration-500 ease-in-out z-40 select-none ${
+      className={`theme-static-dark relative w-full bg-[#050e17]/95 border-b border-white/5 backdrop-blur-md overflow-hidden transition-all duration-500 ease-in-out z-40 select-none ${
         isNavbarScrolled ? "h-0 opacity-0 border-b-0" : "h-9 opacity-100"
       }`}
     >

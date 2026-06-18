@@ -13,6 +13,7 @@ const navLinks = [
   { href: "/chewvana-times", label: "Chewvana Times" },
   { href: "/members", label: "Members" },
   { href: "/rivalry", label: "Rivalry" },
+  { href: "/toss", label: "Toss" },
   { href: "/register", label: "Register" },
   { href: "/profile", label: "Profile" },
   { href: "/about", label: "About" },
@@ -34,14 +35,14 @@ export default function Navbar() {
       variants={fadeDown}
       initial="hidden"
       animate="visible"
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? "bg-jcc-navy/80 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.3)]" : "bg-transparent"}`}
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? "bg-jcc-navy/80 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.3)]" : "bg-jcc-navy/70 backdrop-blur-md"}`}
     >
       <LiveTicker isNavbarScrolled={scrolled} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
           <Link href="/" className="flex items-center gap-2.5 group">
             <div className="relative w-8 h-8 rounded-lg bg-white/[0.05] border border-white/10 flex items-center justify-center group-hover:border-jcc-accent/40 group-hover:bg-white/[0.1] transition-all duration-300 overflow-hidden p-1.5">
-              <img src="/logo.svg" alt="JCC Logo" className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-300" />
+              <img src="/jcc-logo.jpeg" alt="JCC Logo" className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-300" />
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-black text-white tracking-wider font-[var(--font-heading)] uppercase">Jaipur Cricket Circle</span>
