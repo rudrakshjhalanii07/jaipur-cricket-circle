@@ -247,7 +247,7 @@ export default function ChewvanaTimesPage() {
       />
 
       {/* ── Newsroom Masthead ── */}
-      <div className="relative z-10 pt-28 pb-0">
+      <div className="relative z-10 pt-36 pb-0">
         {/* Live ticker */}
         <NewsTicker />
 

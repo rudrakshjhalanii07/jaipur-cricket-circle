@@ -73,7 +73,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
 
   if (loading) {
     return (
-      <div className="min-h-screen pt-28 flex items-center justify-center bg-jcc-bg">
+      <div className="min-h-screen pt-36 flex items-center justify-center bg-jcc-bg">
         <Loader2 className="w-10 h-10 animate-spin text-jcc-purple opacity-20" />
       </div>
     );
@@ -84,7 +84,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
   }
 
   return (
-    <div className="min-h-screen pt-28 pb-20 bg-jcc-bg relative overflow-hidden">
+    <div className="min-h-screen pt-36 pb-20 bg-jcc-bg relative overflow-hidden">
       {/* Cinematic Background Layers */}
       <div className="absolute inset-0 noise-overlay opacity-20 pointer-events-none z-0" />
       <div className="absolute inset-0 bg-gradient-to-b from-jcc-navy-deep/40 via-transparent to-jcc-navy-deep/60 pointer-events-none z-0" />

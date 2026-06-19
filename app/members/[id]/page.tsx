@@ -131,7 +131,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   const teamBg = member.team === "Mavericks" ? "bg-jcc-accent/5" : member.team === "NeuroStrikers" ? "bg-jcc-ball-red/5" : "bg-white/5";
 
   return (
-    <div className="min-h-screen pt-28 pb-20 bg-jcc-bg relative">
+    <div className="min-h-screen pt-36 pb-20 bg-jcc-bg relative">
       <div className="absolute inset-0 noise-overlay opacity-20 pointer-events-none z-0" />
       <div className="max-w-5xl mx-auto px-4 sm:px-6 relative z-10">
         {/* Back Link */}

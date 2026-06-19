@@ -565,7 +565,7 @@ export default function RegisterPage() {
 
   if (!match) {
     return (
-      <div className="min-h-screen pt-28 pb-20 relative overflow-hidden hero-gradient flex items-center justify-center">
+      <div className="min-h-screen pt-36 pb-20 relative overflow-hidden hero-gradient flex items-center justify-center">
         <div className="absolute inset-0 stadium-glow opacity-30 z-0" />
         <div className="text-center px-4 relative z-10">
           <SectionHeading
@@ -639,7 +639,7 @@ export default function RegisterPage() {
   const sc = statusConfig[currentStatus as keyof typeof statusConfig];
 
   return (
-    <div className="min-h-screen pt-28 pb-20 relative overflow-hidden hero-gradient">
+    <div className="min-h-screen pt-36 pb-20 relative overflow-hidden hero-gradient">
       {/* Cinematic Background Elements */}
       <div className="absolute inset-0 stadium-glow opacity-50 z-0" />
       <div className="absolute inset-0 noise-overlay opacity-20 pointer-events-none z-0" />
