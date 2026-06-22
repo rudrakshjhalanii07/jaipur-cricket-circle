@@ -2,28 +2,30 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  User, 
-  Phone, 
-  ShieldCheck, 
-  Camera, 
-  Save, 
-  LogOut, 
-  Clock, 
-  CheckCircle2, 
-  AlertCircle, 
-  Loader2, 
-  Award, 
-  Sparkles, 
+import {
+  User,
+  Phone,
+  ShieldCheck,
+  Camera,
+  Save,
+  LogOut,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Award,
+  Sparkles,
   Lock,
   ArrowRight,
   ShieldAlert,
   Flame,
-  Info
+  Info,
+  Send
 } from "lucide-react";
 import SectionHeading from "@/components/SectionHeading";
 import { optimizeImage } from "@/lib/image-optimize";
 import { getDiceBearUrl } from "@/lib/avatar";
+import { supabase } from "@/lib/supabase";
 
 // Standard choice lists matching database values
 const CRICKET_ROLES = [
@@ -96,6 +98,26 @@ export default function ProfilePage() {
   const [uploadStage, setUploadStage] = useState<"idle" | "optimizing" | "uploading" | "saving" | "done" | "error">("idle");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Sign-Up Mode States
+  const [portalMode, setPortalMode] = useState<"login" | "signup">("login");
+  const [signupFormData, setSignupFormData] = useState({ name: "", phone: "", cricket_role: "all-rounder" });
+  const [signupStatus, setSignupStatus] = useState<"idle" | "pending_approval" | "error">("idle");
+  const [signupError, setSignupError] = useState("");
+  const [isSubmittingSignup, setIsSubmittingSignup] = useState(false);
+  const [signupAvatarFile, setSignupAvatarFile] = useState<File | null>(null);
+  const [signupAvatarPreview, setSignupAvatarPreview] = useState("");
+  const [signupAvatarError, setSignupAvatarError] = useState("");
+  const [isSignupOptimizing, setIsSignupOptimizing] = useState(false);
+  const [signupUploadProgress, setSignupUploadProgress] = useState(0);
+  const [signupUploadStage, setSignupUploadStage] = useState<"idle" | "optimizing" | "uploading" | "saving">("idle");
+
+  // Cleanup signup avatar preview URL on unmount
+  useEffect(() => {
+    return () => {
+      if (signupAvatarPreview) URL.revokeObjectURL(signupAvatarPreview);
+    };
+  }, [signupAvatarPreview]);
+
   // Timer countdown hook
   useEffect(() => {
     if (timerCount > 0) {
@@ -156,6 +178,130 @@ export default function ProfilePage() {
       const newDigits = [...otpDigits];
       newDigits[index - 1] = "";
       setOtpDigits(newDigits);
+    }
+  };
+
+  // Sign-Up: Handle avatar file selection and optimization
+  const handleSignupFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    setSignupAvatarError("");
+    if (!file) return;
+
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      setSignupAvatarError("Invalid file type. Only JPG, JPEG, PNG, and WEBP are allowed.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setSignupAvatarError("Image is too large. Please upload a photo under 10MB.");
+      return;
+    }
+
+    setIsSignupOptimizing(true);
+    setSignupUploadStage("optimizing");
+    optimizeImage(file)
+      .then((result) => {
+        setSignupAvatarFile(result.file);
+        setSignupAvatarPreview(result.previewUrl);
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : "Image optimization failed.";
+        setSignupAvatarError(msg);
+        setSignupAvatarFile(null);
+        setSignupAvatarPreview("");
+      })
+      .finally(() => {
+        setIsSignupOptimizing(false);
+        setSignupUploadStage("idle");
+      });
+  };
+
+  const handleRemoveSignupAvatar = () => {
+    setSignupAvatarFile(null);
+    if (signupAvatarPreview) {
+      URL.revokeObjectURL(signupAvatarPreview);
+      setSignupAvatarPreview("");
+    }
+    setSignupAvatarError("");
+  };
+
+  const signupUploadWithProgress = (file: File, onProgress: (pct: number) => void): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/api/player/upload-avatar", true);
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try { resolve(JSON.parse(xhr.responseText).publicUrl); }
+          catch { reject(new Error("Invalid server response.")); }
+        } else {
+          try { reject(new Error(JSON.parse(xhr.responseText).error || "Upload failed.")); }
+          catch { reject(new Error(`Upload failed with status ${xhr.status}.`)); }
+        }
+      };
+      xhr.onerror = () => reject(new Error("Network error during upload."));
+      const fd = new FormData();
+      fd.append("file", file);
+      xhr.send(fd);
+    });
+
+  // Sign-Up: Submit new member request
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSignupError("");
+    setSignupStatus("idle");
+
+    try {
+      setIsSubmittingSignup(true);
+
+      const { data: existing, error: existErr } = await supabase
+        .from("players")
+        .select("id, approval_status")
+        .eq("phone", signupFormData.phone.trim())
+        .maybeSingle();
+
+      if (existErr) throw existErr;
+
+      if (existing) {
+        if (existing.approval_status === "approved") {
+          setSignupError("You are already an approved member. Please use the Login tab.");
+          setSignupStatus("error");
+        } else {
+          setSignupStatus("pending_approval");
+        }
+        return;
+      }
+
+      let imageUrl = null;
+      if (signupAvatarFile) {
+        setSignupUploadStage("uploading");
+        setSignupUploadProgress(0);
+        imageUrl = await signupUploadWithProgress(signupAvatarFile, setSignupUploadProgress);
+        setSignupUploadStage("saving");
+      }
+
+      const { error: createErr } = await supabase.from("players").insert([{
+        name: signupFormData.name.trim(),
+        phone: signupFormData.phone.trim(),
+        cricket_role: signupFormData.cricket_role,
+        approval_status: "pending",
+        image_url: imageUrl
+      }]);
+
+      if (createErr) throw createErr;
+
+      handleRemoveSignupAvatar();
+      setSignupFormData({ name: "", phone: "", cricket_role: "all-rounder" });
+      setSignupStatus("pending_approval");
+    } catch (err: any) {
+      setSignupError(err.message || "Something went wrong. Please try again.");
+      setSignupStatus("error");
+    } finally {
+      setIsSubmittingSignup(false);
+      setSignupUploadStage("idle");
+      setSignupUploadProgress(0);
     }
   };
 
@@ -435,9 +581,9 @@ export default function ProfilePage() {
         <SectionHeading
           title={verifiedPlayer ? "Your Profile" : "Member Portal"}
           subtitle={
-            verifiedPlayer 
+            verifiedPlayer
               ? "Refine your cricket stats, showcase batting specialties, and perfect your public profile."
-              : "Verify your phone number with a secure OTP to access your JCC member profile."
+              : "Login with your registered number, or sign up to request JCC membership."
           }
           accentColor="blue"
         />
@@ -486,163 +632,391 @@ export default function ProfilePage() {
                 className="w-full max-w-lg"
               >
                 <div className="premium-card p-8 md:p-10 relative overflow-hidden">
-                  
+
                   {/* Glassmorphic stadium details */}
                   <div className="absolute -top-12 -right-12 w-32 h-32 bg-jcc-accent/10 rounded-full blur-3xl pointer-events-none" />
-                  
+
+                  {/* Portal Mode Tab Switcher */}
+                  <div className="flex gap-2 p-1.5 bg-black/40 border border-white/10 rounded-2xl mb-7">
+                    <button
+                      type="button"
+                      onClick={() => { setPortalMode("login"); setSignupStatus("idle"); setSignupError(""); }}
+                      className={`flex-1 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all ${portalMode === "login" ? "bg-white/10 text-white shadow-xl border border-white/10" : "text-white/40 hover:text-white"}`}
+                    >
+                      Login
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setPortalMode("signup"); setOtpToken(null); setOtpDigits(Array(6).fill("")); setErrorMsg(""); setSuccessMsg(""); }}
+                      className={`flex-1 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all ${portalMode === "signup" ? "bg-white/10 text-white shadow-xl border border-white/10" : "text-white/40 hover:text-white"}`}
+                    >
+                      Sign Up
+                    </button>
+                  </div>
+
                   <AnimatePresence mode="wait">
-                    {!otpToken ? (
-                      
-                      // 1A. Phone Input Form
-                      <motion.form 
-                        key="phone-form"
+                    {portalMode === "login" ? (
+                      <motion.div
+                        key="login-panel"
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -10 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <AnimatePresence mode="wait">
+                          {!otpToken ? (
+
+                            // 1A. Phone Input Form
+                            <motion.form
+                              key="phone-form"
+                              initial={{ opacity: 0, scale: 0.98 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.98 }}
+                              onSubmit={handleRequestOtp}
+                              className="space-y-6"
+                            >
+                              <div className="text-center space-y-2">
+                                <h3 className="text-xl font-black text-white uppercase tracking-tight">Request Access</h3>
+                                <p className="text-xs text-white/50">Enter the phone number registered during your member sign-up.</p>
+                              </div>
+
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase text-white/40 tracking-wider">Registered Phone Number</label>
+                                <div className="relative">
+                                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 text-xs font-bold font-[var(--font-heading)]">+91</span>
+                                  <input
+                                    type="tel"
+                                    required
+                                    placeholder="9988776655"
+                                    value={phone}
+                                    onChange={(e) => setPhone(e.target.value.replace(/[^0-9+]/g, ""))}
+                                    className="w-full pl-12 pr-4 py-4 rounded-xl bg-white/[0.03] border border-white/10 text-white placeholder-white/20 text-sm font-bold focus:border-jcc-accent/40 focus:bg-white/[0.05] focus:outline-none transition-all duration-300 shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]"
+                                  />
+                                  <Phone className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                                </div>
+                                <p className="text-[9px] text-white/30 flex items-start gap-1.5 mt-1.5">
+                                  <Info className="w-3 h-3 text-jcc-accent shrink-0 mt-0.5" />
+                                  <span>Example format: 9988776655. Make sure it matches your registration record.</span>
+                                </p>
+                              </div>
+
+                              <button
+                                type="submit"
+                                disabled={isLoading}
+                                className="w-full btn-vibrant-blue justify-center py-4"
+                              >
+                                {isLoading ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 animate-spin text-black" />
+                                    <span>Searching Registry...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span>Verify Phone</span>
+                                    <ArrowRight className="w-4 h-4 text-black" />
+                                  </>
+                                )}
+                              </button>
+
+                              <p className="text-[10px] text-white/30 text-center">
+                                New member?{" "}
+                                <button
+                                  type="button"
+                                  onClick={() => { setPortalMode("signup"); setErrorMsg(""); setSuccessMsg(""); }}
+                                  className="text-jcc-accent font-black hover:underline"
+                                >
+                                  Sign up here
+                                </button>
+                              </p>
+                            </motion.form>
+                          ) : (
+
+                            // 1B. OTP Code Verification Form
+                            <motion.form
+                              key="otp-form"
+                              initial={{ opacity: 0, scale: 0.98 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.98 }}
+                              onSubmit={handleVerifyOtp}
+                              className="space-y-6"
+                            >
+                              <div className="text-center space-y-2">
+                                <h3 className="text-xl font-black text-white uppercase tracking-tight">Security Check</h3>
+                                <p className="text-xs text-white/50">A 6-digit passcode has been generated for your number.</p>
+                              </div>
+
+                              {/* Separate OTP Inputs Grid */}
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase text-white/40 tracking-wider block text-center mb-4">Enter 6-Digit Passcode</label>
+                                <div className="grid grid-cols-6 gap-2 sm:gap-3 max-w-sm mx-auto">
+                                  {otpDigits.map((digit, idx) => (
+                                    <input
+                                      key={idx}
+                                      id={`otp-input-${idx}`}
+                                      type="text"
+                                      maxLength={1}
+                                      required
+                                      value={digit}
+                                      onChange={(e) => handleOtpDigitChange(idx, e.target.value)}
+                                      onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                                      className="w-full h-12 sm:h-14 rounded-xl bg-white/[0.03] border border-white/10 text-white text-center text-lg font-black focus:border-jcc-accent/70 focus:bg-white/[0.05] focus:outline-none transition-all duration-300 shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]"
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div className="flex flex-col items-center gap-3">
+                                <button
+                                  type="submit"
+                                  disabled={isLoading}
+                                  className="w-full btn-vibrant-blue justify-center py-4"
+                                >
+                                  {isLoading ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 animate-spin text-black" />
+                                      <span>Securing Credentials...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ShieldCheck className="w-4 h-4 text-black" />
+                                      <span>Unlock Dashboard</span>
+                                    </>
+                                  )}
+                                </button>
+
+                                <div className="flex items-center justify-between w-full px-1 text-[10px] text-white/40 mt-2">
+                                  <span>Didn&apos;t get code?</span>
+                                  {timerCount > 0 ? (
+                                    <span className="flex items-center gap-1 font-bold text-white/60">
+                                      <Clock className="w-3 h-3 text-jcc-accent" /> Resend in {timerCount}s
+                                    </span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={handleRequestOtp}
+                                      className="text-jcc-accent font-bold hover:underline"
+                                    >
+                                      Request New Code
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Local Developer simulated SMS alert block */}
+                              {debugOtpCode && (
+                                <motion.div
+                                  initial={{ opacity: 0, y: 15 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  className="mt-6 p-4 rounded-xl bg-white/[0.02] border border-white/5 relative"
+                                >
+                                  <div className="absolute top-2.5 right-2.5 flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-jcc-accent opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-jcc-accent"></span>
+                                  </div>
+                                  <div className="flex gap-3">
+                                    <ShieldAlert className="w-5 h-5 text-jcc-accent shrink-0 mt-0.5" />
+                                    <div className="space-y-1">
+                                      <p className="text-[10px] font-black uppercase text-jcc-accent tracking-wider leading-none">Simulation Console</p>
+                                      <p className="text-[11px] text-white/70">
+                                        Your phone number verification passcode is:
+                                      </p>
+                                      <div className="inline-block bg-white/5 border border-white/10 rounded px-2.5 py-1 text-sm font-black text-white tracking-widest mt-1">
+                                        {debugOtpCode}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              )}
+                            </motion.form>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    ) : signupStatus === "pending_approval" ? (
+
+                      // Sign-Up Success: Pending Approval State
+                      <motion.div
+                        key="signup-success"
                         initial={{ opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.98 }}
-                        onSubmit={handleRequestOtp}
+                        className="text-center space-y-6 py-4"
+                      >
+                        <div className="w-14 h-14 rounded-full bg-jcc-accent flex items-center justify-center mx-auto shadow-lg shadow-jcc-accent/40">
+                          <Clock className="w-7 h-7 text-black" />
+                        </div>
+                        <div className="space-y-3">
+                          <h3 className="text-xl font-black text-white uppercase tracking-tight">Request Received!</h3>
+                          <p className="text-xs text-white/50 leading-relaxed">
+                            Your membership request has been sent to the admin for review. Once approved, you can log in using your phone number.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { setSignupStatus("idle"); setPortalMode("login"); }}
+                          className="text-[11px] font-black text-jcc-accent hover:underline uppercase tracking-widest"
+                        >
+                          Back to Login
+                        </button>
+                      </motion.div>
+                    ) : (
+
+                      // Sign-Up Form
+                      <motion.form
+                        key="signup-panel"
+                        initial={{ opacity: 0, x: 10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 10 }}
+                        transition={{ duration: 0.2 }}
+                        onSubmit={handleSignup}
                         className="space-y-6"
                       >
                         <div className="text-center space-y-2">
-                          <h3 className="text-xl font-black text-white uppercase tracking-tight">Request Access</h3>
-                          <p className="text-xs text-white/50">Enter the phone number registered during your member sign-up.</p>
+                          <h3 className="text-xl font-black text-white uppercase tracking-tight">Join the Circle</h3>
+                          <p className="text-xs text-white/50">Submit your details for admin review. You&apos;ll be approved before your first Sunday match.</p>
                         </div>
 
+                        {/* Full Name */}
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase text-white/40 tracking-wider">Registered Phone Number</label>
+                          <label className="text-[10px] font-black uppercase text-white/40 tracking-wider">Full Name</label>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              required
+                              placeholder="e.g. Rahul Sharma"
+                              value={signupFormData.name}
+                              onChange={(e) => setSignupFormData({ ...signupFormData, name: e.target.value })}
+                              className="w-full pl-10 pr-4 py-4 rounded-xl bg-white/[0.03] border border-white/10 text-white placeholder-white/20 text-sm font-bold focus:border-jcc-accent/40 focus:bg-white/[0.05] focus:outline-none transition-all duration-300 shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]"
+                            />
+                            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                          </div>
+                        </div>
+
+                        {/* Phone Number */}
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase text-white/40 tracking-wider">Phone Number</label>
                           <div className="relative">
                             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 text-xs font-bold font-[var(--font-heading)]">+91</span>
                             <input
                               type="tel"
                               required
                               placeholder="9988776655"
-                              value={phone}
-                              onChange={(e) => setPhone(e.target.value.replace(/[^0-9+]/g, ""))}
+                              value={signupFormData.phone}
+                              onChange={(e) => setSignupFormData({ ...signupFormData, phone: e.target.value.replace(/[^0-9+]/g, "") })}
                               className="w-full pl-12 pr-4 py-4 rounded-xl bg-white/[0.03] border border-white/10 text-white placeholder-white/20 text-sm font-bold focus:border-jcc-accent/40 focus:bg-white/[0.05] focus:outline-none transition-all duration-300 shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]"
                             />
                             <Phone className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                           </div>
-                          <p className="text-[9px] text-white/30 flex items-start gap-1.5 mt-1.5">
-                            <Info className="w-3 h-3 text-jcc-accent shrink-0 mt-0.5" />
-                            <span>Example format: 9988776655. Make sure it matches your registration record.</span>
-                          </p>
                         </div>
+
+                        {/* Cricket Role */}
+                        <div className="space-y-3">
+                          <label className="text-[10px] font-black uppercase text-white/40 tracking-wider">Primary Cricket Role</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {CRICKET_ROLES.map((role) => {
+                              const IconComponent = role.icon;
+                              const isSelected = signupFormData.cricket_role === role.value;
+                              return (
+                                <div
+                                  key={role.value}
+                                  onClick={() => setSignupFormData({ ...signupFormData, cricket_role: role.value })}
+                                  className={`p-3 rounded-xl border text-left cursor-pointer transition-all duration-300 select-none ${
+                                    isSelected
+                                      ? "bg-jcc-accent/5 border-jcc-accent shadow-[0_0_20px_rgba(0,194,255,0.1)]"
+                                      : "bg-white/[0.02] border-white/10 hover:border-white/20"
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <IconComponent className={`w-3.5 h-3.5 ${isSelected ? "text-jcc-accent" : "text-white/40"}`} />
+                                    <div className={`w-2 h-2 rounded-full border ${isSelected ? "bg-jcc-accent border-jcc-accent" : "border-white/20"}`} />
+                                  </div>
+                                  <p className={`text-[10px] font-black uppercase ${isSelected ? "text-white" : "text-white/70"}`}>{role.label}</p>
+                                  <p className="text-[8px] text-white/30 mt-0.5 leading-normal">{role.desc}</p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Profile Photo */}
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase text-white/40 tracking-wider">Profile Photo (Optional)</label>
+                          <div className="flex items-center gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/10 hover:border-white/20 transition-all duration-300">
+                            <div className="relative w-14 h-14 rounded-full overflow-hidden bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                              {isSignupOptimizing ? (
+                                <Loader2 className="w-5 h-5 text-jcc-accent animate-spin" />
+                              ) : signupAvatarPreview ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={signupAvatarPreview} alt="Preview" className="w-full h-full object-cover" />
+                              ) : (
+                                <Camera className="w-5 h-5 text-white/20" />
+                              )}
+                            </div>
+                            <div className="flex-1 space-y-2">
+                              <div className="flex flex-wrap gap-2">
+                                <label className={`px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-wider text-white hover:bg-white/10 transition-all cursor-pointer ${(isSignupOptimizing || isSubmittingSignup) ? "opacity-50 pointer-events-none" : ""}`}>
+                                  Choose Photo
+                                  <input
+                                    type="file"
+                                    accept="image/png, image/jpeg, image/jpg, image/webp"
+                                    className="hidden"
+                                    disabled={isSignupOptimizing || isSubmittingSignup}
+                                    onChange={handleSignupFileChange}
+                                  />
+                                </label>
+                                {signupAvatarPreview && !isSignupOptimizing && (
+                                  <button
+                                    type="button"
+                                    onClick={handleRemoveSignupAvatar}
+                                    className="px-3 py-1.5 rounded-lg bg-jcc-ball-red/10 border border-jcc-ball-red/20 text-[10px] font-black uppercase text-jcc-ball-red hover:bg-jcc-ball-red/20 transition-all"
+                                  >
+                                    Remove
+                                  </button>
+                                )}
+                              </div>
+                              <p className="text-[9px] text-white/30 font-bold uppercase tracking-wider leading-relaxed">
+                                JPG, PNG, WEBP · Max 10MB · Auto-optimized
+                              </p>
+                              {signupAvatarError && (
+                                <p className="text-[10px] text-jcc-ball-red font-black flex items-center gap-1">
+                                  <AlertCircle className="w-3 h-3" /> {signupAvatarError}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {signupStatus === "error" && signupError && (
+                          <p className="text-[11px] text-jcc-ball-red font-black flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4 shrink-0" /> {signupError}
+                          </p>
+                        )}
 
                         <button
                           type="submit"
-                          disabled={isLoading}
+                          disabled={isSubmittingSignup}
                           className="w-full btn-vibrant-blue justify-center py-4"
                         >
-                          {isLoading ? (
+                          {isSubmittingSignup ? (
                             <>
                               <Loader2 className="w-4 h-4 animate-spin text-black" />
-                              <span>Searching Registry...</span>
+                              <span>
+                                {signupUploadStage === "optimizing" && "Optimizing Photo..."}
+                                {signupUploadStage === "uploading" && `Uploading... ${signupUploadProgress}%`}
+                                {signupUploadStage === "saving" && "Saving Record..."}
+                                {signupUploadStage === "idle" && "Processing..."}
+                              </span>
                             </>
                           ) : (
                             <>
-                              <span>Verify Phone</span>
-                              <ArrowRight className="w-4 h-4 text-black" />
+                              <Send className="w-4 h-4 text-black" />
+                              <span>Submit Membership Request</span>
                             </>
                           )}
                         </button>
-                      </motion.form>
-                    ) : (
-                      
-                      // 1B. OTP Code Verification Form
-                      <motion.form 
-                        key="otp-form"
-                        initial={{ opacity: 0, scale: 0.98 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.98 }}
-                        onSubmit={handleVerifyOtp}
-                        className="space-y-6"
-                      >
-                        <div className="text-center space-y-2">
-                          <h3 className="text-xl font-black text-white uppercase tracking-tight">Security Check</h3>
-                          <p className="text-xs text-white/50">A 6-digit passcode has been generated for your number.</p>
-                        </div>
 
-                        {/* Separate OTP Inputs Grid */}
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase text-white/40 tracking-wider block text-center mb-4">Enter 6-Digit Passcode</label>
-                          <div className="grid grid-cols-6 gap-2 sm:gap-3 max-w-sm mx-auto">
-                            {otpDigits.map((digit, idx) => (
-                              <input
-                                key={idx}
-                                id={`otp-input-${idx}`}
-                                type="text"
-                                maxLength={1}
-                                required
-                                value={digit}
-                                onChange={(e) => handleOtpDigitChange(idx, e.target.value)}
-                                onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                                className="w-full h-12 sm:h-14 rounded-xl bg-white/[0.03] border border-white/10 text-white text-center text-lg font-black focus:border-jcc-accent/70 focus:bg-white/[0.05] focus:outline-none transition-all duration-300 shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]"
-                              />
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col items-center gap-3">
-                          <button
-                            type="submit"
-                            disabled={isLoading}
-                            className="w-full btn-vibrant-blue justify-center py-4"
-                          >
-                            {isLoading ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin text-black" />
-                                <span>Securing Credentials...</span>
-                              </>
-                            ) : (
-                              <>
-                                <ShieldCheck className="w-4 h-4 text-black" />
-                                <span>Unlock Dashboard</span>
-                              </>
-                            )}
-                          </button>
-
-                          <div className="flex items-center justify-between w-full px-1 text-[10px] text-white/40 mt-2">
-                            <span>Didn't get code?</span>
-                            {timerCount > 0 ? (
-                              <span className="flex items-center gap-1 font-bold text-white/60">
-                                <Clock className="w-3 h-3 text-jcc-accent" /> Resend in {timerCount}s
-                              </span>
-                            ) : (
-                              <button 
-                                type="button" 
-                                onClick={handleRequestOtp} 
-                                className="text-jcc-accent font-bold hover:underline"
-                              >
-                                Request New Code
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Local Developer simulated SMS alert block */}
-                        {debugOtpCode && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 15 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="mt-6 p-4 rounded-xl bg-white/[0.02] border border-white/5 relative"
-                          >
-                            <div className="absolute top-2.5 right-2.5 flex h-2 w-2">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-jcc-accent opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-2 w-2 bg-jcc-accent"></span>
-                            </div>
-                            <div className="flex gap-3">
-                              <ShieldAlert className="w-5 h-5 text-jcc-accent shrink-0 mt-0.5" />
-                              <div className="space-y-1">
-                                <p className="text-[10px] font-black uppercase text-jcc-accent tracking-wider leading-none">Simulation Console</p>
-                                <p className="text-[11px] text-white/70">
-                                  Your phone number verification passcode is:
-                                </p>
-                                <div className="inline-block bg-white/5 border border-white/10 rounded px-2.5 py-1 text-sm font-black text-white tracking-widest mt-1">
-                                  {debugOtpCode}
-                                </div>
-                              </div>
-                            </div>
-                          </motion.div>
-                        )}
+                        <p className="text-[9px] text-white/20 text-center font-black uppercase tracking-[0.2em]">
+                          Pending admin approval before access is granted.
+                        </p>
                       </motion.form>
                     )}
                   </AnimatePresence>
