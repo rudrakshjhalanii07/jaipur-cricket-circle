@@ -2,17 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  LayoutDashboard, 
-  Settings, 
-  Users, 
-  ClipboardList, 
-  ShieldCheck, 
-  ChevronRight, 
-  Lock,
+import {
+  LayoutDashboard,
+  Settings,
+  Users,
+  ClipboardList,
+  ShieldCheck,
+  ChevronRight,
   ArrowRight,
   Loader2,
-  Newspaper
+  Newspaper,
+  FileJson
 } from "lucide-react";
 import MatchControl from "@/components/admin/MatchControl";
 import RegistrationControl from "@/components/admin/RegistrationControl";
@@ -178,6 +178,10 @@ export default function AdminPage() {
     { id: "chewvana", label: "Chewvana Times", icon: Newspaper },
   ];
 
+  const externalLinks = [
+    { href: "/admin/series-import", label: "Series Import", icon: FileJson },
+  ];
+
   return (
     <div className="min-h-screen pt-36 pb-20 relative overflow-hidden hero-gradient">
       {/* Cinematic Background Elements */}
@@ -204,8 +208,21 @@ export default function AdminPage() {
                   {activeSection === item.id && <ChevronRight className="w-3.5 h-3.5 ml-auto" />}
                 </button>
               ))}
-              <div className="pt-4 mt-4 border-t border-white/10">
-                <button 
+              <div className="pt-2 mt-2 border-t border-white/10 space-y-1">
+                {externalLinks.map((link) => (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-[13px] font-black transition-all duration-300 uppercase tracking-widest text-white/40 hover:text-white hover:bg-white/5"
+                  >
+                    <link.icon className="w-4 h-4 text-white/40" />
+                    {link.label}
+                    <ArrowRight className="w-3.5 h-3.5 ml-auto opacity-40" />
+                  </a>
+                ))}
+              </div>
+              <div className="pt-2 border-t border-white/10">
+                <button
                   onClick={handleLogout}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[11px] font-black text-jcc-ball-red hover:bg-jcc-ball-red/5 transition-colors uppercase tracking-widest"
                 >
@@ -247,28 +264,39 @@ export default function AdminPage() {
                     </div>
  
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <button 
+                      <button
                         onClick={() => setActiveSection("match")}
                         className="premium-card p-10 text-left hover:border-jcc-accent/40 group transition-all duration-500 relative overflow-hidden shadow-2xl"
                       >
-                         <div className="absolute top-0 right-0 w-32 h-32 bg-jcc-accent/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-jcc-accent/10 transition-all" />
-                         <div className="w-14 h-14 rounded-2xl bg-jcc-accent/10 border border-jcc-accent/20 flex items-center justify-center mb-8 group-hover:scale-110 transition-all shadow-inner">
-                            <Settings className="w-7 h-7 text-jcc-accent" />
-                         </div>
-                         <h3 className="text-2xl font-black text-white mb-3 uppercase tracking-tight">Tactical Setup</h3>
-                         <p className="text-[15px] text-white/40 font-medium leading-relaxed uppercase tracking-wide">Configure operational parameters: Venue, Schedule, and Personnel Capacity.</p>
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-jcc-accent/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-jcc-accent/10 transition-all" />
+                        <div className="w-14 h-14 rounded-2xl bg-jcc-accent/10 border border-jcc-accent/20 flex items-center justify-center mb-8 group-hover:scale-110 transition-all shadow-inner">
+                          <Settings className="w-7 h-7 text-jcc-accent" />
+                        </div>
+                        <h3 className="text-2xl font-black text-white mb-3 uppercase tracking-tight">Tactical Setup</h3>
+                        <p className="text-[15px] text-white/40 font-medium leading-relaxed uppercase tracking-wide">Configure operational parameters: Venue, Schedule, and Personnel Capacity.</p>
                       </button>
-                      <button 
+                      <button
                         onClick={() => setActiveSection("registrations")}
                         className="premium-card p-10 text-left hover:border-emerald-400/40 group transition-all duration-500 relative overflow-hidden shadow-2xl"
                       >
-                         <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-400/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-emerald-400/10 transition-all" />
-                         <div className="w-14 h-14 rounded-2xl bg-emerald-400/10 border border-emerald-400/20 flex items-center justify-center mb-8 group-hover:scale-110 transition-all shadow-inner">
-                            <ClipboardList className="w-7 h-7 text-emerald-400" />
-                         </div>
-                         <h3 className="text-2xl font-black text-white mb-3 uppercase tracking-tight">Squad Management</h3>
-                         <p className="text-[15px] text-white/40 font-medium leading-relaxed uppercase tracking-wide">Authorize deployment, manage standby protocols, and verify personnel status.</p>
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-400/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-emerald-400/10 transition-all" />
+                        <div className="w-14 h-14 rounded-2xl bg-emerald-400/10 border border-emerald-400/20 flex items-center justify-center mb-8 group-hover:scale-110 transition-all shadow-inner">
+                          <ClipboardList className="w-7 h-7 text-emerald-400" />
+                        </div>
+                        <h3 className="text-2xl font-black text-white mb-3 uppercase tracking-tight">Squad Management</h3>
+                        <p className="text-[15px] text-white/40 font-medium leading-relaxed uppercase tracking-wide">Authorize deployment, manage standby protocols, and verify personnel status.</p>
                       </button>
+                      <a
+                        href="/admin/series-import"
+                        className="premium-card p-10 text-left hover:border-purple-400/40 group transition-all duration-500 relative overflow-hidden shadow-2xl"
+                      >
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-purple-400/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-purple-400/10 transition-all" />
+                        <div className="w-14 h-14 rounded-2xl bg-purple-400/10 border border-purple-400/20 flex items-center justify-center mb-8 group-hover:scale-110 transition-all shadow-inner">
+                          <FileJson className="w-7 h-7 text-purple-400" />
+                        </div>
+                        <h3 className="text-2xl font-black text-white mb-3 uppercase tracking-tight">Series Import</h3>
+                        <p className="text-[15px] text-white/40 font-medium leading-relaxed uppercase tracking-wide">Import match scorecards via JSON — batting, bowling, and fall of wickets.</p>
+                      </a>
                     </div>
                   </div>
                 )}

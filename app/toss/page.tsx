@@ -4,75 +4,11 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { ArrowLeft, RefreshCw, Trophy } from "lucide-react";
+import { type TeamId, type TeamConfig as Team, TEAMS, TEAM_ORDER } from "@/lib/teams";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type TeamId = "mavericks" | "neurostrikers" | "outliers";
 type Phase = "landing" | "selection" | "captains" | "result";
-
-interface Team {
-  id: TeamId;
-  name: string;
-  shortName: string;
-  logo: string;
-  captain: string;
-  captainShort: string;
-  jerseyNumber: number | null;
-  primary: string;
-  secondary: string;
-  glow: string;
-  tagline: string;
-  patternType: "tribal" | "lightning" | "scratch";
-}
-
-// ─── Team Data ────────────────────────────────────────────────────────────────
-
-const TEAMS: Record<TeamId, Team> = {
-  mavericks: {
-    id: "mavericks",
-    name: "Mavericks",
-    shortName: "MAV",
-    logo: "/teams/mavericks-logo.png",
-    captain: "Anil Rawat",
-    captainShort: "ANIL",
-    jerseyNumber: 4,
-    primary: "#E8920A",
-    secondary: "#0D0800",
-    glow: "rgba(232, 146, 10, 0.55)",
-    tagline: "Born To Dominate",
-    patternType: "tribal",
-  },
-  neurostrikers: {
-    id: "neurostrikers",
-    name: "NeuroStrikers",
-    shortName: "NS",
-    logo: "/teams/neurostrikers-logo.png",
-    captain: "Sagar Sharma",
-    captainShort: "SAGAR",
-    jerseyNumber: 1,
-    primary: "#2563EB",
-    secondary: "#05091A",
-    glow: "rgba(37, 99, 235, 0.55)",
-    tagline: "Beyond Fear",
-    patternType: "lightning",
-  },
-  outliers: {
-    id: "outliers",
-    name: "The Outliers",
-    shortName: "OUT",
-    logo: "/teams/outliers-logo.png",
-    captain: "Rudraksh Jhalani",
-    captainShort: "RUDRA",
-    jerseyNumber: 7,
-    primary: "#0D9488",
-    secondary: "#050F0D",
-    glow: "rgba(13, 148, 136, 0.55)",
-    tagline: "Against The Odds",
-    patternType: "scratch",
-  },
-};
-
-const TEAM_ORDER: TeamId[] = ["mavericks", "neurostrikers", "outliers"];
 
 // ─── Logo with Fallback ───────────────────────────────────────────────────────
 
@@ -622,7 +558,7 @@ export default function TossPage() {
         />
         <div
           className="absolute bottom-1/3 right-1/4 w-[360px] h-[360px] rounded-full blur-[120px] opacity-[0.12] pointer-events-none"
-          style={{ background: "#2563EB" }}
+          style={{ background: "#3B6FC4" }}
         />
 
         {/* Back to home */}

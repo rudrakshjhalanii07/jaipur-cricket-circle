@@ -158,7 +158,7 @@ export default function LoaderWrapper({ children }: { children: React.ReactNode 
                     width={10}
                     height={96}
                     rx={4}
-                    fill="var(--jcc-seam)"
+                    fill="var(--jcc-text-soft)"
                     style={{ transformBox: "fill-box", transformOrigin: "bottom center" }}
                     initial={{ scaleY: 0 }}
                     animate={{ scaleY: 1 }}
@@ -173,7 +173,7 @@ export default function LoaderWrapper({ children }: { children: React.ReactNode 
                 {/* Bail 1 — leg to mid stump */}
                 <motion.rect
                   x="14" y="18" width="52" height="8" rx="3.5"
-                  fill="var(--jcc-gold)"
+                  fill="var(--jcc-text-soft)"
                   style={{ transformBox: "fill-box", transformOrigin: "center center" }}
                   initial={{ opacity: 0 }}
                   animate={
@@ -191,7 +191,7 @@ export default function LoaderWrapper({ children }: { children: React.ReactNode 
                 {/* Bail 2 — mid to off stump */}
                 <motion.rect
                   x="54" y="18" width="52" height="8" rx="3.5"
-                  fill="var(--jcc-gold)"
+                  fill="var(--jcc-text-soft)"
                   style={{ transformBox: "fill-box", transformOrigin: "center center" }}
                   initial={{ opacity: 0 }}
                   animate={
@@ -289,7 +289,7 @@ export default function LoaderWrapper({ children }: { children: React.ReactNode 
                         style={{
                           fontSize: "3.75rem",
                           lineHeight: 0.85,
-                          color: "var(--jcc-seam)",
+                          color: "var(--jcc-accent)",
                           fontFamily: "var(--font-heading)",
                           fontWeight: 900,
                           letterSpacing: "-0.03em",

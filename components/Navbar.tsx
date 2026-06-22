@@ -13,7 +13,7 @@ const navLinks = [
   { href: "/chewvana-times", label: "Chewvana Times" },
   { href: "/members", label: "Members" },
   { href: "/rivalry", label: "Rivalry" },
-  { href: "/toss", label: "Toss" },
+  { href: "/tournament", label: "Tournament" },
   { href: "/register", label: "Register" },
   { href: "/profile", label: "Profile" },
   { href: "/about", label: "About" },
