@@ -1126,11 +1126,11 @@ export default function TournamentPage() {
             variants={{ hidden: { opacity: 0, scale: 0.75 }, visible: { opacity: 1, scale: 1, transition: { type: "spring", stiffness: 100, damping: 14 } } }}
             className="flex flex-col items-center leading-none"
           >
-            <h1 className="text-[clamp(4rem,16vw,9rem)] font-black uppercase tracking-tight text-white" style={{ textShadow: "0 0 100px rgba(232,83,126,0.25)" }}>
+            <h1 className="text-[clamp(3rem,13vw,9rem)] font-black uppercase tracking-tight text-white" style={{ textShadow: "0 0 100px rgba(232,83,126,0.25)" }}>
               THE
             </h1>
             <h1
-              className="text-[clamp(4rem,16vw,9rem)] font-black uppercase tracking-tight"
+              className="text-[clamp(3rem,13vw,9rem)] font-black uppercase tracking-tight"
               style={{ color: "#E8537E", textShadow: "0 0 80px rgba(232,83,126,0.65), 0 0 160px rgba(232,83,126,0.25)" }}
             >
               TOURNAMENT

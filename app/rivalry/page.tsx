@@ -11,6 +11,7 @@ import {
   computeTriSeriesWins,
   computeSeriesStandings,
   computeOverallStandings,
+  computeSeriesNRR,
   type FullSeries,
   type SeriesMatch,
   type SeriesStandingRow,
@@ -90,7 +91,8 @@ const OVERALL_BASELINE: BaselineEntry[] = [
 function mergeBaseline(rows: SeriesStandingRow[], baseline: BaselineEntry[]): SeriesStandingRow[] {
   const map = new Map<string, SeriesStandingRow>(rows.map((r) => [r.team_id, { ...r }]));
   for (const b of baseline) {
-    const cur = map.get(b.team_id) ?? { team_id: b.team_id, played: 0, won: 0, lost: 0, tied: 0, points: 0, win_pct: 0 };
+    // NRR is preserved from recorded innings; baseline matches (unrecorded) contribute 0.
+    const cur = map.get(b.team_id) ?? { team_id: b.team_id, played: 0, won: 0, lost: 0, tied: 0, points: 0, win_pct: 0, nrr: 0 };
     cur.won += b.won; cur.lost += b.lost; cur.tied += b.tied;
     cur.played = cur.won + cur.lost + cur.tied;
     cur.points = cur.won * 2 + cur.tied;
@@ -241,44 +243,52 @@ function ActiveScoreboard({ season }: { season: RivalrySeason }) {
           {teams.map((t) => {
             const isLeader = t.label === leader.label && t.wins > 0;
             return (
-              <div key={t.label} className="flex flex-col items-center text-center gap-2">
+              <div key={t.label} className="flex flex-col items-center text-center">
                 {/* Logo */}
                 <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center">
                   <TeamLogo src={t.logo} alt={t.label} color={t.color} fallback={t.short} className="w-full h-full object-contain drop-shadow-sm" />
                 </div>
 
-                {/* Name */}
-                <h3 className="text-sm sm:text-lg font-black uppercase tracking-tight leading-none" style={{ color: t.color }}>
-                  {t.label}
-                </h3>
+                {/* Name — fixed height so all columns align below */}
+                <div className="mt-2 flex items-center justify-center min-h-[2.5rem]">
+                  <h3 className="text-xs sm:text-lg font-black uppercase tracking-tight leading-tight" style={{ color: t.color }}>
+                    {t.label}
+                  </h3>
+                </div>
 
-                {/* Captain */}
-                <p className="text-[9px] sm:text-[10px] text-white/40 font-bold">
-                  Cap: <span className="text-white font-black">{t.captain}</span>
-                </p>
+                {/* Captain — fixed height */}
+                <div className="flex items-start justify-center min-h-[2.5rem]">
+                  <p className="text-[9px] sm:text-[10px] text-white/40 font-bold leading-snug">
+                    Cap: <span className="text-white font-black">{t.captain}</span>
+                  </p>
+                </div>
 
                 {/* Win count */}
                 <AnimatedNumber
                   target={t.wins}
                   duration={1200}
-                  className="text-4xl sm:text-5xl font-black tabular-nums mt-1"
+                  className="text-4xl sm:text-5xl font-black tabular-nums"
                   style={{ color: t.color, textShadow: `0 0 10px ${t.color}30` }}
                 />
 
-                {/* Leading badge */}
-                {isLeader && (
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <Trophy className="w-3 h-3 text-jcc-gold" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-jcc-gold">Leading</span>
-                  </div>
-                )}
+                {/* Leading badge — always takes space to keep wins aligned */}
+                <div className="h-5 flex items-center justify-center mt-0.5">
+                  {isLeader && (
+                    <div className="flex items-center gap-1">
+                      <Trophy className="w-3 h-3 text-jcc-gold" />
+                      <span className="text-[9px] font-black uppercase tracking-widest text-jcc-gold">Leading</span>
+                    </div>
+                  )}
+                </div>
 
                 {/* Ties */}
-                {t.ties > 0 && (
-                  <span className="text-[9px] font-black uppercase tracking-widest text-white/35 mt-0.5">
-                    {t.ties} {t.ties === 1 ? "Tie" : "Ties"}
-                  </span>
-                )}
+                <div className="h-4 flex items-center justify-center">
+                  {t.ties > 0 && (
+                    <span className="text-[9px] font-black uppercase tracking-widest text-white/35">
+                      {t.ties} {t.ties === 1 ? "Tie" : "Ties"}
+                    </span>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -565,6 +575,93 @@ function PlayerCell({ rank, name, teamId }: { rank: number; name: string; teamId
   );
 }
 
+// Mobile-only stacked leaderboard row: rank + name + team, a headline stat on the
+// right, and the remaining stats as wrapping chips. Replaces the wide scrolling
+// table on small screens so no column gets cut off.
+const RANK_BADGE_COLORS = ["#FFD700", "#C0C0C0", "#CD7F32"] as const;
+
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function StatLeaderMobile({ rank, name, teamId, headLabel, headValue, stats }: {
+  rank: number; name: string; teamId?: string;
+  headLabel: string; headValue: React.ReactNode;
+  stats: { label: string; value: React.ReactNode }[];
+}) {
+  const team = teamId ? TEAMS[teamId as keyof typeof TEAMS] : undefined;
+  const accentColor = team?.primary ?? "#E8537E";
+  const isTop3 = rank <= 3;
+  const rankColor = isTop3 ? RANK_BADGE_COLORS[rank - 1] : undefined;
+
+  return (
+    <div
+      className="flex mb-2 last:mb-0 rounded-xl overflow-hidden"
+      style={{ border: `1px solid ${hexToRgba(accentColor, 0.18)}` }}
+    >
+      {/* left info panel */}
+      <div
+        className="flex-1 min-w-0 px-3 py-3 flex flex-col gap-1.5"
+        style={{ background: hexToRgba(accentColor, isTop3 ? 0.06 : 0.03) }}
+      >
+        {/* rank badge + name */}
+        <div className="flex items-center gap-2">
+          <span
+            className="shrink-0 w-[22px] h-[22px] rounded-full flex items-center justify-center text-[10px] font-black"
+            style={rankColor
+              ? { background: `${rankColor}28`, color: rankColor, border: `1px solid ${rankColor}60` }
+              : { background: hexToRgba(accentColor, 0.15), color: accentColor, border: `1px solid ${hexToRgba(accentColor, 0.3)}` }
+            }
+          >
+            {rank}
+          </span>
+          <p className="font-black text-[13px] leading-tight truncate" style={{ color: "var(--jcc-text, #15110e)" }}>
+            {name}
+          </p>
+        </div>
+
+        {/* team dot + name */}
+        {team && (
+          <div className="flex items-center gap-1.5 pl-[30px]">
+            <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: accentColor }} />
+            <p className="text-[9px] font-black uppercase tracking-wider" style={{ color: accentColor }}>
+              {team.name}
+            </p>
+          </div>
+        )}
+
+        {/* stats grid */}
+        {stats.length > 0 && (
+          <div className="pl-[30px] grid grid-cols-3 gap-x-3 gap-y-1.5 mt-1">
+            {stats.map((s) => (
+              <div key={s.label}>
+                <p className="text-[8px] uppercase tracking-wide leading-none" style={{ color: hexToRgba(accentColor, 0.45) }}>{s.label}</p>
+                <p className="text-[11px] font-bold tabular-nums mt-0.5" style={{ color: hexToRgba(accentColor, 0.75) }}>{s.value}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* right headline panel */}
+      <div
+        className="shrink-0 w-[60px] flex flex-col items-center justify-center"
+        style={{ background: hexToRgba(accentColor, 0.12), borderLeft: `1px solid ${hexToRgba(accentColor, 0.2)}` }}
+      >
+        <p className="font-black text-2xl leading-none tabular-nums" style={{ color: accentColor }}>
+          {headValue}
+        </p>
+        <p className="text-[7px] uppercase tracking-widest mt-1.5 text-center px-1 leading-tight" style={{ color: hexToRgba(accentColor, 0.5) }}>
+          {headLabel}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function StatsLeaderboards({ batting, bowling, allRounders, fielding }: {
   batting: BattingLeaderRow[];
   bowling: BowlingLeaderRow[];
@@ -592,9 +689,51 @@ function StatsLeaderboards({ batting, bowling, allRounders, fielding }: {
         ))}
       </div>
 
-      <div className="p-5 overflow-x-auto">
+      <div className="p-4 sm:p-5 sm:overflow-x-auto">
+        {/* Mobile stacked lists (no horizontal scroll) */}
+        <div className="sm:hidden">
+          {tab === "batting" && batting.slice(0, 10).map((r, i) => (
+            <StatLeaderMobile key={r.player_name} rank={i + 1} name={r.player_name} teamId={r.team_id}
+              headLabel="Runs" headValue={r.total_runs}
+              stats={[
+                { label: "M", value: r.matches },
+                { label: "HS", value: r.high_score },
+                { label: "Avg", value: r.batting_average != null ? r.batting_average.toFixed(2) : "—" },
+                { label: "SR", value: r.strike_rate != null ? r.strike_rate.toFixed(1) : "—" },
+                { label: "4s", value: r.fours },
+                { label: "6s", value: r.sixes },
+              ]} />
+          ))}
+          {tab === "bowling" && bowling.slice(0, 10).map((r, i) => (
+            <StatLeaderMobile key={r.player_name} rank={i + 1} name={r.player_name} teamId={r.team_id}
+              headLabel="Wkts" headValue={r.total_wickets}
+              stats={[
+                { label: "M", value: r.matches },
+                { label: "Ov", value: r.total_overs },
+                { label: "Runs", value: r.runs_conceded },
+                { label: "Econ", value: r.economy },
+                { label: "Avg", value: r.bowling_average != null ? r.bowling_average.toFixed(2) : "—" },
+              ]} />
+          ))}
+          {tab === "allrounders" && allRounders.slice(0, 10).map((r, i) => (
+            <StatLeaderMobile key={r.player_name} rank={i + 1} name={r.player_name} teamId={r.team_id}
+              headLabel="Combined" headValue={r.combined_score}
+              stats={[
+                { label: "M", value: r.matches },
+                { label: "Runs", value: r.total_runs },
+                { label: "Wkts", value: r.total_wickets },
+                { label: "Bat", value: r.batting_score },
+                { label: "Bowl", value: r.bowling_score },
+              ]} />
+          ))}
+          {tab === "fielding" && fielding.slice(0, 10).map((r, i) => (
+            <StatLeaderMobile key={r.player_name} rank={i + 1} name={r.player_name}
+              headLabel="Catches" headValue={r.catches} stats={[]} />
+          ))}
+        </div>
+
         {tab === "batting" && (
-          <table className="text-sm w-full min-w-[760px] border-collapse [&_th]:px-3.5 [&_td]:px-3.5 [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
+          <table className="hidden sm:table text-sm w-full min-w-[760px] border-collapse [&_th]:px-3.5 [&_td]:px-3.5 [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
             <thead>
               <tr className="text-[9px] text-white/25 uppercase tracking-widest border-b border-white/[0.05]">
                 <th className={STICKY_HEAD}>Player</th>
@@ -628,7 +767,7 @@ function StatsLeaderboards({ batting, bowling, allRounders, fielding }: {
           </table>
         )}
         {tab === "bowling" && (
-          <table className="text-sm w-full min-w-[760px] border-collapse [&_th]:px-3.5 [&_td]:px-3.5 [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
+          <table className="hidden sm:table text-sm w-full min-w-[760px] border-collapse [&_th]:px-3.5 [&_td]:px-3.5 [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
             <thead>
               <tr className="text-[9px] text-white/25 uppercase tracking-widest border-b border-white/[0.05]">
                 <th className={STICKY_HEAD}>Player</th>
@@ -661,8 +800,8 @@ function StatsLeaderboards({ batting, bowling, allRounders, fielding }: {
         )}
         {tab === "allrounders" && (
           <>
-            <p className="text-[9px] text-white/25 uppercase tracking-widest mb-3">Combined score = avg of batting rank + bowling rank (ICC method)</p>
-            <table className="text-sm w-full min-w-[560px] border-collapse [&_th]:px-3.5 [&_td]:px-3.5 [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
+            <p className="hidden sm:block text-[9px] text-white/25 uppercase tracking-widest mb-3">Combined score = avg of batting rank + bowling rank (ICC method)</p>
+            <table className="hidden sm:table text-sm w-full min-w-[560px] border-collapse [&_th]:px-3.5 [&_td]:px-3.5 [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
               <thead>
                 <tr className="text-[9px] text-white/25 uppercase tracking-widest border-b border-white/[0.05]">
                   <th className={STICKY_HEAD}>Player</th>
@@ -691,7 +830,7 @@ function StatsLeaderboards({ batting, bowling, allRounders, fielding }: {
           </>
         )}
         {tab === "fielding" && (
-          <table className="text-sm w-full min-w-[320px] border-collapse [&_th]:px-3.5 [&_td]:px-3.5 [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
+          <table className="hidden sm:table text-sm w-full min-w-[320px] border-collapse [&_th]:px-3.5 [&_td]:px-3.5 [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
             <thead>
               <tr className="text-[9px] text-white/25 uppercase tracking-widest border-b border-white/[0.05]">
                 <th className={STICKY_HEAD}>Player</th>
@@ -719,18 +858,20 @@ function StatsLeaderboards({ batting, bowling, allRounders, fielding }: {
 // ── Points Table ─────────────────────────────────────────────────────────────
 function PointsTable({ rows, compact = false }: { rows: SeriesStandingRow[]; compact?: boolean }) {
   if (rows.length === 0) return null;
+  const fmtNRR = (nrr: number) => `${nrr >= 0 ? "+" : ""}${nrr.toFixed(3)}`;
   return (
     <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      <table className="w-full text-sm min-w-[360px] [&_th]:px-2.5 [&_td]:px-2.5">
+      <table className={`w-full ${compact ? "max-w-md text-xs min-w-0 [&_th]:px-1.5 [&_td]:px-1.5" : "max-w-2xl text-sm min-w-[360px] [&_th]:px-2.5 [&_td]:px-2.5"}`}>
         <thead>
           <tr className="text-[9px] text-white/25 uppercase tracking-widest border-b border-white/[0.05]">
             <th className="text-left pb-2">Team</th>
-            <th className="text-center pb-2 w-8">P</th>
-            <th className="text-center pb-2 w-8">W</th>
-            <th className="text-center pb-2 w-8">T</th>
-            <th className="text-center pb-2 w-8">L</th>
-            <th className="text-center pb-2 w-10">Pts</th>
-            <th className="text-center pb-2 w-14">Pts%</th>
+            <th className="text-center pb-2 w-7">P</th>
+            <th className="text-center pb-2 w-7">W</th>
+            <th className="text-center pb-2 w-7">T</th>
+            <th className="text-center pb-2 w-7">L</th>
+            <th className="text-center pb-2 w-9">Pts</th>
+            {!compact && <th className="text-center pb-2 w-14">Pts%</th>}
+            <th className="text-center pb-2 w-16">NRR</th>
           </tr>
         </thead>
         <tbody>
@@ -739,13 +880,18 @@ function PointsTable({ rows, compact = false }: { rows: SeriesStandingRow[]; com
             const name = TEAMS[r.team_id as keyof typeof TEAMS]?.name ?? r.team_id;
             return (
               <tr key={r.team_id} className={`border-b border-white/[0.03] ${i === 0 ? "bg-white/[0.02]" : ""}`}>
-                <td className="py-1.5 font-black pr-3" style={{ color }}>{name}</td>
+                <td className={`py-1.5 font-black ${compact ? "pr-1 truncate max-w-[110px]" : "pr-3"}`} style={{ color }}>{name}</td>
                 <td className="py-1.5 text-center text-white/40">{r.played}</td>
                 <td className="py-1.5 text-center font-black text-white">{r.won}</td>
                 <td className="py-1.5 text-center text-white/40">{r.tied}</td>
                 <td className="py-1.5 text-center text-white/40">{r.lost}</td>
                 <td className="py-1.5 text-center font-black text-[#E8537E]">{r.points}</td>
-                <td className="py-1.5 text-center text-white/50">{r.win_pct}%</td>
+                {!compact && <td className="py-1.5 text-center text-white/50">{r.win_pct}%</td>}
+                <td className="py-1.5 text-center font-bold text-[10px]">
+                  <span className={r.nrr >= 0 ? "text-emerald-400/80" : "text-red-400/70"}>
+                    {fmtNRR(r.nrr)}
+                  </span>
+                </td>
               </tr>
             );
           })}
@@ -764,7 +910,7 @@ function StandingsPanel({ label, sub, rows }: { label: string; sub: string; rows
       {rows.length > 0
         ? <PointsTable rows={rows} />
         : <p className="text-center text-white/30 text-sm py-8">No matches recorded yet.</p>}
-      <p className="text-[9px] text-white/20 mt-4 font-bold">P = Played · W = Won · T = Tied · L = Lost · Pts = Points (W×2, T×1) · Pts% = Pts ÷ (2×P)</p>
+      <p className="text-[9px] text-white/20 mt-4 font-bold">P = Played · W = Won · T = Tied · L = Lost · Pts = Points (W×2, T×1) · Pts% = Pts ÷ (2×P) · NRR = Net Run Rate (recorded matches only)</p>
     </div>
   );
 }
@@ -828,6 +974,16 @@ function SwipeableStandings({ current, overall, currentSeriesName }: { current: 
   );
 }
 
+// Compact, readable team labels for narrow mobile rows (avoids "OUT" misreading).
+const MOBILE_SHORT: Record<string, string> = {
+  mavericks: "Mave",
+  neurostrikers: "Neuro",
+  outliers: "Outliers",
+};
+function teamShortMobile(id: string): string {
+  return MOBILE_SHORT[id] ?? TEAMS[id as keyof typeof TEAMS]?.name ?? id;
+}
+
 // ── Per-Match Scorecard Card ──────────────────────────────────────────────────
 function MatchScorecardCard({ match }: { match: FullSeries["matches"][0] }) {
   const [open, setOpen] = useState(false);
@@ -853,23 +1009,44 @@ function MatchScorecardCard({ match }: { match: FullSeries["matches"][0] }) {
       {/* Compact header (always visible) */}
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left"
+        className="w-full flex flex-col gap-1.5 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left"
       >
-        <span className="text-[9px] font-black uppercase tracking-widest text-white/25 w-12 shrink-0">
-          {match.stage === "final" ? "FINAL" : `M${match.match_no}`}
-        </span>
-        <span className="flex-1 text-xs font-black text-white/70">
-          {TEAMS[match.team1_id as keyof typeof TEAMS]?.name ?? match.team1_id}
-          <span className="text-white/25 mx-1">vs</span>
-          {TEAMS[match.team2_id as keyof typeof TEAMS]?.name ?? match.team2_id}
-        </span>
-        {match.innings.map((inn) => (
-          <span key={inn.innings_no} className="text-xs font-black font-mono text-white/60 shrink-0">
-            {inn.total_runs}/{inn.total_wickets}
+        <div className="flex items-center gap-2 sm:gap-3 w-full">
+          <span className="text-[9px] font-black uppercase tracking-widest text-white/25 shrink-0 sm:w-12">
+            {match.stage === "final" ? "FINAL" : `M${match.match_no}`}
           </span>
-        )).reduce((prev, curr, i) => i === 0 ? [curr] : [...(prev as React.ReactNode[]), <span key={`sep-${i}`} className="text-white/20 text-xs">·</span>, curr] as React.ReactNode[], [] as React.ReactNode[])}
-        <span className="text-[9px] text-[#E8537E] font-bold shrink-0 hidden sm:block">{result}</span>
-        {open ? <ChevronUp className="w-3.5 h-3.5 text-white/20 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-white/20 shrink-0" />}
+          <span className="flex-1 sm:flex-none min-w-0 truncate text-xs font-black text-white/70 sm:w-64">
+            <span className="sm:hidden">{teamShortMobile(match.team1_id)}</span>
+            <span className="hidden sm:inline">{TEAMS[match.team1_id as keyof typeof TEAMS]?.name ?? match.team1_id}</span>
+            <span className="text-white/25 mx-1">vs</span>
+            <span className="sm:hidden">{teamShortMobile(match.team2_id)}</span>
+            <span className="hidden sm:inline">{TEAMS[match.team2_id as keyof typeof TEAMS]?.name ?? match.team2_id}</span>
+          </span>
+          <span className="shrink-0 flex items-center gap-1 sm:w-28">
+            {match.innings.map((inn) => (
+              <span key={inn.innings_no} className="text-xs font-black font-mono text-white/60 shrink-0">
+                {inn.total_runs}/{inn.total_wickets}
+              </span>
+            )).reduce((prev, curr, i) => i === 0 ? [curr] : [...(prev as React.ReactNode[]), <span key={`sep-${i}`} className="text-white/20 text-xs">·</span>, curr] as React.ReactNode[], [] as React.ReactNode[])}
+          </span>
+          <span className="hidden sm:block sm:flex-1 min-w-0 truncate text-[10px] text-[#E8537E] font-bold">{result}</span>
+          {match.player_of_match && (
+            <span className="hidden sm:flex items-center gap-1 shrink-0 sm:w-44 text-[10px] font-black text-jcc-gold/80">
+              <Star className="w-3 h-3 shrink-0" /> {match.player_of_match}
+            </span>
+          )}
+          {open ? <ChevronUp className="w-3.5 h-3.5 text-white/20 shrink-0 ml-auto sm:ml-0" /> : <ChevronDown className="w-3.5 h-3.5 text-white/20 shrink-0 ml-auto sm:ml-0" />}
+        </div>
+
+        {/* Mobile-only result + Player of the Match line */}
+        <div className="sm:hidden flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+          <span className="text-[10px] text-[#E8537E] font-bold">{result}</span>
+          {match.player_of_match && (
+            <span className="flex items-center gap-1 text-[10px] font-black text-jcc-gold/80">
+              <Star className="w-3 h-3 shrink-0" /> {match.player_of_match.split(" ")[0]}
+            </span>
+          )}
+        </div>
       </button>
 
       {/* Expanded scorecard */}
@@ -1012,7 +1189,7 @@ function TriSeriesCard({ series }: { series: FullSeries }) {
 
   const leagueMatches = series.matches.filter((m) => m.stage === "league");
   const finalMatch = series.matches.find((m) => m.stage === "final");
-  const leagueStandings = computeSeriesStandings(series.matches, "league");
+  const leagueStandings = computeOverallStandings([series]);
 
   return (
     <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] bg-gradient-to-b from-[var(--jcc-navy)] to-[var(--jcc-navy-light)]">

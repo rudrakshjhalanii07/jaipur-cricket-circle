@@ -408,6 +408,7 @@ export interface SeriesStandingRow {
   tied: number;
   points: number;
   win_pct: number;  // 0-100
+  nrr: number;      // net run rate; 0 when no innings data available
 }
 
 export function computeSeriesStandings(
@@ -418,7 +419,7 @@ export function computeSeriesStandings(
 
   const ensure = (id: SeriesTeamId): SeriesStandingRow => {
     if (!map.has(id)) {
-      map.set(id, { team_id: id, played: 0, won: 0, lost: 0, tied: 0, points: 0, win_pct: 0 });
+      map.set(id, { team_id: id, played: 0, won: 0, lost: 0, tied: 0, points: 0, win_pct: 0, nrr: 0 });
     }
     return map.get(id)!;
   };
@@ -454,7 +455,69 @@ export function computeSeriesStandings(
   return rows.sort((a, b) => b.win_pct - a.win_pct || b.points - a.points);
 }
 
+// Convert display overs (9.4 = 9 overs 4 balls) to decimal sixths for NRR math.
+function oversToDecimalSeries(displayOvers: number): number {
+  const full = Math.floor(displayOvers);
+  const balls = Math.round((displayOvers - full) * 10);
+  return full + balls / 6;
+}
+
+// Compute NRR per team from innings data. Only matches with both innings recorded
+// are included; unrecorded matches contribute NRR = 0.
+export function computeSeriesNRR(
+  fullSeries: FullSeries[],
+  stage?: "league" | "final",
+): Map<SeriesTeamId, number> {
+  type Acc = { runsScored: number; oversConsumed: number; runsConceded: number; oversBowled: number };
+  const acc = new Map<SeriesTeamId, Acc>();
+  const ensure = (id: SeriesTeamId): Acc => {
+    if (!acc.has(id)) acc.set(id, { runsScored: 0, oversConsumed: 0, runsConceded: 0, oversBowled: 0 });
+    return acc.get(id)!;
+  };
+
+  for (const s of fullSeries) {
+    const overs = s.overs_per_innings;
+    for (const m of s.matches) {
+      if (stage && m.stage !== stage) continue;
+      if (!m.winner_id && !m.is_tie) continue;
+      if (!m.innings || m.innings.length < 2) continue;
+      const inn1 = m.innings.find((i) => i.innings_no === 1);
+      const inn2 = m.innings.find((i) => i.innings_no === 2);
+      if (!inn1 || !inn2) continue;
+
+      const o1 = inn1.all_out ? overs : oversToDecimalSeries(inn1.total_overs);
+      const o2 = inn2.all_out ? overs : oversToDecimalSeries(inn2.total_overs);
+
+      const t1 = ensure(inn1.batting_team_id);
+      t1.runsScored += inn1.total_runs;
+      t1.oversConsumed += o1;
+      t1.runsConceded += inn2.total_runs;
+      t1.oversBowled += o2;
+
+      const t2 = ensure(inn2.batting_team_id);
+      t2.runsScored += inn2.total_runs;
+      t2.oversConsumed += o2;
+      t2.runsConceded += inn1.total_runs;
+      t2.oversBowled += o1;
+    }
+  }
+
+  const result = new Map<SeriesTeamId, number>();
+  for (const [id, a] of acc) {
+    result.set(
+      id,
+      a.oversConsumed > 0 && a.oversBowled > 0
+        ? a.runsScored / a.oversConsumed - a.runsConceded / a.oversBowled
+        : 0,
+    );
+  }
+  return result;
+}
+
 export function computeOverallStandings(series: FullSeries[]): SeriesStandingRow[] {
   // League matches only — exhibition/final games never count toward the points table.
-  return computeSeriesStandings(series.flatMap((s) => s.matches as SeriesMatch[]), "league");
+  const rows = computeSeriesStandings(series.flatMap((s) => s.matches as SeriesMatch[]), "league");
+  const nrrMap = computeSeriesNRR(series, "league");
+  for (const r of rows) r.nrr = nrrMap.get(r.team_id) ?? 0;
+  return rows;
 }
