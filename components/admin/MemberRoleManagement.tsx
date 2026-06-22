@@ -281,8 +281,9 @@ export default function MemberRoleManagement({ adminPassword }: { adminPassword?
                     </span>
                     {team && team !== "Unassigned" && (
                       <span className={`text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-widest border ${
-                        team === "Mavericks" ? "bg-[#00C2FF]/10 text-[#00C2FF] border-[#00C2FF]/20" :
-                        team === "NeuroStrikers" ? "bg-[#22E6A3]/10 text-[#22E6A3] border-[#22E6A3]/20" :
+                        team === "Mavericks" ? "bg-[#E8A820]/10 text-[#E8A820] border-[#E8A820]/20" :
+                        team === "NeuroStrikers" ? "bg-[#3B6FC4]/10 text-[#3B6FC4] border-[#3B6FC4]/20" :
+                        team === "The Outliers" ? "bg-[#1A7A5E]/10 text-[#1A7A5E] border-[#1A7A5E]/20" :
                         "bg-white/5 text-white/30 border-white/10"
                       }`}>
                         {team}

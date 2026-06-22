@@ -3,10 +3,10 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
-import { 
-  Users, UserPlus, Search, Edit2, 
+import {
+  Users, UserPlus, Search, Edit2,
   Star, Activity, Loader2, Save, X, Clock,
-  ChevronRight, Phone, CheckCircle2
+  ChevronRight, Phone, CheckCircle2, Shield
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getDiceBearUrl } from "@/lib/avatar";
@@ -19,6 +19,7 @@ interface Player {
   team: string;
   member_tag: string;
   group_role: string;
+  is_exec_committee: boolean;
   is_active: boolean;
   approval_status: string;
   image_url?: string;
@@ -161,6 +162,26 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
     }
   };
 
+  const handleExecCommitteeToggle = async (id: string, current: boolean) => {
+    setIsProcessing(id);
+    try {
+      const response = await fetch("/api/admin/players/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-password": adminPassword || "",
+        },
+        body: JSON.stringify({ id, updates: { is_exec_committee: !current } }),
+      });
+      if (!response.ok) throw new Error("Exec committee update failed");
+      setPlayers(players.map(p => p.id === id ? { ...p, is_exec_committee: !current } : p));
+    } catch (err) {
+      console.error("Error updating exec committee:", err);
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
   const pendingPlayers = players.filter(p => p.approval_status === "pending");
   const approvedPlayers = players.filter(p => p.approval_status === "approved");
 
@@ -272,25 +293,24 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
                 <div className="px-2.5 py-0.5 rounded-md bg-white/5 text-white/40 text-[9px] font-black uppercase tracking-widest border border-white/10">
                   {player.cricket_role}
                 </div>
-                {/* Command Authority Status */}
-                <div className={`px-2.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border ${
-                  player.group_role === 'captain' ? 'bg-jcc-gold/15 text-jcc-gold border-jcc-gold/25' :
-                  player.group_role === 'vice-captain' ? 'bg-purple-400/15 text-purple-400 border-purple-400/25' :
-                  player.group_role === 'admin' ? 'bg-rose-500/15 text-rose-400 border-rose-500/25' :
-                  'bg-white/5 text-white/40 border-white/10'
-                }`}>
-                  {player.group_role === 'captain' ? '👑 Captain' :
-                   player.group_role === 'vice-captain' ? '⚡ Vice Captain' :
-                   player.group_role === 'admin' ? '🛡️ Admin' :
-                   '👤 Member'}
-                </div>
-                {/* Service Tag Status */}
-                <div className={`px-2.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border ${
-                  player.member_tag === 'founding-member' ? 'bg-amber-400/10 text-amber-300 border-amber-400/20' :
-                  'bg-white/5 text-white/30 border-white/5'
-                }`}>
-                  {player.member_tag === 'founding-member' ? '⭐ Founding Member' : 'Member'}
-                </div>
+                {/* Command Authority Status — only shown when elevated */}
+                {player.group_role && !['member', 'founding-member'].includes(player.group_role) && (
+                  <div className={`px-2.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border ${
+                    player.group_role === 'captain' ? 'bg-jcc-gold/15 text-jcc-gold border-jcc-gold/25' :
+                    player.group_role === 'vice-captain' ? 'bg-purple-400/15 text-purple-400 border-purple-400/25' :
+                    'bg-rose-500/15 text-rose-400 border-rose-500/25'
+                  }`}>
+                    {player.group_role === 'captain' ? '👑 Captain' :
+                     player.group_role === 'vice-captain' ? '⚡ Vice Captain' :
+                     '🛡️ Admin'}
+                  </div>
+                )}
+                {/* Service Tag — only shown for founding members */}
+                {player.member_tag === 'founding-member' && (
+                  <div className="px-2.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border bg-amber-400/10 text-amber-300 border-amber-400/20">
+                    ⭐ Founding Member
+                  </div>
+                )}
               </div>
 
               {/* Direct Team Selector */}
@@ -301,17 +321,19 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
                     value={player.team || "Unassigned"}
                     onChange={(e) => handleTeamUpdate(player.id, e.target.value)}
                     className={`appearance-none pl-3 pr-8 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all outline-none cursor-pointer ${
-                      player.team === 'Mavericks' ? 'bg-[#00C2FF] text-[#061826] border-white/20' : 
-                      player.team === 'NeuroStrikers' ? 'bg-[#22E6A3] text-[#061826] border-white/20' : 
+                      player.team === 'Mavericks' ? 'bg-[#E8A820] text-[#061826] border-white/20' :
+                      player.team === 'NeuroStrikers' ? 'bg-[#3B6FC4] text-white border-white/20' :
+                      player.team === 'The Outliers' ? 'bg-[#1A7A5E] text-white border-white/20' :
                       'bg-white/5 text-white/40 border-white/10 hover:border-white/20'
                     }`}
                   >
                     <option value="Unassigned" className="bg-[#0F2740] text-white">Unassigned</option>
                     <option value="Mavericks" className="bg-[#0F2740] text-white">Mavericks</option>
                     <option value="NeuroStrikers" className="bg-[#0F2740] text-white">NeuroStrikers</option>
+                    <option value="The Outliers" className="bg-[#0F2740] text-white">The Outliers</option>
                   </select>
                   <ChevronRight className={`absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rotate-90 pointer-events-none transition-colors ${
-                    (player.team === 'Mavericks' || player.team === 'NeuroStrikers') ? 'text-[#061826]' : 'text-white/20'
+                    player.team === 'Mavericks' ? 'text-[#061826]' : 'text-white/60'
                   }`} />
                   {isProcessing === player.id && (
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] rounded-xl flex items-center justify-center">
@@ -325,6 +347,27 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
                     Rejected
                   </span>
                 )}
+
+                {/* Exec Committee Toggle */}
+                {(() => {
+                  const isFounder = player.member_tag === "founding-member";
+                  const inExec = isFounder || player.is_exec_committee;
+                  return (
+                    <button
+                      disabled={isFounder || isProcessing === player.id}
+                      onClick={() => handleExecCommitteeToggle(player.id, player.is_exec_committee)}
+                      title={isFounder ? "Founding members are always on the executive committee" : (inExec ? "Remove from Executive Committee" : "Add to Executive Committee")}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${
+                        inExec
+                          ? "bg-violet-500/15 text-violet-300 border-violet-500/30 hover:bg-violet-500/25"
+                          : "bg-white/5 text-white/30 border-white/10 hover:border-violet-500/30 hover:text-violet-300"
+                      } ${isFounder ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
+                    >
+                      <Shield className="w-3 h-3" />
+                      {isFounder ? "Exec (Founding)" : inExec ? "Exec Committee" : "Add to Exec"}
+                    </button>
+                  );
+                })()}
               </div>
               
               {player.approval_status === "pending" && (
@@ -443,6 +486,7 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
                             <option value="Unassigned" className="bg-[#050E17]">Unassigned</option>
                             <option value="Mavericks" className="bg-[#050E17]">Mavericks</option>
                             <option value="NeuroStrikers" className="bg-[#050E17]">NeuroStrikers</option>
+                            <option value="The Outliers" className="bg-[#050E17]">The Outliers</option>
                           </select>
                           <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 rotate-90 pointer-events-none text-white/30 transition-colors" />
                         </div>

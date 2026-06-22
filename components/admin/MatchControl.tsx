@@ -36,6 +36,7 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
   // New UI states
   const [regCounts, setRegCounts] = useState({ confirmed: 0, waitlist: 0 });
   const [timeLeft, setTimeLeft] = useState("");
+  const [expiredCount, setExpiredCount] = useState(0);
   
   // Dialog States
   const [confirmConfig, setConfirmConfig] = useState<{
@@ -138,11 +139,24 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
   }
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
+      // Purge any past matches before loading the current one
+      try {
+        const res = await fetch("/api/cron/expire-past-matches", {
+          method: "POST",
+          headers: { "x-admin-password": adminPassword || "" },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.deleted > 0) setExpiredCount(data.deleted);
+        }
+      } catch {
+        // Non-critical — proceed to fetchMatch regardless
+      }
       fetchMatch();
     }, 0);
     return () => clearTimeout(timer);
-  }, []);
+  }, [adminPassword]);
 
   useEffect(() => {
     if (match) {
@@ -316,6 +330,20 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
           <p className="text-[13px] text-white/50 font-medium uppercase tracking-widest mt-1">Logistics & Registration Lifecycle</p>
         </div>
       </div>
+
+      <AnimatePresence>
+        {expiredCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex items-center gap-3 px-5 py-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[12px] font-black uppercase tracking-widest"
+          >
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            {expiredCount} past match{expiredCount > 1 ? "es" : ""} auto-cancelled &amp; wiped — all registrations cleared.
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence mode="wait">
         {!match || match.status === "unscheduled" ? (

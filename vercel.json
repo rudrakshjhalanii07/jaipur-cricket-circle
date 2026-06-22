@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/expire-past-matches",
+      "schedule": "30 18 * * *"
+    }
+  ]
+}

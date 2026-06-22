@@ -27,7 +27,7 @@ export interface Member {
   image?: string;
   role: string; // Display role/title
   cricketRole: CricketRole;
-  team: "Mavericks" | "NeuroStrikers" | "Unassigned";
+  team: "Mavericks" | "NeuroStrikers" | "The Outliers" | "Unassigned";
   tags: MemberTag[];
   battingStyle: string;
   bowlingStyle: string;
