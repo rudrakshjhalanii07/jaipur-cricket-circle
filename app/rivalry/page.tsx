@@ -4,7 +4,7 @@ import { useRef, useEffect, useState } from "react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import { Trophy, Star, MapPin, Target, TrendingUp, History, ChevronRight, Swords, Calendar, ChevronDown, ChevronUp, Newspaper, ExternalLink, Sparkles } from "lucide-react";
 import { fadeUp, staggerContainer, VIEWPORT_CONFIG } from "@/lib/animations";
-import { fetchRivalrySeasons, RivalrySeason } from "@/lib/rivalry";
+import { fetchRivalrySeasons, RivalrySeason, eraTitle, eraFirstNames } from "@/lib/rivalry";
 import {
   fetchFullSeries,
   computeLeaderboards,
@@ -151,7 +151,7 @@ function applyLiveSeasonStats(season: RivalrySeason, matches: SeriesMatch[]): Ri
     neurostrikers_exhibition_ties: get(final, "neurostrikers", "tied"),
     mavericks_exhibition_ties: get(final, "mavericks", "tied"),
     outliers_exhibition_ties: get(final, "outliers", "tied"),
-    total_matches_played: matches.filter((m) => m.winner_id || m.is_tie).length + baseTotal,
+    total_matches_played: matches.filter((m) => m.stage === "league" && (m.winner_id || m.is_tie)).length + baseTotal,
   };
 }
 
@@ -206,34 +206,52 @@ function ActiveScoreboard({ season }: { season: RivalrySeason }) {
       ))}
 
       {/* Header */}
-      <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between px-6 py-4 border-b border-white/[0.06] bg-white/[0.02] gap-2">
-        <div className="flex items-center gap-2.5">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-          </span>
-          <span className="text-[11px] font-black uppercase tracking-[0.25em] text-emerald-400">
-            Active {isThreeWay ? "3-Captain" : "Captain"} Rivalry
-          </span>
-          <span className="text-[10px] text-white/40 font-bold px-2 py-0.5 bg-white/[0.05] rounded-full">
-            {season.season_label || "Current Season"}
-          </span>
+      <div className="relative flex items-center justify-between gap-3 px-6 py-4 border-b border-white/[0.06] bg-white/[0.02]">
+        {/* Left: status + start date stacked */}
+        <div className="flex flex-col gap-1.5 min-w-0">
+          <div className="flex items-center gap-2.5">
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+            </span>
+            <span className="text-[11px] font-black uppercase tracking-[0.25em] text-emerald-400">
+              Active {isThreeWay ? "3-Captain" : "Captain"} Rivalry
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-white/50">
+            <Calendar className="w-3.5 h-3.5 text-white/30 shrink-0" />
+            {season.started_at
+              ? `Started ${new Date(season.started_at).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" })}`
+              : "Started Last Sunday"}
+          </div>
         </div>
-        <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-white/50">
-          <Calendar className="w-3.5 h-3.5 text-white/30" />
-          {season.started_at
-            ? `Started ${new Date(season.started_at).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" })}`
-            : "Started Last Sunday"}
-        </div>
+        {/* Right: season pill, vertically centered against the whole block */}
+        <span className="shrink-0 text-[10px] text-white/40 font-bold px-3 py-1 bg-white/[0.05] rounded-full inline-flex items-center justify-center text-center">
+          {season.season_label || "Current Season"}
+        </span>
       </div>
 
       {/* Body */}
       <div className="relative p-6 sm:p-10">
         <div className="text-center mb-8">
-          <h2 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight">
-            {season.title}
+          {/* Eyebrow: thin "THE — ERA" framing line */}
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <span className="h-px w-8 bg-white/15" />
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40">
+              The&nbsp;·&nbsp;Era
+            </span>
+            <span className="h-px w-8 bg-white/15" />
+          </div>
+          {/* Captain first names — the focal point */}
+          <h2 className="font-black text-white uppercase leading-none flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+            {eraFirstNames(season).map((name, i) => (
+              <span key={name} className="flex items-center gap-x-2">
+                {i > 0 && <span className="text-[#E8537E] text-lg sm:text-xl font-black">·</span>}
+                <span className="text-2xl sm:text-4xl tracking-tight">{name}</span>
+              </span>
+            ))}
           </h2>
-          <p className="text-[10px] font-bold text-white/35 uppercase tracking-widest mt-1">
+          <p className="text-[10px] font-bold text-white/35 uppercase tracking-widest mt-3">
             Current Era Captain Pairing
           </p>
         </div>
@@ -256,11 +274,14 @@ function ActiveScoreboard({ season }: { season: RivalrySeason }) {
                   </h3>
                 </div>
 
-                {/* Captain — fixed height */}
-                <div className="flex items-start justify-center min-h-[2.5rem]">
-                  <p className="text-[9px] sm:text-[10px] text-white/40 font-bold leading-snug">
-                    Cap: <span className="text-white font-black">{t.captain}</span>
-                  </p>
+                {/* Captain — fixed height, label stacked above name for clean centering */}
+                <div className="flex flex-col items-center justify-start min-h-[2.5rem] px-1">
+                  <span className="text-[7px] sm:text-[8px] text-white/35 font-black uppercase tracking-[0.2em]">
+                    Captain
+                  </span>
+                  <span className="mt-0.5 text-[10px] sm:text-xs text-white font-black leading-tight text-center text-balance">
+                    {t.captain}
+                  </span>
                 </div>
 
                 {/* Win count */}
@@ -296,15 +317,7 @@ function ActiveScoreboard({ season }: { season: RivalrySeason }) {
 
         {/* 3-way win ratio bar */}
         <div className="mt-8">
-          <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest mb-2 gap-2 flex-wrap">
-            {teams.map((t) => {
-              const pct = totalWins > 0 ? Math.round((t.wins / totalWins) * 100) : Math.round(100 / teams.length);
-              return (
-                <span key={t.label} style={{ color: t.color }}>{t.label.split(" ").pop()} {pct}%</span>
-              );
-            })}
-            <span className="text-white/20 hidden sm:inline">Era Win Ratio</span>
-          </div>
+          <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/25 text-center mb-2.5">Era Win Ratio</p>
           <div className="w-full h-2 rounded-full bg-white/[0.05] overflow-hidden flex gap-px border border-white/[0.03]">
             {teams.map((t, i) => {
               const pct = totalWins > 0 ? (t.wins / totalWins) * 100 : 100 / teams.length;
@@ -317,6 +330,23 @@ function ActiveScoreboard({ season }: { season: RivalrySeason }) {
                   animate={{ width: `${pct}%` }}
                   transition={{ duration: 1.4, ease: "easeOut", delay: i * 0.1 }}
                 />
+              );
+            })}
+          </div>
+          {/* Evenly distributed team labels — stacked so they never collide */}
+          <div className="grid grid-cols-3 gap-2 mt-3">
+            {teams.map((t) => {
+              const pct = totalWins > 0 ? Math.round((t.wins / totalWins) * 100) : Math.round(100 / teams.length);
+              return (
+                <div key={t.label} className="flex flex-col items-center gap-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: t.color }} />
+                    <span className="text-sm font-black tabular-nums" style={{ color: t.color }}>{pct}%</span>
+                  </div>
+                  <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-white/40 text-center leading-tight">
+                    {t.label.split(" ").pop()}
+                  </span>
+                </div>
               );
             })}
           </div>
@@ -356,7 +386,7 @@ function ActiveScoreboard({ season }: { season: RivalrySeason }) {
         <div className="px-6 py-4 flex flex-col justify-center hover:bg-white/[0.02] transition-colors">
           <span className="text-[9px] font-black uppercase tracking-widest text-white/30">Total Matches Played</span>
           <span className="text-lg font-black text-cyan-400 mt-1">
-            {season.total_matches_played} Matches Recorded
+            {season.total_matches_played} Matches Recorded <span className="text-white/30 font-bold text-sm">[Main Series]</span>
           </span>
         </div>
       </div>
@@ -389,7 +419,7 @@ function ArchivedEraCard({ season }: { season: RivalrySeason }) {
       </div>
 
       <h3 className="text-lg font-black text-white uppercase tracking-tight group-hover:text-jcc-accent transition-colors duration-300">
-        {season.title}
+        {eraTitle(season)}
       </h3>
 
       <div className={`grid ${captainCols} gap-4 mt-3 py-3 px-3 bg-white/[0.01] border border-white/[0.03] rounded-lg`}>
@@ -578,86 +608,43 @@ function PlayerCell({ rank, name, teamId }: { rank: number; name: string; teamId
 // Mobile-only stacked leaderboard row: rank + name + team, a headline stat on the
 // right, and the remaining stats as wrapping chips. Replaces the wide scrolling
 // table on small screens so no column gets cut off.
-const RANK_BADGE_COLORS = ["#FFD700", "#C0C0C0", "#CD7F32"] as const;
-
-function hexToRgba(hex: string, alpha: number): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r},${g},${b},${alpha})`;
-}
-
 function StatLeaderMobile({ rank, name, teamId, headLabel, headValue, stats }: {
   rank: number; name: string; teamId?: string;
   headLabel: string; headValue: React.ReactNode;
   stats: { label: string; value: React.ReactNode }[];
 }) {
   const team = teamId ? TEAMS[teamId as keyof typeof TEAMS] : undefined;
-  const accentColor = team?.primary ?? "#E8537E";
-  const isTop3 = rank <= 3;
-  const rankColor = isTop3 ? RANK_BADGE_COLORS[rank - 1] : undefined;
 
   return (
-    <div
-      className="flex mb-2 last:mb-0 rounded-xl overflow-hidden"
-      style={{ border: `1px solid ${hexToRgba(accentColor, 0.18)}` }}
-    >
-      {/* left info panel */}
-      <div
-        className="flex-1 min-w-0 px-3 py-3 flex flex-col gap-1.5"
-        style={{ background: hexToRgba(accentColor, isTop3 ? 0.06 : 0.03) }}
-      >
-        {/* rank badge + name */}
-        <div className="flex items-center gap-2">
-          <span
-            className="shrink-0 w-[22px] h-[22px] rounded-full flex items-center justify-center text-[10px] font-black"
-            style={rankColor
-              ? { background: `${rankColor}28`, color: rankColor, border: `1px solid ${rankColor}60` }
-              : { background: hexToRgba(accentColor, 0.15), color: accentColor, border: `1px solid ${hexToRgba(accentColor, 0.3)}` }
-            }
-          >
-            {rank}
-          </span>
-          <p className="font-black text-[13px] leading-tight truncate" style={{ color: "var(--jcc-text, #15110e)" }}>
-            {name}
-          </p>
-        </div>
-
-        {/* team dot + name */}
-        {team && (
-          <div className="flex items-center gap-1.5 pl-[30px]">
-            <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: accentColor }} />
-            <p className="text-[9px] font-black uppercase tracking-wider" style={{ color: accentColor }}>
+    <div className="py-3 border-b border-white/[0.05] last:border-0">
+      {/* top line: rank + name + team, headline stat on the right */}
+      <div className="flex items-baseline gap-2">
+        <span className="text-white/20 font-black text-xs tabular-nums shrink-0 w-4">{rank}</span>
+        <div className="min-w-0 flex-1">
+          <p className="font-black text-white text-[13px] leading-tight truncate">{name}</p>
+          {team && (
+            <p className="text-[9px] font-black uppercase tracking-wider mt-0.5" style={{ color: team.primary }}>
               {team.name}
             </p>
-          </div>
-        )}
-
-        {/* stats grid */}
-        {stats.length > 0 && (
-          <div className="pl-[30px] grid grid-cols-3 gap-x-3 gap-y-1.5 mt-1">
-            {stats.map((s) => (
-              <div key={s.label}>
-                <p className="text-[8px] uppercase tracking-wide leading-none" style={{ color: hexToRgba(accentColor, 0.45) }}>{s.label}</p>
-                <p className="text-[11px] font-bold tabular-nums mt-0.5" style={{ color: hexToRgba(accentColor, 0.75) }}>{s.value}</p>
-              </div>
-            ))}
-          </div>
-        )}
+          )}
+        </div>
+        <div className="shrink-0 text-right">
+          <span className="text-[#E8537E] font-black text-lg leading-none tabular-nums">{headValue}</span>
+          <p className="text-[7px] uppercase tracking-widest text-white/30 mt-0.5">{headLabel}</p>
+        </div>
       </div>
 
-      {/* right headline panel */}
-      <div
-        className="shrink-0 w-[60px] flex flex-col items-center justify-center"
-        style={{ background: hexToRgba(accentColor, 0.12), borderLeft: `1px solid ${hexToRgba(accentColor, 0.2)}` }}
-      >
-        <p className="font-black text-2xl leading-none tabular-nums" style={{ color: accentColor }}>
-          {headValue}
-        </p>
-        <p className="text-[7px] uppercase tracking-widest mt-1.5 text-center px-1 leading-tight" style={{ color: hexToRgba(accentColor, 0.5) }}>
-          {headLabel}
-        </p>
-      </div>
+      {/* compact secondary stat line */}
+      {stats.length > 0 && (
+        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 pl-6">
+          {stats.map((s) => (
+            <div key={s.label} className="flex items-baseline gap-1">
+              <span className="text-[8px] uppercase tracking-wide text-white/25">{s.label}</span>
+              <span className="text-[11px] font-bold tabular-nums text-white/65">{s.value}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -855,13 +842,39 @@ function StatsLeaderboards({ batting, bowling, allRounders, fielding }: {
   );
 }
 
+// ── Section Heading (eyebrow + title) ────────────────────────────────────────
+// Shared across the page sections. Mobile uses tighter tracking + smaller text
+// so the wide-tracked eyebrow line never wraps awkwardly.
+function SectionHeading({ eyebrow, title, aside }: { eyebrow: string; title: string; aside?: string }) {
+  return (
+    <div className="mb-6 border-b border-white/[0.08] pb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-1 rounded-full bg-[#E8537E] shrink-0" />
+          <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-[0.18em] sm:tracking-[0.4em] text-white/35 leading-relaxed">
+            {eyebrow}
+          </p>
+        </div>
+        <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white mt-1.5 pl-3">
+          {title}
+        </h2>
+      </div>
+      {aside && (
+        <p className="text-[10px] text-white/40 font-bold max-w-xs pl-3 sm:pl-0 sm:text-right">
+          {aside}
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ── Points Table ─────────────────────────────────────────────────────────────
 function PointsTable({ rows, compact = false }: { rows: SeriesStandingRow[]; compact?: boolean }) {
   if (rows.length === 0) return null;
   const fmtNRR = (nrr: number) => `${nrr >= 0 ? "+" : ""}${nrr.toFixed(3)}`;
   return (
     <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      <table className={`w-full ${compact ? "max-w-md text-xs min-w-0 [&_th]:px-1.5 [&_td]:px-1.5" : "max-w-2xl text-sm min-w-[360px] [&_th]:px-2.5 [&_td]:px-2.5"}`}>
+      <table className={`w-full ${compact ? "max-w-md text-xs min-w-0 [&_th]:px-1.5 [&_td]:px-1.5" : "text-sm min-w-[360px] [&_th]:px-2.5 [&_td]:px-2.5"}`}>
         <thead>
           <tr className="text-[9px] text-white/25 uppercase tracking-widest border-b border-white/[0.05]">
             <th className="text-left pb-2">Team</th>
@@ -904,9 +917,9 @@ function PointsTable({ rows, compact = false }: { rows: SeriesStandingRow[]; com
 // ── Standings panel + swipeable current-vs-overall ───────────────────────────
 function StandingsPanel({ label, sub, rows }: { label: string; sub: string; rows: SeriesStandingRow[] }) {
   return (
-    <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] bg-gradient-to-b from-[var(--jcc-navy)] to-[var(--jcc-navy-light)] p-6 h-full">
-      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[#E8537E]/70 mb-1">{sub}</p>
-      <h3 className="text-lg font-black uppercase tracking-tight text-white mb-4">{label}</h3>
+    <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] bg-gradient-to-b from-[var(--jcc-navy)] to-[var(--jcc-navy-light)] p-6 h-full max-w-2xl mx-auto">
+      <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-[0.18em] sm:tracking-[0.4em] text-[#E8537E]/70 mb-1">{sub}</p>
+      <h3 className="text-base sm:text-lg font-black uppercase tracking-tight text-white mb-4">{label}</h3>
       {rows.length > 0
         ? <PointsTable rows={rows} />
         : <p className="text-center text-white/30 text-sm py-8">No matches recorded yet.</p>}
@@ -1374,12 +1387,7 @@ export default function RivalryPage() {
         {/* ── Tri-Series History ── */}
         {(seriesLoading || fullSeries.length > 0) && (
           <div className="mb-16">
-            <div className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-2 border-b border-white/[0.08] pb-4">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30">Complete Scorecards & AI Reports</p>
-                <h2 className="text-2xl font-black uppercase tracking-tight text-white mt-1">Tri-Series Archive</h2>
-              </div>
-            </div>
+            <SectionHeading eyebrow="Complete Scorecards & AI Reports" title="Tri-Series Archive" />
             {seriesLoading ? (
               <div className="space-y-4">
                 {[1, 2].map((i) => <div key={i} className="h-24 rounded-2xl bg-white/[0.02] border border-white/[0.05] animate-pulse" />)}
@@ -1399,12 +1407,7 @@ export default function RivalryPage() {
         {/* ── Collective Points Table ── */}
         {!seriesLoading && overallStandings.length > 0 && (
           <div className="mb-16">
-            <div className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-2 border-b border-white/[0.08] pb-4">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30">Points Table · Swipe to Compare</p>
-                <h2 className="text-2xl font-black uppercase tracking-tight text-white mt-1">Standings</h2>
-              </div>
-            </div>
+            <SectionHeading eyebrow="Points Table · Swipe to Compare" title="Standings" />
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
               <SwipeableStandings current={currentSeasonStandings} overall={overallStandings} currentSeriesName={latestSeriesName} />
             </motion.div>
@@ -1414,12 +1417,7 @@ export default function RivalryPage() {
         {/* ── Stats Leaderboards ── */}
         {(seriesLoading || fullSeries.length > 0) && (
           <div className="mb-16">
-            <div className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-2 border-b border-white/[0.08] pb-4">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30">Batting · Bowling · All-rounders · Fielding</p>
-                <h2 className="text-2xl font-black uppercase tracking-tight text-white mt-1">Player Stats</h2>
-              </div>
-            </div>
+            <SectionHeading eyebrow="Batting · Bowling · All-rounders · Fielding" title="Player Stats" />
             {seriesLoading ? (
               <div className="h-48 rounded-2xl bg-white/[0.02] border border-white/[0.05] animate-pulse" />
             ) : (
@@ -1432,17 +1430,7 @@ export default function RivalryPage() {
 
         {/* ── Archived Rivalry Eras ── */}
         <div className="mb-16">
-          <div className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-2 border-b border-white/[0.08] pb-4">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30">Past Chapters</p>
-              <h2 className="text-2xl font-black uppercase tracking-tight text-white mt-1">
-                Archived Rivalry Eras
-              </h2>
-            </div>
-            <p className="text-[10px] text-white/40 font-bold max-w-xs">
-              Legacy captain pairs and their corresponding final scores.
-            </p>
-          </div>
+          <SectionHeading eyebrow="Past Chapters" title="Archived Rivalry Eras" aside="Legacy captain pairs and their corresponding final scores." />
 
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

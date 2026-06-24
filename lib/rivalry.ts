@@ -31,7 +31,7 @@ export interface RivalrySeason {
 export const fallbackRivalrySeasons: RivalrySeason[] = [
   {
     id: "rawat-sharma-2026",
-    title: "The Rawat-Sharma-Jhalani Era",
+    title: "The Sagar-Anil-Rudraksh Era",
     season_label: "Current Season",
     status: "active",
     mavericks_captain: "Anil Rawat",
@@ -52,7 +52,7 @@ export const fallbackRivalrySeasons: RivalrySeason[] = [
   },
   {
     id: "setia-chaudhary-legacy",
-    title: "The Setia-Chaudhary Era",
+    title: "The Opal-Nitin Era",
     season_label: "Legacy Season",
     status: "archived",
     mavericks_captain: "Mr. Nitin Setia",
@@ -72,6 +72,25 @@ export const fallbackRivalrySeasons: RivalrySeason[] = [
     updated_at: new Date().toISOString()
   }
 ];
+
+function firstName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  // Skip honorifics like "Mr.", "Mrs.", "Dr."
+  const first = parts.find(p => !/^(Mr|Mrs|Ms|Dr)\.?$/i.test(p));
+  return first ?? parts[0];
+}
+
+export function eraFirstNames(season: RivalrySeason): string[] {
+  return [
+    season.neurostrikers_captain,
+    season.mavericks_captain,
+    ...(season.outliers_captain ? [season.outliers_captain] : []),
+  ].map(firstName);
+}
+
+export function eraTitle(season: RivalrySeason): string {
+  return `The ${eraFirstNames(season).join("-")} Era`;
+}
 
 export async function fetchRivalrySeasons(): Promise<RivalrySeason[]> {
   try {
