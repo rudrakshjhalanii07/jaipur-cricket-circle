@@ -8,6 +8,8 @@ import LoaderWrapper from "@/components/LoaderWrapper";
 import PageTransition from "@/components/PageTransition";
 import { Providers } from "@/components/Providers";
 import MotionCanvas from "@/components/MotionCanvas";
+import ScrollSystem from "@/components/ScrollSystem";
+import SectionProgress from "@/components/SectionProgress";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -54,15 +56,18 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-jcc-bg text-jcc-text-primary">
         <Providers>
-          <MotionCanvas />
-          <LoaderWrapper>
-            <Navbar />
-            <main className="flex-1">
-              <PageTransition>{children}</PageTransition>
-            </main>
-            <Footer />
-            <FloatingWhatsApp />
-          </LoaderWrapper>
+          <ScrollSystem>
+            <MotionCanvas />
+            <LoaderWrapper>
+              <Navbar />
+              <main className="flex-1">
+                <PageTransition>{children}</PageTransition>
+              </main>
+              <Footer />
+              <FloatingWhatsApp />
+              <SectionProgress />
+            </LoaderWrapper>
+          </ScrollSystem>
         </Providers>
       </body>
     </html>
