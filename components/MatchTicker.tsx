@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { registrationData } from "@/lib/data";
 import { Trophy, Users, MapPin, Calendar, Timer, Bell } from "lucide-react";
 
 interface Match {
@@ -38,8 +37,7 @@ export default function MatchTicker({ isNavbarScrolled = false }: MatchTickerPro
           .single();
 
         if (matchError || !matchData) {
-          // Fallback to static registration data if Supabase has no records or fails
-          loadStaticFallback();
+          setLoading(false);
           return;
         }
 
@@ -62,32 +60,9 @@ export default function MatchTicker({ isNavbarScrolled = false }: MatchTickerPro
         }
       } catch (err) {
         console.error("MatchTicker data fetch error:", err);
-        loadStaticFallback();
       } finally {
         setLoading(false);
       }
-    }
-
-    function loadStaticFallback() {
-      // Fallback matching data.ts
-      setMatch({
-        id: "fallback-match",
-        match_date: registrationData.matchDate,
-        match_time: registrationData.time,
-        location_name: registrationData.venue,
-        location_map_url: registrationData.locationMapUrl,
-        player_limit: registrationData.playerLimit,
-        status: registrationData.registrationStatus,
-      });
-
-      const confirmed = registrationData.registeredPlayers.filter(
-        (p) => p.status === "registered"
-      ).length;
-      const waitlist = registrationData.registeredPlayers.filter(
-        (p) => p.status === "waitlist"
-      ).length;
-      setConfirmedCount(confirmed);
-      setWaitlistCount(waitlist);
     }
 
     fetchMatchAndRegistrations();

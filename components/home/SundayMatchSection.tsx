@@ -14,7 +14,6 @@ import {
   Flame,
   Shield,
 } from "lucide-react";
-import { clubStats, registrationData } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 
 const fadeUp = {
@@ -127,8 +126,8 @@ export default function SundayMatchSection() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [stats, setStats] = useState({
-    totalMembers: clubStats.totalMembers,
-    matchesPlayed: clubStats.matchesPlayed,
+    totalMembers: 0,
+    matchesPlayed: 0,
   });
 
   async function fetchUpcomingMatch() {
@@ -160,10 +159,10 @@ export default function SundayMatchSection() {
         .from("rivalry_seasons")
         .select("total_matches_played");
 
-      const activeCount = dbPlayers ? dbPlayers.length : clubStats.totalMembers;
+      const activeCount = dbPlayers ? dbPlayers.length : 0;
       const totalMatches = rivalrySeasons
         ? rivalrySeasons.reduce((sum: number, s: { total_matches_played: number | null }) => sum + (s.total_matches_played || 0), 0)
-        : clubStats.matchesPlayed;
+        : 0;
 
       setStats({
         totalMembers: activeCount,
@@ -203,7 +202,7 @@ export default function SundayMatchSection() {
     return () => clearTimeout(timer);
   }, []);
 
-  const countdown = useCountdown(match ? match.match_date : (error ? registrationData.matchDate : null));
+  const countdown = useCountdown(match ? match.match_date : null);
 
   // Loading skeleton screen using premium styling matching the theme
   if (loading) {
@@ -229,18 +228,9 @@ export default function SundayMatchSection() {
     );
   }
 
-  // Graceful Fallback in case of database fetch error
-  const displayMatch = error ? {
-    id: "mock-match-id",
-    match_date: registrationData.matchDate,
-    match_time: registrationData.time,
-    location_name: registrationData.venue,
-    player_limit: registrationData.playerLimit,
-    status: registrationData.registrationStatus === "full" ? "open" : registrationData.registrationStatus,
-  } : match;
-
-  const finalConfirmedCount = error ? registrationData.registeredPlayers.filter((p) => p.status === "registered").length : confirmedCount;
-  const finalRegisteredPlayers = error ? registrationData.registeredPlayers.filter((p) => p.status === "registered") : registeredPlayers;
+  const displayMatch = match;
+  const finalConfirmedCount = confirmedCount;
+  const finalRegisteredPlayers = registeredPlayers;
   const finalPlayerLimit = displayMatch?.player_limit || 18;
   const fillPercentage = Math.min((finalConfirmedCount / finalPlayerLimit) * 100, 100);
   const isFull = finalConfirmedCount >= finalPlayerLimit;
@@ -310,7 +300,7 @@ export default function SundayMatchSection() {
                   {
                     icon: "🔥",
                     label: "Sundays Strong",
-                    value: `${clubStats.sundaysActive}+`,
+                    value: `${stats.matchesPlayed}+`,
                     sub: "consecutive Sundays",
                     borderColor: "border-orange-500/20",
                     glowColor: "from-orange-500/10",
@@ -625,7 +615,7 @@ export default function SundayMatchSection() {
                 {
                   icon: "👑",
                   label: "Sundays Strong",
-                  value: `${clubStats.sundaysActive}+`,
+                  value: `${stats.matchesPlayed}+`,
                   sub: "consecutive Sundays",
                   borderColor: "border-jcc-green/20",
                   glowColor: "from-jcc-green/10",

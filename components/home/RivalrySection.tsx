@@ -5,26 +5,49 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { ChevronRight, Swords, Zap } from "lucide-react";
 import ScorelineCard from "@/components/ScorelineCard";
-import { matchHistory } from "@/lib/data";
 import { fetchRivalrySeasons, RivalrySeason, fallbackRivalrySeasons } from "@/lib/rivalry";
+import { supabase } from "@/lib/supabase";
+
+type RecentMatch = { id: string; winner: string; date: string; result: string; team1Score: string; team2Score: string };
 
 export default function RivalrySection() {
-  const latestMatch = matchHistory[0];
   const [activeSeason, setActiveSeason] = useState<RivalrySeason>(fallbackRivalrySeasons[0]);
+  const [recentMatches, setRecentMatches] = useState<RecentMatch[]>([]);
+  const [latestMatch, setLatestMatch] = useState<RecentMatch | null>(null);
 
   useEffect(() => {
-    async function loadActiveSeason() {
+    async function loadData() {
       try {
-        const seasons = await fetchRivalrySeasons();
+        const [seasons, { data: dbMatches }] = await Promise.all([
+          fetchRivalrySeasons(),
+          supabase
+            .from("tournament_matches")
+            .select("id, winner_team, played_at, result_summary, team1_score, team2_score")
+            .not("winner_team", "is", null)
+            .order("played_at", { ascending: false })
+            .limit(10),
+        ]);
+
         const active = seasons.find((s) => s.status === "active");
-        if (active) {
-          setActiveSeason(active);
+        if (active) setActiveSeason(active);
+
+        if (dbMatches && dbMatches.length > 0) {
+          const mapped: RecentMatch[] = dbMatches.map((m) => ({
+            id: m.id,
+            winner: m.winner_team ?? "",
+            date: m.played_at ?? "",
+            result: m.result_summary ?? "",
+            team1Score: m.team1_score ?? "",
+            team2Score: m.team2_score ?? "",
+          }));
+          setRecentMatches(mapped);
+          setLatestMatch(mapped[0]);
         }
       } catch (err) {
-        console.error("Failed to load active rivalry season for homepage:", err);
+        console.error("Failed to load rivalry section data:", err);
       }
     }
-    loadActiveSeason();
+    loadData();
   }, []);
 
   return (
@@ -90,7 +113,7 @@ export default function RivalrySection() {
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-jcc-accent">Latest Match</span>
               <div className="w-px h-4 bg-white/20" />
               <span className="text-sm font-bold text-white">
-                {latestMatch.team1} <span className="text-jcc-accent">{latestMatch.team1Score}</span> vs {latestMatch.team2} <span className="text-jcc-ball-red">{latestMatch.team2Score}</span>
+                {latestMatch.result || "Latest result"}
               </span>
               <div className="w-px h-4 bg-white/20 hidden sm:block" />
               <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${latestMatch.winner === "Mavericks" ? "bg-jcc-accent/20 text-jcc-accent" : "bg-jcc-ball-red/20 text-jcc-ball-red"}`}>
@@ -102,7 +125,7 @@ export default function RivalrySection() {
 
         {/* Timeline Refinement */}
         <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: false, amount: 0.2 }} transition={{ delay: 0.5 }} className="mt-12 flex items-center justify-center gap-3">
-          {matchHistory.slice(0, 10).map((match) => (
+          {recentMatches.map((match) => (
             <div
               key={match.id}
               className="w-2.5 h-2.5 rounded-full border border-white/10"

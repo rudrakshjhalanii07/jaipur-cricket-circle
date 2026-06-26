@@ -4,8 +4,7 @@ import { use, useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, Mail, Share2, Globe, Trophy, Target, Shield, Info, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { members, teams } from "@/lib/data";
-import type { Member, MemberTag } from "@/lib/data";
+import type { Member, MemberTag } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import SectionHeading from "@/components/SectionHeading";
@@ -52,15 +51,6 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
     async function getMember() {
       try {
         setLoading(true);
-        // 1. Try finding in static members list first
-        const staticMember = members.find((m) => m.id === id);
-        if (staticMember) {
-          setMember(staticMember);
-          setLoading(false);
-          return;
-        }
-
-        // 2. Otherwise fetch from Supabase
         const { data, error } = await supabase
           .from("players")
           .select("*")
@@ -126,7 +116,6 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
     notFound();
   }
 
-  const team = member.team !== "Unassigned" ? teams[member.team.toLowerCase()] : null;
   const teamColor = member.team === "Mavericks" ? "text-jcc-accent" : member.team === "NeuroStrikers" ? "text-jcc-ball-red" : "text-white/40";
   const teamBg = member.team === "Mavericks" ? "bg-jcc-accent/5" : member.team === "NeuroStrikers" ? "bg-jcc-ball-red/5" : "bg-white/5";
 

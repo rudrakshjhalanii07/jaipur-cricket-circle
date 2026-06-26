@@ -6,7 +6,7 @@ import {
   BookOpen, Zap, ChevronRight, Filter,
 } from "lucide-react";
 import BlogPreviewCard from "@/components/BlogPreviewCard";
-import { BlogPost, blogPosts, clubStats, registrationData } from "@/lib/data";
+import type { BlogPost } from "@/lib/types";
 import { fallbackRivalrySeasons } from "@/lib/rivalry";
 import { supabase } from "@/lib/supabase";
 import { useState, useEffect } from "react";
@@ -26,9 +26,7 @@ function NewsTicker() {
           .order("published_at", { ascending: false })
           .limit(5);
 
-        const sourceArticles = (articlesData && articlesData.length > 0) 
-          ? articlesData 
-          : blogPosts;
+        const sourceArticles = articlesData ?? [];
 
         // 2. Fetch active rivalry season
         const { data: rivalryDataDb } = await supabase
@@ -64,8 +62,6 @@ function NewsTicker() {
             day: "numeric",
           });
           items.push(`🏏 NEXT BATTLE: ${nextMatch.location_name} · ${mDate} @ ${nextMatch.match_time} · REGISTRATION ${nextMatch.status.toUpperCase()}`);
-        } else if (registrationData) {
-          items.push(`🏏 NEXT BATTLE: ${registrationData.venue} · Sunday 6:00 AM · REGISTRATION ${registrationData.registrationStatus.toUpperCase()}`);
         }
 
         // Add rivalry update
@@ -92,37 +88,21 @@ function NewsTicker() {
           .select("total_matches_played");
         const totalMatchesPlayed = rivalrySeasonsData
           ? rivalrySeasonsData.reduce((sum: number, s: any) => sum + (s.total_matches_played || 0), 0)
-          : clubStats.matchesPlayed;
+          : 0;
 
-        // Add club stats
-        if (clubStats) {
-          items.push(`👑 SQUAD STATS: ${totalMatchesPlayed} matches recorded over ${clubStats.sundaysActive} Sundays active`);
-          items.push(`📰 DISPATCH: New dispatch published every Monday post-match`);
-        }
+        items.push(`👑 SQUAD STATS: ${totalMatchesPlayed} matches recorded`);
+        items.push(`📰 DISPATCH: New dispatch published every Monday post-match`);
 
         if (items.length > 0) {
           setTickerItems(items);
         }
       } catch (err) {
         console.error("Error loading ticker data:", err);
-        // Fallback using static data only
-        const fallbackItems: string[] = [];
-        if (registrationData) {
-          fallbackItems.push(`🏏 NEXT BATTLE: ${registrationData.venue} · Sunday 6:00 AM · REGISTRATION ${registrationData.registrationStatus.toUpperCase()}`);
-        }
-        
         const fallbackActiveRivalry = fallbackRivalrySeasons.find(s => s.status === "active") || fallbackRivalrySeasons[0];
-        if (fallbackActiveRivalry) {
-          fallbackItems.push(`⚡ RIVALRY UPDATE: ${fallbackActiveRivalry.title} active! Series score: Mavericks (${fallbackActiveRivalry.mavericks_main_wins}) - (${fallbackActiveRivalry.neurostrikers_main_wins}) NeuroStrikers`);
-        }
-        
-        blogPosts.forEach(bp => {
-          fallbackItems.push(`📰 [${bp.category.toUpperCase()}]: ${bp.title} — "${bp.excerpt}"`);
-        });
-
-        if (clubStats) {
-          fallbackItems.push(`👑 SQUAD STATS: ${clubStats.matchesPlayed} matches recorded over ${clubStats.sundaysActive} Sundays active`);
-        }
+        const fallbackItems: string[] = [
+          `⚡ RIVALRY UPDATE: ${fallbackActiveRivalry.title} active! Series score: Mavericks (${fallbackActiveRivalry.mavericks_main_wins}) - (${fallbackActiveRivalry.neurostrikers_main_wins}) NeuroStrikers`,
+          `📰 DISPATCH: New dispatch published every Monday post-match`,
+        ];
         setTickerItems(fallbackItems);
       }
     }

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import type { Member, MemberTag } from "@/lib/data";
+import type { Member, MemberTag } from "@/lib/types";
 import { getDiceBearUrl } from "@/lib/avatar";
 import type { BattingLeaderRow, BowlingLeaderRow, AllRounderRow, FieldingRow } from "@/lib/series";
 

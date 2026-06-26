@@ -1,5 +1,4 @@
 import { supabase } from '@/lib/supabase';
-import { blogPosts } from '@/lib/data';
 import type { MetadataRoute } from 'next';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -24,15 +23,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.error('Sitemap: Failed to fetch articles from Supabase:', err);
   }
 
-  // 2. Aggregate and deduplicate posts by slug
+  // 2. Aggregate posts by slug (DB only)
   const articleEntries = new Map<string, Date>();
 
-  // Add static fallback blog posts first
-  blogPosts.forEach((post) => {
-    articleEntries.set(post.slug, new Date(post.date));
-  });
-
-  // Overwrite with db articles to ensure dynamic dates are used, or add new ones
   dbArticles.forEach((art) => {
     const lastMod = art.updated_at || art.published_at || art.created_at;
     articleEntries.set(art.slug, lastMod ? new Date(lastMod) : new Date());

@@ -9,7 +9,6 @@ import {
   CalendarCheck,
   ChevronDown,
 } from "lucide-react";
-import { clubStats } from "@/lib/data";
 import { fadeUp, scaleIn, staggerContainer } from "@/lib/animations";
 import { supabase } from "@/lib/supabase";
 
@@ -391,9 +390,9 @@ function BatAndStumpsComposition() {
 export default function HeroSection() {
   const [isMobile, setIsMobile] = useState(true);
   const [stats, setStats] = useState({
-    activePlayers: `${clubStats.totalMembers}+`,
-    sundayGames: `${clubStats.matchesPlayed}+`,
-    sundaysActive: `${clubStats.sundaysActive}+`,
+    activePlayers: "–",
+    sundayGames: "–",
+    sundaysActive: "–",
     communityLove: "∞"
   });
 
@@ -420,7 +419,7 @@ export default function HeroSection() {
         setStats({
           activePlayers: `${activeCount}+`,
           sundayGames: `${totalMatches}+`,
-          sundaysActive: `${clubStats.sundaysActive}+`,
+          sundaysActive: `${totalMatches}+`,
           communityLove: "∞"
         });
       } catch (err) {
@@ -583,7 +582,7 @@ export default function HeroSection() {
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-jcc-accent" />
                 </span>
                 <span className="text-[10px] font-extrabold text-white/80 tracking-[0.25em] uppercase">
-                  Est. {clubStats.founded} • Jaipur&apos;s Elite Cricket Community
+                  Est. 2025 • Jaipur&apos;s Elite Cricket Community
                 </span>
               </div>
             </motion.div>

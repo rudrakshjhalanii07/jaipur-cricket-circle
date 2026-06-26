@@ -6,8 +6,7 @@ import { Users, Filter, Loader2, Search, X, Trophy, Target, Shield, Info } from 
 import MemberCard from "@/components/MemberCard";
 import type { PlayerStats } from "@/components/MemberCard";
 import SectionHeading from "@/components/SectionHeading";
-import { members } from "@/lib/data";
-import type { Member, MemberTag } from "@/lib/data";
+import type { Member, MemberTag } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { fetchFullSeries, computeLeaderboards } from "@/lib/series";
 import type { BattingLeaderRow, BowlingLeaderRow, AllRounderRow, FieldingRow } from "@/lib/series";
@@ -407,7 +406,7 @@ export default function MembersPage() {
     [statsLookup]
   );
 
-  const currentMembers = dbPlayers.length > 0 ? dbPlayers : members;
+  const currentMembers = dbPlayers;
 
   const filtered = currentMembers.filter((m) => {
     const matchesCategory =

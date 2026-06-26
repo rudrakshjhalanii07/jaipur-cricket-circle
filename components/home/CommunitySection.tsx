@@ -4,8 +4,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import NextLink from "next/link";
 import { Users, ChevronRight, ShieldCheck, Heart, CalendarCheck, Trophy, Calendar } from "lucide-react";
-import { members, clubStats } from "@/lib/data";
-import type { Member, MemberTag } from "@/lib/data";
+import type { Member, MemberTag } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { getDiceBearUrl } from "@/lib/avatar";
 
@@ -57,11 +56,11 @@ function findMatchingPlayer(staticName: string, dbPlayers: any[]) {
 }
 
 export default function CommunitySection() {
-  const [displayMembers, setDisplayMembers] = useState<Member[]>(members.slice(0, 8));
+  const [displayMembers, setDisplayMembers] = useState<Member[]>([]);
   const [stats, setStats] = useState({
-    activePlayers: `${clubStats.totalMembers}+`,
-    sundayGames: `${clubStats.matchesPlayed}+`,
-    sundaysActive: `${clubStats.sundaysActive}+`,
+    activePlayers: "–",
+    sundayGames: "–",
+    sundaysActive: "–",
     communityLove: "∞"
   });
 
@@ -91,7 +90,7 @@ export default function CommunitySection() {
         setStats({
           activePlayers: `${activeCount}+`,
           sundayGames: `${totalMatches}+`,
-          sundaysActive: `${clubStats.sundaysActive}+`,
+          sundaysActive: `${totalMatches}+`,
           communityLove: "∞"
         });
 

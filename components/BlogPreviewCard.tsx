@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { Clock, ArrowUpRight, Radio } from "lucide-react";
 import Link from "next/link";
-import type { BlogPost } from "@/lib/data";
+import type { BlogPost } from "@/lib/types";
 
 // Category colour map
 const CAT: Record<string, { border: string; text: string; dot: string }> = {
