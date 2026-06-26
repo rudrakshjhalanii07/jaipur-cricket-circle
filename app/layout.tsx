@@ -36,11 +36,6 @@ export const metadata: Metadata = {
   },
   description:
     "Jaipur Cricket Circle is a premium community cricket club. Every Sunday, we play hard, compete fiercely, and build bonds that go beyond the boundary.",
-  icons: {
-    icon: "/jcc-logo.jpeg",
-    shortcut: "/jcc-logo.jpeg",
-    apple: "/jcc-logo.jpeg",
-  },
 };
 
 export default function RootLayout({

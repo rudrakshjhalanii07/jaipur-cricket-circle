@@ -54,6 +54,10 @@ function useMouseParallax() {
   const smoothY = useSpring(mouseY, { stiffness: 30, damping: 30, mass: 0.8 });
 
   useEffect(() => {
+    // Mouse parallax is a desktop-only flourish — skip the listener entirely on
+    // touch / coarse-pointer devices to avoid needless main-thread work.
+    if (!window.matchMedia("(pointer: fine)").matches) return;
+
     const handler = (e: MouseEvent) => {
       const nx = (e.clientX / window.innerWidth  - 0.5) * 2;
       const ny = (e.clientY / window.innerHeight - 0.5) * 2;
@@ -97,6 +101,23 @@ export default function MotionCanvas() {
   const particles = useParticles(18);
   const { smoothX, smoothY } = useMouseParallax();
   const canvasRef = useRef<HTMLDivElement>(null);
+
+  // Decorative-only background — defer mounting until the browser is idle so it
+  // never competes with the hero for the critical first-paint path.
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const ric = (window as any).requestIdleCallback as
+      | ((cb: () => void) => number)
+      | undefined;
+    if (ric) {
+      const id = ric(() => setReady(true));
+      return () => (window as any).cancelIdleCallback?.(id);
+    }
+    const t = setTimeout(() => setReady(true), 200);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (!ready) return null;
 
   return (
     <div

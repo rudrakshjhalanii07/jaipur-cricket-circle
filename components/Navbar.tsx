@@ -42,7 +42,7 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16 sm:h-20">
           <Link href="/" className="flex items-center gap-2.5 group">
             <div className="relative w-8 h-8 rounded-lg bg-white/[0.05] border border-white/10 flex items-center justify-center group-hover:border-jcc-accent/40 group-hover:bg-white/[0.1] transition-all duration-300 overflow-hidden p-1.5">
-              <img src="/jcc-logo.jpeg" alt="JCC Logo" className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-300" />
+              <img src="/jcc-logo.webp" alt="JCC Logo" width={96} height={96} fetchPriority="high" className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-300" />
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-black text-white tracking-wider font-[var(--font-heading)] uppercase">Jaipur Cricket Circle</span>

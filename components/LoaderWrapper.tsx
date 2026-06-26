@@ -38,17 +38,27 @@ export default function LoaderWrapper({ children }: { children: React.ReactNode 
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setBallActive(true), 370);
-    const t2 = setTimeout(() => setImpacted(true), 1120);
-    const t3 = setTimeout(() => setShowLogo(true), 1360);
-    const t4 = setTimeout(() => setLoading(false), 2750);
+    // Show the cinematic intro only once per browser session — on subsequent
+    // navigations within the session, skip it entirely so paint isn't delayed.
+    if (typeof window !== "undefined" && sessionStorage.getItem("jcc_intro_seen")) {
+      setLoading(false);
+      return;
+    }
+
+    const t1 = setTimeout(() => setBallActive(true), 180);
+    const t2 = setTimeout(() => setImpacted(true), 560);
+    const t3 = setTimeout(() => setShowLogo(true), 700);
+    const t4 = setTimeout(() => {
+      setLoading(false);
+      if (typeof window !== "undefined") sessionStorage.setItem("jcc_intro_seen", "1");
+    }, 1350);
 
     let p = 0;
     const iv = setInterval(() => {
-      p += 2;
+      p += 4;
       setProgress(Math.min(p, 100));
       if (p >= 100) clearInterval(iv);
-    }, 43);
+    }, 26);
 
     return () => {
       [t1, t2, t3, t4].forEach(clearTimeout);
@@ -359,13 +369,9 @@ export default function LoaderWrapper({ children }: { children: React.ReactNode 
         )}
       </AnimatePresence>
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: loading ? 0 : 1 }}
-        transition={{ duration: 0.6, delay: 0.1 }}
-      >
-        {children}
-      </motion.div>
+      {/* Content renders immediately at full opacity so the LCP element paints
+          right away — the intro overlay simply sits on top and fades out. */}
+      {children}
     </>
   );
 }

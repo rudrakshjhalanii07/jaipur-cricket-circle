@@ -9,7 +9,7 @@ import {
   CalendarCheck,
   ChevronDown,
 } from "lucide-react";
-import { fadeUp, scaleIn, staggerContainer } from "@/lib/animations";
+import { fadeUp } from "@/lib/animations";
 import { supabase } from "@/lib/supabase";
 
 // ---- Detailed Stadium Floodlight Component ----
@@ -566,16 +566,16 @@ export default function HeroSection() {
       <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-36 lg:pt-48 pb-16">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
           
-          {/* LEFT SIDE: Cinematic Text & Action Buttons */}
+          {/* LEFT SIDE: Cinematic Text & Action Buttons.
+             Entrance uses CSS animations (not framer variants) so the LCP
+             heading is present and painting at first paint, independent of JS
+             hydration. The wrapper keeps the desktop mouse parallax. */}
           <motion.div
-            variants={staggerContainer}
-            initial="hidden"
-            animate="visible"
             style={{ x: !isMobile ? textX : 0, y: !isMobile ? textY : 0 }}
             className="lg:col-span-7 text-center lg:text-left flex flex-col justify-center"
           >
             {/* Status Badge */}
-            <motion.div variants={fadeUp} className="mb-8">
+            <div className="mb-8 hero-enter hero-enter-d1">
               <div className="inline-flex items-center gap-2.5 px-4.5 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-jcc-accent opacity-45" />
@@ -585,20 +585,19 @@ export default function HeroSection() {
                   Est. 2025 • Jaipur&apos;s Elite Cricket Community
                 </span>
               </div>
-            </motion.div>
+            </div>
 
-            {/* Redesigned Bold Sports Title */}
-            <motion.h1
-              variants={scaleIn}
-              className="text-[2.75rem] sm:text-[4.5rem] md:text-[5.5rem] lg:text-[5.75rem] xl:text-[7rem] font-[950] text-white font-[var(--font-heading)] tracking-[-0.04em] leading-[0.82] mb-6 uppercase"
+            {/* Redesigned Bold Sports Title — LCP element, paints at first paint */}
+            <h1
+              className="hero-enter text-[2.75rem] sm:text-[4.5rem] md:text-[5.5rem] lg:text-[5.75rem] xl:text-[7rem] font-[950] text-white font-[var(--font-heading)] tracking-[-0.04em] leading-[0.82] mb-6 uppercase"
             >
               <span className="block mb-1 sm:mb-2">JAIPUR</span>
               <span className="block text-gradient-cyan mb-1 sm:mb-2">CRICKET</span>
               <span className="block">CIRCLE</span>
-            </motion.h1>
+            </h1>
 
             {/* Redesigned Tagline (Premium Quote Style) */}
-            <motion.div variants={fadeUp} className="relative mt-4 max-w-xl mx-auto lg:mx-0">
+            <div className="relative mt-4 max-w-xl mx-auto lg:mx-0 hero-enter hero-enter-d2">
               <div className="pl-6 border-l-2 border-jcc-accent text-left">
                 <blockquote className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white italic tracking-wide leading-tight">
                   &ldquo;Sunday isn&apos;t a day. <br />
@@ -608,12 +607,11 @@ export default function HeroSection() {
                   Jaipur&apos;s premier social brotherhood built on weekly competition.
                 </p>
               </div>
-            </motion.div>
+            </div>
 
             {/* Improved Premium CTA Buttons */}
-            <motion.div
-              variants={fadeUp}
-              className="mt-10 sm:mt-12 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4"
+            <div
+              className="mt-10 sm:mt-12 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 hero-enter hero-enter-d3"
             >
               <Link
                 href="/register"
@@ -633,7 +631,7 @@ export default function HeroSection() {
                 <Users className="w-4.5 h-4.5 text-jcc-accent group-hover:scale-110 transition-transform" />
                 VIEW SQUAD
               </Link>
-            </motion.div>
+            </div>
           </motion.div>
 
           {/* RIGHT SIDE: Floating Interactive Bat & Stumps Composition */}

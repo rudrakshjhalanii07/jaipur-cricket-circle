@@ -29,7 +29,7 @@ export default function Footer() {
           <motion.div variants={fadeUp} className="space-y-8">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center shadow-inner group/logo transition-all hover:border-jcc-accent/40 hover:bg-white/5 overflow-hidden p-2.5">
-                <img src="/jcc-logo.jpeg" alt="JCC Logo" className="w-full h-full object-contain group-hover/logo:scale-110 transition-transform duration-300" />
+                <img src="/jcc-logo.webp" alt="JCC Logo" width={96} height={96} loading="lazy" className="w-full h-full object-contain group-hover/logo:scale-110 transition-transform duration-300" />
               </div>
               <div>
                 <div className="text-[14px] font-black text-white tracking-[0.2em] uppercase font-[var(--font-heading)] leading-tight">
