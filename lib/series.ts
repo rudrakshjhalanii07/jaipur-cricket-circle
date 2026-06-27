@@ -234,7 +234,7 @@ export async function fetchFullSeries(): Promise<FullSeries[]> {
 
 // ── Stats computation (pure, no I/O) ──────────────────────────────────────────
 
-export function computeLeaderboards(series: FullSeries[]): {
+export function computeLeaderboards(series: FullSeries[], stageFilter?: MatchStage): {
   batting: BattingLeaderRow[];
   bowling: BowlingLeaderRow[];
   allRounders: AllRounderRow[];
@@ -255,6 +255,7 @@ export function computeLeaderboards(series: FullSeries[]): {
 
   for (const s of series) {
     for (const m of s.matches) {
+      if (stageFilter && m.stage !== stageFilter) continue;
       // Squad list is the authoritative source for "matches played" — every named
       // squad member is credited an appearance even if they didn't bat or bowl.
       const sq = (m as SeriesMatch).squad;

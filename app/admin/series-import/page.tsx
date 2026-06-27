@@ -5,10 +5,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   FileJson, X, Save, ChevronDown, ChevronUp,
   Plus, Trash2, CheckCircle, AlertCircle, Loader2, ArrowLeft, ExternalLink,
-  RefreshCw, Link2, RotateCcw,
+  RefreshCw, Link2, RotateCcw, Copy, Check,
 } from "lucide-react";
 import { fetchAllSeries, type Series } from "@/lib/series";
 import { fetchRivalrySeasons, type RivalrySeason } from "@/lib/rivalry";
+import { MATCH_TEMPLATE_JSON } from "@/lib/match-template";
 
 // ── Types mirroring the save API body ────────────────────────────────────────
 
@@ -356,6 +357,17 @@ export default function SeriesImportPage() {
   // JSON import
   const [jsonText, setJsonText] = useState("");
   const [jsonError, setJsonError] = useState("");
+  const [templateCopied, setTemplateCopied] = useState(false);
+
+  const handleCopyTemplate = async () => {
+    try {
+      await navigator.clipboard.writeText(MATCH_TEMPLATE_JSON);
+      setTemplateCopied(true);
+      setTimeout(() => setTemplateCopied(false), 2000);
+    } catch {
+      // ignore — clipboard write blocked
+    }
+  };
 
   // Existing series (for the "Existing Series" dropdown)
   const [existingSeries, setExistingSeries] = useState<Series[]>([]);
@@ -729,13 +741,30 @@ export default function SeriesImportPage() {
         {/* Step 1: JSON Import */}
         <CollapsibleSection title="Step 1 — Paste Match JSON">
           <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest text-white/50 border border-white/10 hover:border-white/20 cursor-pointer transition-colors">
-                <FileJson className="w-3.5 h-3.5" />
-                Browse .json file
-                <input type="file" accept=".json,application/json" className="hidden" onChange={handleJsonFile} />
-              </label>
-              <span className="text-xs text-white/20">or paste below</span>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <label
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest border cursor-pointer transition-colors"
+                  style={{ color: "color-mix(in srgb, var(--jcc-text-soft) 50%, transparent)", borderColor: "color-mix(in srgb, var(--jcc-text-soft) 15%, transparent)" }}
+                >
+                  <FileJson className="w-3.5 h-3.5" />
+                  Browse .json file
+                  <input type="file" accept=".json,application/json" className="hidden" onChange={handleJsonFile} />
+                </label>
+                <span className="text-xs" style={{ color: "color-mix(in srgb, var(--jcc-text-soft) 25%, transparent)" }}>or paste below</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleCopyTemplate}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest border transition-colors shrink-0"
+                style={templateCopied
+                  ? { color: "var(--jcc-accent)", borderColor: "color-mix(in srgb, var(--jcc-accent) 40%, transparent)" }
+                  : { color: "color-mix(in srgb, var(--jcc-text-soft) 55%, transparent)", borderColor: "color-mix(in srgb, var(--jcc-text-soft) 20%, transparent)" }}
+              >
+                {templateCopied
+                  ? <><Check className="w-3.5 h-3.5" /> Copied!</>
+                  : <><Copy className="w-3.5 h-3.5" /> Copy Template</>}
+              </button>
             </div>
 
             <textarea

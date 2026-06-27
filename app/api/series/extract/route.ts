@@ -1,7 +1,4 @@
 import { NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY ?? "" });
 
 const EXTRACTION_PROMPT = `You are a cricket scorecard digitizer for JCC (Jaipur Cricket Circle).
 Extract structured match data from the provided scorecard images/documents.
@@ -94,30 +91,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No files provided" }, { status: 400 });
     }
 
-    // Build parts: all uploaded files first, then the prompt
-    const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
+    void files;           // file uploads received — wire up an AI provider here when ready
+    void EXTRACTION_PROMPT;
 
-    for (const f of files) {
-      parts.push({ inlineData: { mimeType: f.mime_type, data: f.data } });
-    }
-    parts.push({ text: EXTRACTION_PROMPT });
-
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: [{ role: "user", parts }],
-    });
-
-    const rawText = response.text ?? "";
-
-    // Strip any accidental markdown code fences
-    const jsonText = rawText
-      .replace(/^```(?:json)?\s*/i, "")
-      .replace(/\s*```$/i, "")
-      .trim();
-
-    const extracted = JSON.parse(jsonText);
-
-    return NextResponse.json({ ok: true, data: extracted });
+    return NextResponse.json({ error: "AI extraction not available" }, { status: 503 });
   } catch (err) {
     console.error("series/extract error:", err);
     return NextResponse.json({ error: "Extraction failed", detail: String(err) }, { status: 500 });

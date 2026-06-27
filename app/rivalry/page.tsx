@@ -598,7 +598,7 @@ function PlayerCell({ rank, name, teamId }: { rank: number; name: string; teamId
   const team = teamId ? TEAMS[teamId as keyof typeof TEAMS] : undefined;
   return (
     <>
-      <span className="text-white/20 font-black mr-2">{rank}</span>
+      <span className="inline-block w-5 text-right text-white/20 font-black mr-2 shrink-0">{rank}</span>
       <span className="font-black text-white">{name}</span>
       {team && <span className="ml-2 text-[9px] uppercase tracking-wider" style={{ color: team.primary }}>{team.name}</span>}
     </>
@@ -649,13 +649,22 @@ function StatLeaderMobile({ rank, name, teamId, headLabel, headValue, stats }: {
   );
 }
 
-function StatsLeaderboards({ batting, bowling, allRounders, fielding }: {
+type LeaderboardSet = {
   batting: BattingLeaderRow[];
   bowling: BowlingLeaderRow[];
   allRounders: AllRounderRow[];
   fielding: FieldingRow[];
+};
+
+function StatsLeaderboards({ current, overall, finals }: {
+  current: LeaderboardSet;
+  overall: LeaderboardSet;
+  finals: LeaderboardSet;
 }) {
   const [tab, setTab] = useState<StatsTab>("batting");
+  const [scope, setScope] = useState<"current" | "overall" | "finals">("current");
+  const { batting, bowling, allRounders, fielding } =
+    scope === "current" ? current : scope === "overall" ? overall : finals;
 
   const tabs: { id: StatsTab; label: string }[] = [
     { id: "batting", label: "Batting" },
@@ -666,8 +675,32 @@ function StatsLeaderboards({ batting, bowling, allRounders, fielding }: {
 
   return (
     <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] bg-gradient-to-b from-[var(--jcc-navy)] to-[var(--jcc-navy-light)]">
+      {/* Scope toggle */}
+      <div className="flex items-center gap-2 px-4 pt-4 pb-0">
+        {(["current", "overall", "finals"] as const).map((s) => (
+          <button
+            key={s}
+            onClick={() => setScope(s)}
+            className={`px-4 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-full transition-all ${
+              scope === s
+                ? "bg-[#E8537E] text-white shadow-[0_0_12px_rgba(232,83,126,0.3)]"
+                : "text-white/30 hover:text-white/55 bg-white/[0.04] border border-white/[0.08]"
+            }`}
+          >
+            {s === "current" ? "Latest Series" : s === "overall" ? "All Leagues" : "Finals"}
+          </button>
+        ))}
+        <span className="ml-auto text-[8px] text-white/20 font-bold">
+          {scope === "current"
+            ? "League only · latest tri-series · max 2 matches/player"
+            : scope === "overall"
+            ? "League only · all tri-series · max 2 × series count"
+            : "Finals only · all tri-series combined"}
+        </span>
+      </div>
+
       {/* Tab header */}
-      <div className="flex border-b border-white/[0.08]">
+      <div className="flex border-b border-white/[0.08] mt-3">
         {tabs.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${tab === t.id ? "text-[#E8537E] border-b-2 border-[#E8537E]" : "text-white/30 hover:text-white/50"}`}>
@@ -914,6 +947,51 @@ function PointsTable({ rows, compact = false }: { rows: SeriesStandingRow[]; com
   );
 }
 
+// ── Finals trophy cabinet panel ───────────────────────────────────────────────
+function FinalsTrophyPanel({ rows }: { rows: SeriesStandingRow[] }) {
+  return (
+    <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] bg-gradient-to-b from-[var(--jcc-navy)] to-[var(--jcc-navy-light)] p-6 h-full max-w-2xl mx-auto">
+      <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-[0.18em] sm:tracking-[0.4em] text-[#E8537E]/70 mb-1">Finals · Exhibition Series</p>
+      <h3 className="text-base sm:text-lg font-black uppercase tracking-tight text-white mb-4">Trophy Cabinet</h3>
+      {rows.length === 0 ? (
+        <p className="text-center text-white/30 text-sm py-8">No finals recorded yet.</p>
+      ) : (
+        <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <table className="w-full text-sm min-w-[280px] [&_th]:px-2.5 [&_td]:px-2.5">
+            <thead>
+              <tr className="text-[9px] text-white/25 uppercase tracking-widest border-b border-white/[0.05]">
+                <th className="text-left pb-2">Team</th>
+                <th className="text-center pb-2 w-12">M</th>
+                <th className="text-center pb-2 w-12">W</th>
+                <th className="text-left pb-2 pl-4">Trophies</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const color = TEAMS[r.team_id as keyof typeof TEAMS]?.primary ?? "#888";
+                const name = TEAMS[r.team_id as keyof typeof TEAMS]?.name ?? r.team_id;
+                return (
+                  <tr key={r.team_id} className="border-b border-white/[0.03]">
+                    <td className="py-2 font-black pr-3" style={{ color }}>{name}</td>
+                    <td className="py-2 text-center text-white/40">{r.played}</td>
+                    <td className="py-2 text-center font-black text-white">{r.won}</td>
+                    <td className="py-2 pl-4 text-base leading-none tracking-tight">
+                      {r.won > 0
+                        ? Array.from({ length: r.won }).map((_, i) => <span key={i}>🏆</span>)
+                        : <span className="text-white/20 text-xs">—</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="text-[9px] text-white/20 mt-4 font-bold">M = Finals Played · W = Finals Won · Trophies = 🏆 per win</p>
+    </div>
+  );
+}
+
 // ── Standings panel + swipeable current-vs-overall ───────────────────────────
 function StandingsPanel({ label, sub, rows }: { label: string; sub: string; rows: SeriesStandingRow[] }) {
   return (
@@ -928,17 +1006,20 @@ function StandingsPanel({ label, sub, rows }: { label: string; sub: string; rows
   );
 }
 
-function SwipeableStandings({ current, overall, currentSeriesName }: { current: SeriesStandingRow[]; overall: SeriesStandingRow[]; currentSeriesName: string | null }) {
+function SwipeableStandings({ current, overall, finals, currentSeriesName }: {
+  current: SeriesStandingRow[];
+  overall: SeriesStandingRow[];
+  finals: SeriesStandingRow[];
+  currentSeriesName: string | null;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [idx, setIdx] = useState(0);
-  const panels = [
-    { key: "current", label: currentSeriesName ? `League Standings — ${currentSeriesName}` : "League Standings", sub: "Latest Series · Points % Based", rows: current },
-    { key: "overall", label: "All-Time · Overall", sub: "Every Series Combined · Points % Based", rows: overall },
-  ];
+  const TOTAL = 3;
   const go = (i: number) => {
     const el = ref.current;
     if (el) el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" });
   };
+  const hints = ["Swipe for overall standings", "Swipe for trophy cabinet"];
   return (
     <div className="relative">
       <div
@@ -946,37 +1027,46 @@ function SwipeableStandings({ current, overall, currentSeriesName }: { current: 
         onScroll={(e) => setIdx(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}
         className="flex overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
       >
-        {panels.map((p) => (
-          <div key={p.key} className="snap-center shrink-0 w-full">
-            <StandingsPanel label={p.label} sub={p.sub} rows={p.rows} />
-          </div>
-        ))}
+        <div className="snap-center shrink-0 w-full">
+          <StandingsPanel
+            label={currentSeriesName ? `League Standings — ${currentSeriesName}` : "League Standings"}
+            sub="Latest Series · Points % Based"
+            rows={current}
+          />
+        </div>
+        <div className="snap-center shrink-0 w-full">
+          <StandingsPanel label="All-Time · Overall" sub="Every Series Combined · Points % Based" rows={overall} />
+        </div>
+        <div className="snap-center shrink-0 w-full">
+          <FinalsTrophyPanel rows={finals} />
+        </div>
       </div>
 
       {/* Pager dots */}
       <div className="flex items-center justify-center gap-2 mt-4">
-        {panels.map((p, i) => (
+        {Array.from({ length: TOTAL }).map((_, i) => (
           <button
-            key={p.key}
+            key={i}
             onClick={() => go(i)}
-            aria-label={p.label}
+            aria-label={`Panel ${i + 1}`}
             className="h-1.5 rounded-full transition-all duration-300"
             style={{ width: idx === i ? 22 : 8, background: idx === i ? "#E8537E" : "color-mix(in srgb, var(--color-white) 22%, transparent)" }}
           />
         ))}
       </div>
 
-      {/* Swipe hint — only on the first panel */}
+      {/* Swipe hint — shown on panels 0 and 1 */}
       <AnimatePresence>
-        {idx === 0 && (
+        {idx < TOTAL - 1 && (
           <motion.button
-            onClick={() => go(1)}
+            key={idx}
+            onClick={() => go(idx + 1)}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="mx-auto mt-2 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-white/35 hover:text-white/60 transition-colors"
           >
-            Swipe for overall standings
+            {hints[idx]}
             <motion.span animate={{ x: [0, 4, 0] }} transition={{ repeat: Infinity, duration: 1.2 }}>
               <ChevronRight className="w-3.5 h-3.5" />
             </motion.span>
@@ -1317,17 +1407,27 @@ export default function RivalryPage() {
     outliers: triWins.outliers,
   };
 
-  const { batting, bowling, allRounders, fielding } = computeLeaderboards(fullSeries);
   const overallStandings = mergeBaseline(computeOverallStandings(fullSeries), OVERALL_BASELINE);
   const activeSeasonSeries = activeSeason
     ? fullSeries.filter((s) => s.season_id === activeSeason.id)
     : [];
-  // Current standings reflect ONLY the latest series of the active rivalry (real matches, no baseline).
+  // latestSeries derived first — used both for the standings panel and F1 leaderboards.
   const latestSeries = activeSeasonSeries.length
     ? activeSeasonSeries.reduce((a, b) => (b.series_no > a.series_no ? b : a))
     : null;
   const currentSeasonStandings = latestSeries ? computeOverallStandings([latestSeries]) : [];
   const latestSeriesName = latestSeries?.name ?? null;
+  // F1: latest tri-series, league only — max M = 2 per player.
+  const latestSeriesLeaderboards = computeLeaderboards(latestSeries ? [latestSeries] : [], "league");
+  // F2: all tri-series, league only — max M = 2 × recorded series count.
+  const allLeagueLeaderboards = computeLeaderboards(fullSeries, "league");
+  // F3 (finals tab): all tri-series finals only — max M = 1 per series per player.
+  const finalsLeaderboards = computeLeaderboards(fullSeries, "final");
+  // Finals standings: who played/won finals across all series (no NRR, no points needed).
+  const finalsStandings = computeSeriesStandings(
+    fullSeries.flatMap((s) => s.matches as SeriesMatch[]),
+    "final",
+  );
   // Header scoreboard derives live from linked matches → no stale seeded numbers.
   const liveActiveSeason = activeSeason
     ? applyLiveSeasonStats(activeSeason, activeSeasonSeries.flatMap((s) => s.matches as SeriesMatch[]))
@@ -1409,7 +1509,7 @@ export default function RivalryPage() {
           <div className="mb-16">
             <SectionHeading eyebrow="Points Table · Swipe to Compare" title="Standings" />
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-              <SwipeableStandings current={currentSeasonStandings} overall={overallStandings} currentSeriesName={latestSeriesName} />
+              <SwipeableStandings current={currentSeasonStandings} overall={overallStandings} finals={finalsStandings} currentSeriesName={latestSeriesName} />
             </motion.div>
           </div>
         )}
@@ -1422,7 +1522,7 @@ export default function RivalryPage() {
               <div className="h-48 rounded-2xl bg-white/[0.02] border border-white/[0.05] animate-pulse" />
             ) : (
               <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-                <StatsLeaderboards batting={batting} bowling={bowling} allRounders={allRounders} fielding={fielding} />
+                <StatsLeaderboards current={latestSeriesLeaderboards} overall={allLeagueLeaderboards} finals={finalsLeaderboards} />
               </motion.div>
             )}
           </div>

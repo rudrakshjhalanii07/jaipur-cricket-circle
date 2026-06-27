@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { TEAMS } from "@/lib/teams";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY ?? "" });
 
 function teamName(id: string): string {
   return TEAMS[id as keyof typeof TEAMS]?.name ?? id;
@@ -104,35 +101,9 @@ export async function POST(request: Request) {
     if (match.player_of_match) scorecardText += `Player of the Match: ${match.player_of_match}\n`;
     if (match.match_notes) scorecardText += `Notes: ${match.match_notes}\n`;
 
-    const prompt = `You are a cricket analyst writing for the JCC (Jaipur Cricket Circle), a community cricket group in Jaipur.
-Write a vivid, engaging match analysis report for the following scorecard.
-The tone should be like a professional match report — celebratory of good performances, honest about the flow of the game.
-Structure the report as 4 paragraphs:
-1. Match summary (teams, toss, result)
-2. Batting highlights from both innings (standout performances, key partnerships, notable shots)
-3. Bowling highlights and key dismissals (game-changing spells, turning-point wickets)
-4. The turning point of the match and a brief conclusion
+    void scorecardText; // scorecard built above — wire up an AI provider here when ready
 
-Keep the total length to ~250-300 words. Write in present tense. Do not use bullet points.
-
-SCORECARD:
-${scorecardText}`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-    });
-    const analysis = (response.text ?? "").trim();
-
-    // Save analysis back to the match
-    const { error: ue } = await supabaseAdmin
-      .from("series_matches")
-      .update({ ai_analysis: analysis, updated_at: new Date().toISOString() })
-      .eq("id", match_id);
-
-    if (ue) console.error("Failed to save analysis:", ue);
-
-    return NextResponse.json({ ok: true, analysis });
+    return NextResponse.json({ ok: true, analysis: "" });
   } catch (err) {
     console.error("series/analyze error:", err);
     return NextResponse.json({ error: "Analysis failed", detail: String(err) }, { status: 500 });
