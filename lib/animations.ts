@@ -9,7 +9,7 @@ import { Variants } from "framer-motion";
 
 export const SMOOTH_EASE = [0.16, 1, 0.3, 1] as [number, number, number, number]; // Custom cubic-bezier for premium feel
 export const STAGGER_CHILDREN = 0.1;
-export const VIEWPORT_CONFIG = { once: false, amount: 0.2 };
+export const VIEWPORT_CONFIG = { once: true, amount: 0.1 };
 
 export const fadeUp: Variants = {
   hidden: { opacity: 0, y: 30 },

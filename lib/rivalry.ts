@@ -8,6 +8,7 @@ export interface RivalrySeason {
   mavericks_captain: string;
   neurostrikers_captain: string;
   outliers_captain: string | null;
+  // Running totals (initial baseline + all recorded series wins) — kept live by DB trigger
   mavericks_main_wins: number;
   neurostrikers_main_wins: number;
   outliers_main_wins: number;
@@ -20,6 +21,11 @@ export interface RivalrySeason {
   mavericks_exhibition_ties?: number;
   neurostrikers_exhibition_ties?: number;
   outliers_exhibition_ties?: number;
+  // Frozen pre-import seed values — used only for the overall standings merge
+  mavericks_initial_wins?: number;
+  neurostrikers_initial_wins?: number;
+  outliers_initial_wins?: number;
+  total_initial_matches?: number;
   total_matches_played: number;
   started_at: string | null;
   ended_at: string | null;

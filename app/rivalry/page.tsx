@@ -13,15 +13,23 @@ import RivalryPageClient from "./RivalryPageClient";
 
 type BaselineEntry = { team_id: SeriesTeamId; won: number; lost: number; tied: number };
 
-// Prior matches played before the tri-series import system existed.
-const CURRENT_SEASON_BASELINE: BaselineEntry[] = [
-  { team_id: "mavericks", won: 5, lost: 3, tied: 0 },
-  { team_id: "neurostrikers", won: 3, lost: 5, tied: 0 },
-];
-const OVERALL_BASELINE: BaselineEntry[] = [
-  { team_id: "mavericks", won: 5, lost: 3, tied: 0 },
-  { team_id: "neurostrikers", won: 3, lost: 5, tied: 0 },
-];
+// Build the overall-standings baseline from the frozen pre-import seed columns.
+// These never include series-tracked wins, so there's no double-counting when
+// merged with computeOverallStandings(fullSeries).
+// Losses are derived: in the pre-import 2-team era, mav losses = NS wins and vice-versa.
+function buildOverallBaseline(activeSeason: RivalrySeason | null): BaselineEntry[] {
+  if (!activeSeason) return [];
+  const mavW = activeSeason.mavericks_initial_wins  ?? 0;
+  const nsW  = activeSeason.neurostrikers_initial_wins ?? 0;
+  const outW = activeSeason.outliers_initial_wins   ?? 0;
+  if (mavW === 0 && nsW === 0 && outW === 0) return [];
+  const baseline: BaselineEntry[] = [
+    { team_id: "mavericks",     won: mavW, lost: nsW + outW, tied: 0 },
+    { team_id: "neurostrikers", won: nsW,  lost: mavW + outW, tied: 0 },
+  ];
+  if (outW > 0) baseline.push({ team_id: "outliers", won: outW, lost: mavW + nsW, tied: 0 });
+  return baseline;
+}
 
 function mergeBaseline(rows: SeriesStandingRow[], baseline: BaselineEntry[]): SeriesStandingRow[] {
   const map = new Map<string, SeriesStandingRow>(rows.map((r) => [r.team_id, { ...r }]));
@@ -37,31 +45,6 @@ function mergeBaseline(rows: SeriesStandingRow[], baseline: BaselineEntry[]): Se
   return out.sort((a, b) => b.win_pct - a.win_pct || b.points - a.points);
 }
 
-function applyLiveSeasonStats(season: RivalrySeason, matches: SeriesMatch[]): RivalrySeason {
-  const league = computeSeriesStandings(matches, "league");
-  const final = computeSeriesStandings(matches, "final");
-  const get = (rows: SeriesStandingRow[], id: string, k: "won" | "tied") =>
-    rows.find((r) => r.team_id === id)?.[k] ?? 0;
-  const base = (id: string) => CURRENT_SEASON_BASELINE.find((b) => b.team_id === id)?.won ?? 0;
-  const baseTotal = CURRENT_SEASON_BASELINE.reduce((s, b) => s + b.won, 0);
-  return {
-    ...season,
-    neurostrikers_main_wins: get(league, "neurostrikers", "won") + base("neurostrikers"),
-    mavericks_main_wins: get(league, "mavericks", "won") + base("mavericks"),
-    outliers_main_wins: get(league, "outliers", "won") + base("outliers"),
-    neurostrikers_exhibition_wins: get(final, "neurostrikers", "won"),
-    mavericks_exhibition_wins: get(final, "mavericks", "won"),
-    outliers_exhibition_wins: get(final, "outliers", "won"),
-    neurostrikers_main_ties: get(league, "neurostrikers", "tied"),
-    mavericks_main_ties: get(league, "mavericks", "tied"),
-    outliers_main_ties: get(league, "outliers", "tied"),
-    neurostrikers_exhibition_ties: get(final, "neurostrikers", "tied"),
-    mavericks_exhibition_ties: get(final, "mavericks", "tied"),
-    outliers_exhibition_ties: get(final, "outliers", "tied"),
-    total_matches_played:
-      matches.filter((m) => m.stage === "league" && (m.winner_id || m.is_tie)).length + baseTotal,
-  };
-}
 
 export default async function RivalryPage() {
   const [seasons, fullSeries] = await Promise.all([
@@ -72,7 +55,7 @@ export default async function RivalryPage() {
   const activeSeason = seasons.find((s) => s.status === "active") ?? null;
   const archivedSeasons = seasons.filter((s) => s.status === "archived");
 
-  const overallStandings = mergeBaseline(computeOverallStandings(fullSeries), OVERALL_BASELINE);
+  const overallStandings = mergeBaseline(computeOverallStandings(fullSeries), buildOverallBaseline(activeSeason));
   const activeSeasonSeries = activeSeason
     ? fullSeries.filter((s) => s.season_id === activeSeason.id)
     : [];
@@ -88,16 +71,10 @@ export default async function RivalryPage() {
     fullSeries.flatMap((s) => s.matches as SeriesMatch[]),
     "final",
   );
-  const liveActiveSeason = activeSeason
-    ? applyLiveSeasonStats(
-        activeSeason,
-        activeSeasonSeries.flatMap((s) => s.matches as SeriesMatch[]),
-      )
-    : null;
 
   return (
     <RivalryPageClient
-      liveActiveSeason={liveActiveSeason}
+      liveActiveSeason={activeSeason}
       archivedSeasons={archivedSeasons}
       fullSeries={fullSeries}
       activeSeasonSeries={activeSeasonSeries}

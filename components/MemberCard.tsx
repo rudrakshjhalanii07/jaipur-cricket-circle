@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import type { Member, MemberTag } from "@/lib/types";
 import { getDiceBearUrl } from "@/lib/avatar";
@@ -22,29 +23,53 @@ const tagLabels: Record<MemberTag, string> = {
   wicketkeeper: "WK",
 };
 
-// Colors matching TEAMS.ts (primary, glow, dark bg tint)
-const TEAM_CONFIGS: Record<string, { primary: string; glow: string; darkBg: string }> = {
+// Dark bg aligned with pink-ball night (#17121A ink); light bg uses flannel/ivory tones
+const TEAM_CONFIGS: Record<string, { primary: string; glow: string; darkBg: string; darkBase: string; lightBg: string; lightBase: string }> = {
   Mavericks: {
     primary: "#E8A820",
     glow: "rgba(232,168,32,0.28)",
-    darkBg: "#1a0f00",
+    darkBg: "#1C1510",   // amber-tinted ink
+    darkBase: "#17121A", // site pink-ball night base
+    lightBg: "#FFF8E6",  // warm parchment
+    lightBase: "#FBF7EE",
   },
   NeuroStrikers: {
     primary: "#3B6FC4",
     glow: "rgba(59,111,196,0.28)",
-    darkBg: "#00112a",
+    darkBg: "#101528",   // blue-tinted ink
+    darkBase: "#17121A",
+    lightBg: "#EEF3FF",  // cool ivory
+    lightBase: "#F6F2E9",
   },
   "The Outliers": {
     primary: "#1A7A5E",
     glow: "rgba(26,122,94,0.28)",
-    darkBg: "#001a0f",
+    darkBg: "#0E1816",   // green-tinted ink
+    darkBase: "#17121A",
+    lightBg: "#EEF7F2",  // mint ivory
+    lightBase: "#F6F2E9",
   },
   Unassigned: {
     primary: "#8888aa",
     glow: "rgba(136,136,170,0.15)",
-    darkBg: "#101826",
+    darkBg: "#151218",
+    darkBase: "#17121A",
+    lightBg: "#F3EFEA",
+    lightBase: "#F6F2E9",
   },
 };
+
+function useIsDarkMode() {
+  const [isDark, setIsDark] = useState(true);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    setIsDark(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  return isDark;
+}
 
 // Fallback stats per role when no real data exists
 const ROLE_DEFAULTS: Record<string, { bat: number; bwl: number; fld: number; rating: number; pos: string }> = {
@@ -54,13 +79,19 @@ const ROLE_DEFAULTS: Record<string, { bat: number; bwl: number; fld: number; rat
   wicketkeeper:  { bat: 72, bwl: 30, fld: 92, rating: 80, pos: "WK" },
 };
 
-function StatBar({ label, value, color }: { label: string; value: number; color: string }) {
+function StatBar({ label, value, color, isDark }: { label: string; value: number; color: string; isDark: boolean }) {
   return (
     <div className="flex items-center gap-1.5 sm:gap-2">
-      <span className="text-[7px] sm:text-[8px] font-black uppercase tracking-widest text-white/30 w-6 sm:w-8 flex-shrink-0">
+      <span
+        className="text-[7px] sm:text-[8px] font-black uppercase tracking-widest w-6 sm:w-8 shrink-0"
+        style={{ color: isDark ? "rgba(246,242,233,0.30)" : "rgba(21,17,14,0.35)" }}
+      >
         {label}
       </span>
-      <div className="flex-1 h-1 rounded-full bg-white/[0.07] overflow-hidden">
+      <div
+        className="flex-1 h-1 rounded-full overflow-hidden"
+        style={{ background: isDark ? "rgba(246,242,233,0.07)" : "rgba(21,17,14,0.08)" }}
+      >
         <motion.div
           className="h-full rounded-full"
           style={{ background: color }}
@@ -69,7 +100,12 @@ function StatBar({ label, value, color }: { label: string; value: number; color:
           transition={{ duration: 0.8, ease: "easeOut", delay: 0.1 }}
         />
       </div>
-      <span className="text-[8px] sm:text-[9px] font-black text-white/40 w-4 sm:w-5 text-right">{value}</span>
+      <span
+        className="text-[8px] sm:text-[9px] font-black w-4 sm:w-5 text-right"
+        style={{ color: isDark ? "rgba(246,242,233,0.40)" : "rgba(21,17,14,0.45)" }}
+      >
+        {value}
+      </span>
     </div>
   );
 }
@@ -85,6 +121,7 @@ export default function MemberCard({
   playerStats?: PlayerStats;
   onClick?: () => void;
 }) {
+  const isDark = useIsDarkMode();
   const cfg = TEAM_CONFIGS[member.team] ?? TEAM_CONFIGS.Unassigned;
   const defaults = ROLE_DEFAULTS[member.cricketRole ?? ""] ?? { bat: 65, bwl: 50, fld: 70, rating: 75, pos: "PLR" };
 
@@ -130,31 +167,35 @@ export default function MemberCard({
     >
       <div
         onClick={onClick}
-        className="theme-static-dark relative rounded-xl sm:rounded-2xl border overflow-hidden h-full transition-all duration-300 cursor-pointer select-none"
+        className="relative rounded-xl sm:rounded-2xl border overflow-hidden h-full transition-all duration-300 cursor-pointer select-none"
         style={{
-          background: `linear-gradient(160deg, ${cfg.darkBg} 0%, #081826 100%)`,
-          borderColor: `${cfg.primary}22`,
+          background: isDark
+            ? `linear-gradient(160deg, ${cfg.darkBg} 0%, ${cfg.darkBase} 100%)`
+            : `linear-gradient(160deg, ${cfg.lightBg} 0%, ${cfg.lightBase} 100%)`,
+          borderColor: `${cfg.primary}${isDark ? "22" : "30"}`,
         }}
         onMouseEnter={(e) => {
           const el = e.currentTarget as HTMLElement;
           el.style.boxShadow = `0 20px 60px -15px ${cfg.glow}`;
-          el.style.borderColor = `${cfg.primary}44`;
+          el.style.borderColor = `${cfg.primary}${isDark ? "44" : "55"}`;
         }}
         onMouseLeave={(e) => {
           const el = e.currentTarget as HTMLElement;
           el.style.boxShadow = "";
-          el.style.borderColor = `${cfg.primary}22`;
+          el.style.borderColor = `${cfg.primary}${isDark ? "22" : "30"}`;
         }}
       >
         {/* Top gradient band */}
         <div
-          className="absolute top-0 left-0 right-0 h-[110px] sm:h-[130px] opacity-80"
-          style={{ background: `linear-gradient(to bottom, ${cfg.darkBg}, transparent)` }}
+          className="absolute top-0 left-0 right-0 h-27.5 sm:h-32.5 opacity-80"
+          style={{
+            background: `linear-gradient(to bottom, ${isDark ? cfg.darkBg : cfg.lightBg}, transparent)`,
+          }}
         />
 
         {/* Top accent stripe */}
         <div
-          className="absolute top-0 left-0 right-0 h-[2px]"
+          className="absolute top-0 left-0 right-0 h-0.5"
           style={{ background: `linear-gradient(to right, ${cfg.primary}, ${cfg.primary}55, transparent)` }}
         />
 
@@ -166,7 +207,10 @@ export default function MemberCard({
           >
             {rating}
           </span>
-          <span className="text-[7px] sm:text-[9px] font-black uppercase tracking-widest text-white/40">
+          <span
+            className="text-[7px] sm:text-[9px] font-black uppercase tracking-widest"
+            style={{ color: isDark ? "rgba(246,242,233,0.40)" : "rgba(21,17,14,0.45)" }}
+          >
             {defaults.pos}
           </span>
         </div>
@@ -177,8 +221,8 @@ export default function MemberCard({
             <span
               className="px-1.5 py-0.5 sm:px-2 rounded-full border text-[7px] sm:text-[8px] font-black uppercase tracking-widest"
               style={{
-                background: `${cfg.primary}1a`,
-                borderColor: `${cfg.primary}55`,
+                background: `${cfg.primary}${isDark ? "1a" : "15"}`,
+                borderColor: `${cfg.primary}${isDark ? "55" : "44"}`,
                 color: cfg.primary,
               }}
             >
@@ -192,7 +236,7 @@ export default function MemberCard({
           <div
             className="w-16 h-16 sm:w-24 sm:h-24 rounded-xl sm:rounded-2xl border sm:border-2 overflow-hidden flex items-center justify-center shadow-xl"
             style={{
-              background: `${cfg.primary}12`,
+              background: `${cfg.primary}${isDark ? "12" : "10"}`,
               borderColor: `${cfg.primary}44`,
               boxShadow: `0 8px 30px -5px ${cfg.glow}`,
             }}
@@ -218,19 +262,25 @@ export default function MemberCard({
           >
             {member.name}
           </h3>
-          <p className="text-[8px] sm:text-[10px] font-bold text-white/35 uppercase tracking-[0.2em]">
+          <p
+            className="text-[8px] sm:text-[10px] font-bold uppercase tracking-[0.2em]"
+            style={{ color: isDark ? "rgba(246,242,233,0.35)" : "rgba(21,17,14,0.40)" }}
+          >
             {member.team}
           </p>
-          <p className="text-[9px] sm:text-[11px] text-white/50 font-medium mt-1.5 sm:mt-2 leading-relaxed italic px-1 sm:px-2 line-clamp-2 sm:line-clamp-none">
+          <p
+            className="text-[9px] sm:text-[11px] font-medium mt-1.5 sm:mt-2 leading-relaxed italic px-1 sm:px-2 line-clamp-2 sm:line-clamp-none"
+            style={{ color: isDark ? "rgba(246,242,233,0.50)" : "rgba(21,17,14,0.55)" }}
+          >
             {member.shortBio}
           </p>
         </div>
 
         {/* Divider */}
-        <div className="relative z-10 mx-3 sm:mx-4 my-3 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+        <div className="relative z-10 mx-3 sm:mx-4 my-3 h-px bg-linear-to-r from-transparent via-white/10 to-transparent" />
 
         {/* Key stats row */}
-        <div className="relative z-10 grid grid-cols-3 divide-x divide-white/[0.06] px-1 pb-3">
+        <div className="relative z-10 grid grid-cols-3 divide-x divide-white/6 px-1 pb-3">
           {[
             { label: "Matches", value: matches || "—" },
             { label: keyLabel, value: keyValue },
@@ -249,7 +299,10 @@ export default function MemberCard({
               >
                 {s.value}
               </span>
-              <span className="text-[7px] sm:text-[8px] uppercase tracking-widest text-white/25 font-black">
+              <span
+                className="text-[7px] sm:text-[8px] uppercase tracking-widest font-black"
+                style={{ color: isDark ? "rgba(246,242,233,0.25)" : "rgba(21,17,14,0.30)" }}
+              >
                 {s.label}
               </span>
             </div>
@@ -258,18 +311,32 @@ export default function MemberCard({
 
         {/* Stat bars */}
         <div className="relative z-10 px-3 sm:px-4 pb-3.5 sm:pb-4 space-y-1.5 sm:space-y-2">
-          <StatBar label="BAT" value={batStat} color={cfg.primary} />
-          <StatBar label="BWL" value={bwlStat} color={cfg.primary} />
-          <StatBar label="FLD" value={fldStat} color={cfg.primary} />
+          <StatBar label="BAT" value={batStat} color={cfg.primary} isDark={isDark} />
+          <StatBar label="BWL" value={bwlStat} color={cfg.primary} isDark={isDark} />
+          <StatBar label="FLD" value={fldStat} color={cfg.primary} isDark={isDark} />
         </div>
 
         {/* Style tags footer */}
         <div className="relative z-10 px-3 sm:px-4 pb-4 flex items-center gap-1.5 flex-wrap">
-          <span className="text-[7px] sm:text-[8px] font-black uppercase tracking-widest text-white/20 px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/[0.06]">
+          <span
+            className="text-[7px] sm:text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded"
+            style={{
+              color: isDark ? "rgba(246,242,233,0.22)" : "rgba(21,17,14,0.35)",
+              background: isDark ? "rgba(246,242,233,0.04)" : "rgba(21,17,14,0.05)",
+              border: `1px solid ${isDark ? "rgba(246,242,233,0.06)" : "rgba(21,17,14,0.10)"}`,
+            }}
+          >
             {member.battingStyle}
           </span>
           {member.bowlingStyle !== "N/A" && (
-            <span className="text-[7px] sm:text-[8px] font-black uppercase tracking-widest text-white/20 px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/[0.06]">
+            <span
+              className="text-[7px] sm:text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded"
+              style={{
+                color: isDark ? "rgba(246,242,233,0.22)" : "rgba(21,17,14,0.35)",
+                background: isDark ? "rgba(246,242,233,0.04)" : "rgba(21,17,14,0.05)",
+                border: `1px solid ${isDark ? "rgba(246,242,233,0.06)" : "rgba(21,17,14,0.10)"}`,
+              }}
+            >
               {member.bowlingStyle}
             </span>
           )}
@@ -277,7 +344,7 @@ export default function MemberCard({
 
         {/* Bottom hover glow */}
         <div
-          className="absolute bottom-0 left-0 right-0 h-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+          className="absolute bottom-0 left-0 right-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
           style={{ background: `linear-gradient(to right, transparent, ${cfg.primary}, transparent)` }}
         />
       </div>

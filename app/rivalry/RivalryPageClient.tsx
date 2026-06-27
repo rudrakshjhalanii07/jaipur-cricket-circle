@@ -964,13 +964,15 @@ function MatchScorecardCard({ match }: { match: FullSeries["matches"][0] }) {
         </div>
       </button>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }}
-            transition={{ duration: 0.2 }} className="overflow-hidden"
-          >
-            <div className="border-t border-white/[0.05] px-4 py-4 space-y-5">
+      <div
+        style={{
+          display: "grid",
+          gridTemplateRows: open ? "1fr" : "0fr",
+          transition: "grid-template-rows 200ms ease-out",
+        }}
+      >
+        <div className="overflow-hidden">
+          <div className="border-t border-white/[0.05] px-4 py-4 space-y-5">
               <div className="flex flex-wrap gap-3 text-[9px] font-black uppercase tracking-widest text-white/30">
                 {match.match_date && <span>{new Date(match.match_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>}
                 {match.venue && <span>· {match.venue}</span>}
@@ -1064,24 +1066,24 @@ function MatchScorecardCard({ match }: { match: FullSeries["matches"][0] }) {
                     <Sparkles className="w-3.5 h-3.5" />
                     {showAnalysis ? "Hide" : "Show"} AI Match Analysis
                   </button>
-                  <AnimatePresence>
-                    {showAnalysis && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-                        className="overflow-hidden"
-                      >
-                        <div className="bg-[#E8537E]/5 border border-[#E8537E]/15 rounded-xl p-4">
-                          <p className="text-xs text-white/60 leading-relaxed whitespace-pre-wrap">{match.ai_analysis}</p>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateRows: showAnalysis ? "1fr" : "0fr",
+                      transition: "grid-template-rows 200ms ease-out",
+                    }}
+                  >
+                    <div className="overflow-hidden">
+                      <div className="bg-[#E8537E]/5 border border-[#E8537E]/15 rounded-xl p-4">
+                        <p className="text-xs text-white/60 leading-relaxed whitespace-pre-wrap">{match.ai_analysis}</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1123,39 +1125,40 @@ function TriSeriesCard({ series }: { series: FullSeries }) {
         </div>
       )}
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }}
-            transition={{ duration: 0.25 }} className="overflow-hidden"
-          >
-            <div className="border-t border-white/[0.06] px-4 py-4 space-y-2">
-              {series.notes && (
-                <p className="text-[10px] text-white/30 italic px-1 pb-2">{series.notes}</p>
-              )}
-              {leagueStandings.length > 0 && (
-                <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-3 mb-2">
-                  <p className="text-[9px] font-black uppercase tracking-[0.35em] text-white/25 mb-2">League Standings</p>
-                  <PointsTable rows={leagueStandings} compact />
+      <div
+        style={{
+          display: "grid",
+          gridTemplateRows: open ? "1fr" : "0fr",
+          transition: "grid-template-rows 220ms ease-out",
+        }}
+      >
+        <div className="overflow-hidden">
+          <div className="border-t border-white/[0.06] px-4 py-4 space-y-2">
+            {series.notes && (
+              <p className="text-[10px] text-white/30 italic px-1 pb-2">{series.notes}</p>
+            )}
+            {leagueStandings.length > 0 && (
+              <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-3 mb-2">
+                <p className="text-[9px] font-black uppercase tracking-[0.35em] text-white/25 mb-2">League Standings</p>
+                <PointsTable rows={leagueStandings} compact />
+              </div>
+            )}
+            {leagueMatches.map((m) => (
+              <MatchScorecardCard key={m.id} match={m} />
+            ))}
+            {finalMatch && (
+              <>
+                <div className="flex items-center gap-2 py-1">
+                  <div className="flex-1 h-px bg-white/[0.06]" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-[#E8537E]/50">Final</span>
+                  <div className="flex-1 h-px bg-white/[0.06]" />
                 </div>
-              )}
-              {leagueMatches.map((m) => (
-                <MatchScorecardCard key={m.id} match={m} />
-              ))}
-              {finalMatch && (
-                <>
-                  <div className="flex items-center gap-2 py-1">
-                    <div className="flex-1 h-px bg-white/[0.06]" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[#E8537E]/50">Final</span>
-                    <div className="flex-1 h-px bg-white/[0.06]" />
-                  </div>
-                  <MatchScorecardCard match={finalMatch} />
-                </>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                <MatchScorecardCard match={finalMatch} />
+              </>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
