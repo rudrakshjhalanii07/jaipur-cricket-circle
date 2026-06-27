@@ -14,19 +14,26 @@ import SectionProgress from "@/components/SectionProgress";
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
+  display: "swap",
 });
 
+// Heading font — drives the LCP <h1>. Keep it preloaded and lean (no italic
+// style file; the few italic headings are synthesized by the browser).
 const fraunces = Fraunces({
   variable: "--font-fraunces",
   subsets: ["latin"],
-  style: ["normal", "italic"],
   weight: ["400", "700", "900"],
+  display: "swap",
 });
 
+// Mono is only used in below-the-fold tickers/labels — don't preload it so it
+// stops competing with the critical heading/body fonts on slow connections.
 const plexMono = IBM_Plex_Mono({
   variable: "--font-plex-mono",
   subsets: ["latin"],
   weight: ["400", "500", "600"],
+  display: "swap",
+  preload: false,
 });
 
 export const metadata: Metadata = {

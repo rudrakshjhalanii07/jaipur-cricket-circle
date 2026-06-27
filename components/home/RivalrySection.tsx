@@ -7,8 +7,9 @@ import { ChevronRight, Swords, Zap } from "lucide-react";
 import ScorelineCard from "@/components/ScorelineCard";
 import { fetchRivalrySeasons, RivalrySeason, fallbackRivalrySeasons } from "@/lib/rivalry";
 import { supabase } from "@/lib/supabase";
+import { getTeam, TeamId } from "@/lib/teams";
 
-type RecentMatch = { id: string; winner: string; date: string; result: string; team1Score: string; team2Score: string };
+type RecentMatch = { id: string; winner: string; date: string; result: string };
 
 export default function RivalrySection() {
   const [activeSeason, setActiveSeason] = useState<RivalrySeason>(fallbackRivalrySeasons[0]);
@@ -21,10 +22,10 @@ export default function RivalrySection() {
         const [seasons, { data: dbMatches }] = await Promise.all([
           fetchRivalrySeasons(),
           supabase
-            .from("tournament_matches")
-            .select("id, winner_team, played_at, result_summary, team1_score, team2_score")
-            .not("winner_team", "is", null)
-            .order("played_at", { ascending: false })
+            .from("series_matches")
+            .select("id, winner_id, match_date, margin_type, margin_value, is_tie")
+            .not("winner_id", "is", null)
+            .order("match_date", { ascending: false })
             .limit(10),
         ]);
 
@@ -34,11 +35,13 @@ export default function RivalrySection() {
         if (dbMatches && dbMatches.length > 0) {
           const mapped: RecentMatch[] = dbMatches.map((m) => ({
             id: m.id,
-            winner: m.winner_team ?? "",
-            date: m.played_at ?? "",
-            result: m.result_summary ?? "",
-            team1Score: m.team1_score ?? "",
-            team2Score: m.team2_score ?? "",
+            winner: m.winner_id ? getTeam(m.winner_id as TeamId).name : "",
+            date: m.match_date ?? "",
+            result: m.is_tie
+              ? "Match tied"
+              : m.margin_value && m.margin_type
+                ? `Won by ${m.margin_value} ${m.margin_type}`
+                : "Latest result",
           }));
           setRecentMatches(mapped);
           setLatestMatch(mapped[0]);
