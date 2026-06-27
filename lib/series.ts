@@ -189,44 +189,39 @@ export async function fetchAllSeries(): Promise<Series[]> {
 
 export async function fetchFullSeries(): Promise<FullSeries[]> {
   try {
-    const { data: seriesList, error: se } = await supabase
+    const { data, error } = await supabase
       .from("series")
-      .select("*")
+      .select(`
+        *,
+        series_matches (
+          *,
+          series_innings (
+            *,
+            series_batting ( * ),
+            series_bowling ( * )
+          )
+        )
+      `)
       .order("series_no", { ascending: true });
-    if (se || !seriesList) return [];
 
-    const result: FullSeries[] = [];
+    if (error || !data) return [];
 
-    for (const s of seriesList) {
-      const { data: matches } = await supabase
-        .from("series_matches")
-        .select("*")
-        .eq("series_id", s.id)
-        .order("match_no", { ascending: true });
-
-      const fullMatches: FullSeriesMatch[] = [];
-
-      for (const m of matches ?? []) {
-        const { data: innings } = await supabase
-          .from("series_innings")
-          .select("*")
-          .eq("match_id", m.id)
-          .order("innings_no", { ascending: true });
-
-        const fullInnings = [];
-        for (const inn of innings ?? []) {
-          const [{ data: batting }, { data: bowling }] = await Promise.all([
-            supabase.from("series_batting").select("*").eq("innings_id", inn.id).order("batting_order"),
-            supabase.from("series_bowling").select("*").eq("innings_id", inn.id).order("bowling_order"),
-          ]);
-          fullInnings.push({ ...inn, batting: batting ?? [], bowling: bowling ?? [] });
-        }
-        fullMatches.push({ ...m, innings: fullInnings });
-      }
-      result.push({ ...s, matches: fullMatches });
-    }
-
-    return result;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data as any[]).map((s) => ({
+      ...s,
+      matches: ((s.series_matches ?? []) as any[])
+        .sort((a, b) => a.match_no - b.match_no)
+        .map((m) => ({
+          ...m,
+          innings: ((m.series_innings ?? []) as any[])
+            .sort((a, b) => a.innings_no - b.innings_no)
+            .map((inn) => ({
+              ...inn,
+              batting: ((inn.series_batting ?? []) as any[]).sort((a, b) => a.batting_order - b.batting_order),
+              bowling: ((inn.series_bowling ?? []) as any[]).sort((a, b) => a.bowling_order - b.bowling_order),
+            })),
+        })),
+    })) as FullSeries[];
   } catch {
     return [];
   }
