@@ -2,7 +2,6 @@ import { fetchRivalrySeasons, type RivalrySeason } from "@/lib/rivalry";
 import {
   fetchFullSeries,
   computeLeaderboards,
-  computeTriSeriesWins,
   computeSeriesStandings,
   computeOverallStandings,
   type FullSeries,
@@ -73,18 +72,6 @@ export default async function RivalryPage() {
   const activeSeason = seasons.find((s) => s.status === "active") ?? null;
   const archivedSeasons = seasons.filter((s) => s.status === "archived");
 
-  const baseWins = {
-    mavericks: seasons.reduce((s, e) => s + e.mavericks_main_wins, 0),
-    neurostrikers: seasons.reduce((s, e) => s + e.neurostrikers_main_wins, 0),
-    outliers: seasons.reduce((s, e) => s + (e.outliers_main_wins ?? 0), 0),
-  };
-  const triWins = computeTriSeriesWins(fullSeries);
-  const totalWins = {
-    mavericks: baseWins.mavericks + triWins.mavericks,
-    neurostrikers: baseWins.neurostrikers + triWins.neurostrikers,
-    outliers: triWins.outliers,
-  };
-
   const overallStandings = mergeBaseline(computeOverallStandings(fullSeries), OVERALL_BASELINE);
   const activeSeasonSeries = activeSeason
     ? fullSeries.filter((s) => s.season_id === activeSeason.id)
@@ -118,7 +105,6 @@ export default async function RivalryPage() {
       currentSeasonStandings={currentSeasonStandings}
       finalsStandings={finalsStandings}
       latestSeriesName={latestSeriesName}
-      totalWins={totalWins}
       latestSeriesLeaderboards={latestSeriesLeaderboards}
       allLeagueLeaderboards={allLeagueLeaderboards}
       finalsLeaderboards={finalsLeaderboards}

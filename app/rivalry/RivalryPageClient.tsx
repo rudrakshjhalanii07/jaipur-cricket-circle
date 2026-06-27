@@ -421,46 +421,6 @@ function SeriesProgression({ series }: { series: FullSeries[] }) {
 }
 
 // ── 3-Way Scoreline ───────────────────────────────────────────────────────────
-function TriSeriesScoreline({ wins }: {
-  wins: { neurostrikers: number; mavericks: number; outliers: number };
-}) {
-  const entries = [
-    { id: "neurostrikers", label: "NeuroStrikers", color: TEAMS.neurostrikers.primary, wins: wins.neurostrikers },
-    { id: "mavericks", label: "Mavericks", color: TEAMS.mavericks.primary, wins: wins.mavericks },
-    { id: "outliers", label: "Outliers", color: TEAMS.outliers.primary, wins: wins.outliers },
-  ];
-  const max = Math.max(...entries.map((e) => e.wins), 1);
-
-  return (
-    <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] bg-gradient-to-b from-[var(--jcc-navy)] to-[var(--jcc-navy-light)] p-6 sm:p-8">
-      <div className="flex items-center gap-2 mb-6">
-        <Swords className="w-4 h-4 text-[#E8537E]" />
-        <span className="text-[10px] font-black uppercase tracking-[0.35em] text-white/40">3-Way Overall Scoreline</span>
-        <span className="ml-auto text-[9px] font-black uppercase tracking-widest text-white/20 bg-white/[0.04] px-2 py-0.5 rounded-full">All formats combined</span>
-      </div>
-      <div className="grid grid-cols-3 gap-4 sm:gap-8">
-        {entries.map((e) => (
-          <div key={e.id} className="flex flex-col items-center gap-2">
-            <div className="text-5xl sm:text-6xl font-black tabular-nums" style={{ color: e.color, textShadow: `0 0 12px ${e.color}25` }}>
-              <AnimatedNumber target={e.wins} duration={1400} />
-            </div>
-            <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-center" style={{ color: e.color, opacity: 0.7 }}>{e.label}</span>
-            <div className="w-full h-1 rounded-full bg-white/[0.05]">
-              <motion.div
-                className="h-full rounded-full"
-                style={{ background: e.color }}
-                initial={{ width: 0 }}
-                whileInView={{ width: `${(e.wins / max) * 100}%` }}
-                viewport={{ once: true }}
-                transition={{ duration: 1.2, ease: "easeOut" }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // ── Stats Leaderboards ────────────────────────────────────────────────────────
 type StatsTab = "batting" | "bowling" | "allrounders" | "fielding";
@@ -1210,7 +1170,6 @@ interface RivalryPageClientProps {
   currentSeasonStandings: SeriesStandingRow[];
   finalsStandings: SeriesStandingRow[];
   latestSeriesName: string | null;
-  totalWins: { mavericks: number; neurostrikers: number; outliers: number };
   latestSeriesLeaderboards: LeaderboardSet;
   allLeagueLeaderboards: LeaderboardSet;
   finalsLeaderboards: LeaderboardSet;
@@ -1226,7 +1185,6 @@ export default function RivalryPageClient({
   currentSeasonStandings,
   finalsStandings,
   latestSeriesName,
-  totalWins,
   latestSeriesLeaderboards,
   allLeagueLeaderboards,
   finalsLeaderboards,
@@ -1280,30 +1238,6 @@ export default function RivalryPageClient({
           )}
         </div>
 
-        {/* ── Tri-Series History ── */}
-        {fullSeries.length > 0 && (
-          <div className="mb-16">
-            <SectionHeading eyebrow="Complete Scorecards & AI Reports" title="Tri-Series Archive" />
-            <motion.div variants={staggerContainer} initial="hidden" whileInView="visible" viewport={VIEWPORT_CONFIG} className="space-y-4">
-              {fullSeries.map((s) => (
-                <motion.div key={s.id} variants={fadeUp}>
-                  <TriSeriesCard series={s} />
-                </motion.div>
-              ))}
-            </motion.div>
-          </div>
-        )}
-
-        {/* ── 3-Way Overall Scoreline ── */}
-        {(totalWins.mavericks + totalWins.neurostrikers + totalWins.outliers) > 0 && (
-          <div className="mb-16">
-            <SectionHeading eyebrow="All-Time · Every Win Counts" title="3-Way Scoreline" />
-            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-              <TriSeriesScoreline wins={totalWins} />
-            </motion.div>
-          </div>
-        )}
-
         {/* ── Collective Points Table ── */}
         {overallStandings.length > 0 && (
           <div className="mb-16">
@@ -1320,6 +1254,20 @@ export default function RivalryPageClient({
             <SectionHeading eyebrow="Batting · Bowling · All-rounders · Fielding" title="Player Stats" />
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
               <StatsLeaderboards current={latestSeriesLeaderboards} overall={allLeagueLeaderboards} finals={finalsLeaderboards} />
+            </motion.div>
+          </div>
+        )}
+
+        {/* ── Tri-Series History ── */}
+        {fullSeries.length > 0 && (
+          <div className="mb-16">
+            <SectionHeading eyebrow="Complete Scorecards & AI Reports" title="Tri-Series Archive" />
+            <motion.div variants={staggerContainer} initial="hidden" whileInView="visible" viewport={VIEWPORT_CONFIG} className="space-y-4">
+              {fullSeries.map((s) => (
+                <motion.div key={s.id} variants={fadeUp}>
+                  <TriSeriesCard series={s} />
+                </motion.div>
+              ))}
             </motion.div>
           </div>
         )}
