@@ -1,5 +1,3 @@
-"use client";
-
 import HeroSection from "@/components/home/HeroSection";
 import SundayMatchSection from "@/components/home/SundayMatchSection";
 import RivalrySection from "@/components/home/RivalrySection";

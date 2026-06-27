@@ -587,9 +587,9 @@ export default function HeroSection() {
               </div>
             </div>
 
-            {/* Redesigned Bold Sports Title — LCP element, paints at first paint */}
+            {/* LCP element — no animation, paints immediately at full opacity */}
             <h1
-              className="hero-enter text-[2.75rem] sm:text-[4.5rem] md:text-[5.5rem] lg:text-[5.75rem] xl:text-[7rem] font-[950] text-white font-[var(--font-heading)] tracking-[-0.04em] leading-[0.82] mb-6 uppercase"
+              className="text-[2.75rem] sm:text-[4.5rem] md:text-[5.5rem] lg:text-[5.75rem] xl:text-[7rem] font-[950] text-white font-[var(--font-heading)] tracking-[-0.04em] leading-[0.82] mb-6 uppercase"
             >
               <span className="block mb-1 sm:mb-2">JAIPUR</span>
               <span className="block text-gradient-cyan mb-1 sm:mb-2">CRICKET</span>

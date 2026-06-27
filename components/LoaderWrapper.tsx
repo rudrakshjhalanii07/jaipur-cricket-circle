@@ -31,26 +31,27 @@ const CricketBall = ({ size = 28 }: { size?: number }) => (
 );
 
 export default function LoaderWrapper({ children }: { children: React.ReactNode }) {
-  const [loading, setLoading] = useState(true);
+  // Default false so SSR HTML never includes the overlay — LCP element is
+  // immediately visible in the static HTML.  The intro fires only on the
+  // client, only on the first visit of the session.
+  const [loading, setLoading] = useState(false);
   const [ballActive, setBallActive] = useState(false);
   const [impacted, setImpacted] = useState(false);
   const [showLogo, setShowLogo] = useState(false);
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    // Show the cinematic intro only once per browser session — on subsequent
-    // navigations within the session, skip it entirely so paint isn't delayed.
-    if (typeof window !== "undefined" && sessionStorage.getItem("jcc_intro_seen")) {
-      setLoading(false);
-      return;
-    }
+    // Skip intro entirely if already seen this session.
+    if (sessionStorage.getItem("jcc_intro_seen")) return;
+
+    setLoading(true);
 
     const t1 = setTimeout(() => setBallActive(true), 180);
     const t2 = setTimeout(() => setImpacted(true), 560);
     const t3 = setTimeout(() => setShowLogo(true), 700);
     const t4 = setTimeout(() => {
       setLoading(false);
-      if (typeof window !== "undefined") sessionStorage.setItem("jcc_intro_seen", "1");
+      sessionStorage.setItem("jcc_intro_seen", "1");
     }, 1350);
 
     let p = 0;
