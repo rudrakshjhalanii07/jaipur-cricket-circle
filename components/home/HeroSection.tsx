@@ -10,7 +10,6 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { fadeUp } from "@/lib/animations";
-import { supabase } from "@/lib/supabase";
 
 // ---- Detailed Stadium Floodlight Component ----
 function StadiumFloodlight({ side }: { side: "left" | "right" }) {
@@ -387,47 +386,15 @@ function BatAndStumpsComposition() {
   );
 }
 
-export default function HeroSection() {
+interface HeroStats {
+  activePlayers: string;
+  sundayGames: string;
+  sundaysActive: string;
+  communityLove: string;
+}
+
+export default function HeroSection({ stats }: { stats: HeroStats }) {
   const [isMobile, setIsMobile] = useState(true);
-  const [stats, setStats] = useState({
-    activePlayers: "–",
-    sundayGames: "–",
-    sundaysActive: "–",
-    communityLove: "∞"
-  });
-
-  useEffect(() => {
-    async function loadDynamicStats() {
-      try {
-        const { data: dbPlayers, error: playersError } = await supabase
-          .from("players")
-          .select("id")
-          .eq("approval_status", "approved")
-          .eq("is_active", true);
-
-        if (playersError) throw playersError;
-
-        const { data: rivalrySeasons } = await supabase
-          .from("rivalry_seasons")
-          .select("total_matches_played");
-
-        const activeCount = dbPlayers ? dbPlayers.length : 0;
-        const totalMatches = rivalrySeasons
-          ? rivalrySeasons.reduce((sum: number, s: any) => sum + (s.total_matches_played || 0), 0)
-          : 0;
-
-        setStats({
-          activePlayers: `${activeCount}+`,
-          sundayGames: `${totalMatches}+`,
-          sundaysActive: `${totalMatches}+`,
-          communityLove: "∞"
-        });
-      } catch (err) {
-        console.error("Error loading dynamic hero section stats:", err);
-      }
-    }
-    loadDynamicStats();
-  }, []);
 
   // Parallax Motion Values
   const mouseX = useMotionValue(0);
@@ -504,15 +471,22 @@ export default function HeroSection() {
         <StadiumFloodlight side="right" />
 
         {/* Volumetric Fog Banks */}
-        <div className="absolute bottom-0 left-0 right-0 h-[220px] pointer-events-none opacity-40 mix-blend-screen filter blur-xl">
+        <div className="absolute bottom-0 left-0 right-0 h-[220px] pointer-events-none opacity-40 mix-blend-screen" style={{ willChange: "transform" }}>
           <svg className="w-full h-full animate-fog-drift" viewBox="0 0 1000 200" fill="none">
+            <defs>
+              <filter id="fogBlur" x="-5%" y="-5%" width="110%" height="110%">
+                <feGaussianBlur stdDeviation="18" />
+              </filter>
+            </defs>
             <path
               d="M -100 150 Q 200 40, 500 130 T 1100 140 L 1100 250 L -100 250 Z"
               fill="rgba(0, 194, 255, 0.15)"
+              filter="url(#fogBlur)"
             />
             <path
               d="M -50 120 Q 300 20, 650 110 T 1150 100 L 1150 250 L -50 250 Z"
               fill="rgba(57, 255, 136, 0.08)"
+              filter="url(#fogBlur)"
             />
           </svg>
         </div>

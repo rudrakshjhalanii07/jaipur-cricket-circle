@@ -46,20 +46,20 @@ export default function LoaderWrapper({ children }: { children: React.ReactNode 
 
     setLoading(true);
 
-    const t1 = setTimeout(() => setBallActive(true), 180);
-    const t2 = setTimeout(() => setImpacted(true), 560);
-    const t3 = setTimeout(() => setShowLogo(true), 700);
+    const t1 = setTimeout(() => setBallActive(true), 80);
+    const t2 = setTimeout(() => setImpacted(true), 260);
+    const t3 = setTimeout(() => setShowLogo(true), 320);
     const t4 = setTimeout(() => {
       setLoading(false);
       sessionStorage.setItem("jcc_intro_seen", "1");
-    }, 1350);
+    }, 600);
 
     let p = 0;
     const iv = setInterval(() => {
-      p += 4;
+      p += 10;
       setProgress(Math.min(p, 100));
       if (p >= 100) clearInterval(iv);
-    }, 26);
+    }, 18);
 
     return () => {
       [t1, t2, t3, t4].forEach(clearTimeout);
@@ -75,7 +75,7 @@ export default function LoaderWrapper({ children }: { children: React.ReactNode 
             key="loader"
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
             className="fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden select-none"
             style={{ background: "var(--jcc-bg)" }}
           >

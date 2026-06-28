@@ -22,7 +22,7 @@ const inter = Inter({
 const fraunces = Fraunces({
   variable: "--font-fraunces",
   subsets: ["latin"],
-  weight: ["400", "700", "900"],
+  weight: ["900"],
   display: "swap",
 });
 
@@ -56,6 +56,10 @@ export default function RootLayout({
       data-scroll-behavior="smooth"
       className={`${inter.variable} ${fraunces.variable} ${plexMono.variable} h-full antialiased`}
     >
+      <head>
+        <link rel="preconnect" href="https://sogyuojtetdroxnvoulb.supabase.co" />
+        <link rel="dns-prefetch" href="https://sogyuojtetdroxnvoulb.supabase.co" />
+      </head>
       <body className="min-h-full flex flex-col bg-jcc-bg text-jcc-text-primary">
         <Providers>
           <ScrollSystem>

@@ -262,7 +262,7 @@ function FeatureCard({ article }: { article: Article }) {
               <Image
                 src={
                   article.image_url ||
-                  "https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=800&q=80"
+                  "https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=600&q=65&fm=webp"
                 }
                 alt={article.title}
                 fill
@@ -368,7 +368,7 @@ function EditorialCard({
             <Image
               src={
                 article.image_url ||
-                "https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=800&q=80"
+                "https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=600&q=65&fm=webp"
               }
               alt={article.title}
               fill
