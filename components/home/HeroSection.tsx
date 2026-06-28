@@ -470,23 +470,18 @@ export default function HeroSection({ stats }: { stats: HeroStats }) {
         <StadiumFloodlight side="left" />
         <StadiumFloodlight side="right" />
 
-        {/* Volumetric Fog Banks */}
-        <div className="absolute bottom-0 left-0 right-0 h-[220px] pointer-events-none opacity-40 mix-blend-screen" style={{ willChange: "transform" }}>
+        {/* Volumetric Fog Banks. Blur is a static CSS filter on the container
+            (composited once); only the inner SVG translates via transform, so
+            the gaussian blur is NOT re-rasterized every animation frame. */}
+        <div className="absolute bottom-0 left-0 right-0 h-[220px] pointer-events-none opacity-40 mix-blend-screen filter blur-xl">
           <svg className="w-full h-full animate-fog-drift" viewBox="0 0 1000 200" fill="none">
-            <defs>
-              <filter id="fogBlur" x="-5%" y="-5%" width="110%" height="110%">
-                <feGaussianBlur stdDeviation="18" />
-              </filter>
-            </defs>
             <path
               d="M -100 150 Q 200 40, 500 130 T 1100 140 L 1100 250 L -100 250 Z"
               fill="rgba(0, 194, 255, 0.15)"
-              filter="url(#fogBlur)"
             />
             <path
               d="M -50 120 Q 300 20, 650 110 T 1150 100 L 1150 250 L -50 250 Z"
               fill="rgba(57, 255, 136, 0.08)"
-              filter="url(#fogBlur)"
             />
           </svg>
         </div>

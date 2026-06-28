@@ -57,7 +57,10 @@ export default function RootLayout({
       className={`${inter.variable} ${fraunces.variable} ${plexMono.variable} h-full antialiased`}
     >
       <head>
-        <link rel="preconnect" href="https://sogyuojtetdroxnvoulb.supabase.co" />
+        {/* Below-the-fold sections fetch from Supabase client-side. Use
+            dns-prefetch (cheap) NOT preconnect — a preconnect here opens a TLS
+            handshake in the first second that competes with the LCP font on
+            slow connections. Stats above the fold are fetched server-side. */}
         <link rel="dns-prefetch" href="https://sogyuojtetdroxnvoulb.supabase.co" />
       </head>
       <body className="min-h-full flex flex-col bg-jcc-bg text-jcc-text-primary">
