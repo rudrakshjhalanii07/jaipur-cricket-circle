@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Fraunces, IBM_Plex_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -10,6 +11,7 @@ import { Providers } from "@/components/Providers";
 import MotionCanvas from "@/components/MotionCanvas";
 import ScrollSystem from "@/components/ScrollSystem";
 import SectionProgress from "@/components/SectionProgress";
+import DeferredStyles from "@/components/DeferredStyles";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -17,13 +19,28 @@ const inter = Inter({
   display: "swap",
 });
 
-// Heading font — drives the LCP <h1>. Keep it preloaded and lean (no italic
-// style file; the few italic headings are synthesized by the browser).
+// Full Fraunces 900 for all headings across the site. No longer preloaded —
+// the LCP <h1> uses the tiny wordmark subset below, so the full file can load
+// lazily without blocking the critical path.
 const fraunces = Fraunces({
   variable: "--font-fraunces",
   subsets: ["latin"],
   weight: ["900"],
   display: "swap",
+  preload: false,
+});
+
+// LCP-only font: Fraunces 900 subset to the 11 glyphs in the hero wordmark
+// "JAIPUR CRICKET CIRCLE" (~2 KB). Preloaded so it arrives before 2.5s even on
+// slow connections, locking LCP to a fast first paint in the real brand font.
+const frauncesWordmark = localFont({
+  src: "./fonts/fraunces-wordmark.woff2",
+  variable: "--font-wordmark",
+  weight: "900",
+  display: "swap",
+  preload: true,
+  fallback: ["Georgia", "Times New Roman", "serif"],
+  adjustFontFallback: "Times New Roman",
 });
 
 // Mono is only used in below-the-fold tickers/labels — don't preload it so it
@@ -54,7 +71,7 @@ export default function RootLayout({
     <html
       lang="en"
       data-scroll-behavior="smooth"
-      className={`${inter.variable} ${fraunces.variable} ${plexMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${fraunces.variable} ${frauncesWordmark.variable} ${plexMono.variable} h-full antialiased`}
     >
       <head>
         {/* Below-the-fold sections fetch from Supabase client-side. Use
@@ -64,6 +81,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://sogyuojtetdroxnvoulb.supabase.co" />
       </head>
       <body className="min-h-full flex flex-col bg-jcc-bg text-jcc-text-primary">
+        <DeferredStyles />
         <Providers>
           <ScrollSystem>
             <MotionCanvas />
