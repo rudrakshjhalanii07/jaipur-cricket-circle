@@ -1,12 +1,33 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import NextLink from "next/link";
 import { Users, ChevronRight, ShieldCheck, Heart, CalendarCheck, Trophy, Calendar } from "lucide-react";
 import type { Member, MemberTag } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { getDiceBearUrl } from "@/lib/avatar";
+
+function MemberPhoto({ src, name, team, className }: { src?: string | null; name: string; team?: string | null; className?: string }) {
+  const [photoError, setPhotoError] = useState(false);
+  const fallback = getDiceBearUrl(name, team);
+  if (src && !photoError) {
+    return (
+      <Image
+        src={src}
+        alt={name}
+        width={320}
+        height={320}
+        loading="lazy"
+        className={className}
+        onError={() => setPhotoError(true)}
+      />
+    );
+  }
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={fallback} alt={name} className={className} />;
+}
 
 function getDisplayRole(memberTag?: string, groupRole?: string, cricketRole?: string): string {
   const isFounder = memberTag === "founding-member" || groupRole === "founding-member";
@@ -223,16 +244,11 @@ export default function CommunitySection() {
               >
                 <div className="relative mb-4">
                   <div className={`aspect-square rounded-xl overflow-hidden bg-white/5 border relative flex items-center justify-center transition-all duration-300 ${avatarBorder}`}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={member.image || getDiceBearUrl(member.name, member.team)}
-                      alt={member.name}
+                    <MemberPhoto
+                      src={member.image}
+                      name={member.name}
+                      team={member.team}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      onError={(e) => {
-                        const img = e.currentTarget;
-                        const fallback = getDiceBearUrl(member.name, member.team);
-                        if (img.src !== fallback) img.src = fallback;
-                      }}
                     />
                   </div>
                   {member.tags.includes("captain") && (
