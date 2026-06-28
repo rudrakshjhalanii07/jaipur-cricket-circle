@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import type { Member, MemberTag } from "@/lib/types";
 import { getDiceBearUrl } from "@/lib/avatar";
@@ -122,6 +123,8 @@ export default function MemberCard({
   onClick?: () => void;
 }) {
   const isDark = useIsDarkMode();
+  const [photoError, setPhotoError] = useState(false);
+  const diceBearUrl = getDiceBearUrl(member.name, member.team);
   const cfg = TEAM_CONFIGS[member.team] ?? TEAM_CONFIGS.Unassigned;
   const defaults = ROLE_DEFAULTS[member.cricketRole ?? ""] ?? { bat: 65, bwl: 50, fld: 70, rating: 75, pos: "PLR" };
 
@@ -241,16 +244,24 @@ export default function MemberCard({
               boxShadow: `0 8px 30px -5px ${cfg.glow}`,
             }}
           >
-            <img
-              src={member.image || getDiceBearUrl(member.name, member.team)}
-              alt={member.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              onError={(e) => {
-                const img = e.currentTarget;
-                const fallback = getDiceBearUrl(member.name, member.team);
-                if (img.src !== fallback) img.src = fallback;
-              }}
-            />
+            {member.image && !photoError ? (
+              <Image
+                src={member.image}
+                alt={member.name}
+                width={96}
+                height={96}
+                loading={index < 6 ? "eager" : "lazy"}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                onError={() => setPhotoError(true)}
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={diceBearUrl}
+                alt={member.name}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+            )}
           </div>
         </div>
 

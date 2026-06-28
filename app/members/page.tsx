@@ -7,6 +7,7 @@ import MemberCard from "@/components/MemberCard";
 import type { PlayerStats } from "@/components/MemberCard";
 import SectionHeading from "@/components/SectionHeading";
 import type { Member, MemberTag } from "@/lib/types";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { fetchFullSeries, computeLeaderboards } from "@/lib/series";
 import type { BattingLeaderRow, BowlingLeaderRow, AllRounderRow, FieldingRow } from "@/lib/series";
@@ -71,6 +72,8 @@ function PlayerStatsModal({
   stats: PlayerStats | undefined;
   onClose: () => void;
 }) {
+  const [photoError, setPhotoError] = useState(false);
+  useEffect(() => { setPhotoError(false); }, [member.image]);
   const { batting, bowling, allRounder, fielding } = stats ?? {};
   const accentColor = TEAM_COLORS[member.team] ?? "#8888aa";
   const hasBatting = !!batting;
@@ -125,16 +128,24 @@ function PlayerStatsModal({
             className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl border-2 overflow-hidden flex-shrink-0"
             style={{ borderColor: `${accentColor}44`, background: `${accentColor}12` }}
           >
-            <img
-              src={member.image || getDiceBearUrl(member.name, member.team)}
-              alt={member.name}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                const img = e.currentTarget;
-                const fallback = getDiceBearUrl(member.name, member.team);
-                if (img.src !== fallback) img.src = fallback;
-              }}
-            />
+            {member.image && !photoError ? (
+              <Image
+                src={member.image}
+                alt={member.name}
+                width={80}
+                height={80}
+                loading="lazy"
+                className="w-full h-full object-cover"
+                onError={() => setPhotoError(true)}
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={getDiceBearUrl(member.name, member.team)}
+                alt={member.name}
+                className="w-full h-full object-cover"
+              />
+            )}
           </div>
 
           {/* Info */}

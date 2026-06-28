@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import Image from "next/image";
 import { getDiceBearUrl } from "@/lib/avatar";
 
 interface PlayerAvatarProps {
@@ -20,14 +22,16 @@ interface PlayerAvatarProps {
   imgClassName?: string;
   /** Alt text override; defaults to player name. */
   alt?: string;
+  /** Logical display size in px used as next/image width & height hint (default 80). */
+  displaySize?: number;
 }
 
 /**
  * Renders a player's profile picture.
  *
- * • If `src` is truthy → shows the uploaded photo.
- * • Otherwise → shows a deterministic DiceBear "thumbs" avatar seeded by name,
- *   with team-aware colors matching JCC's brand palette.
+ * • If `src` is truthy → optimised via next/image (Vercel CDN, srcset, WebP/AVIF).
+ * • Otherwise / on error → deterministic DiceBear SVG avatar (rendered as plain <img>
+ *   because next/image doesn't handle SVGs without dangerouslyAllowSVG).
  */
 export default function PlayerAvatar({
   src,
@@ -36,24 +40,33 @@ export default function PlayerAvatar({
   className = "w-12 h-12 rounded-xl overflow-hidden",
   imgClassName = "w-full h-full object-cover",
   alt,
+  displaySize = 80,
 }: PlayerAvatarProps) {
+  const [photoError, setPhotoError] = useState(false);
   const fallbackUrl = getDiceBearUrl(name, team);
   const displayAlt = alt ?? name;
+  const showRealPhoto = !!src && !photoError;
 
   return (
     <div className={`bg-white/5 border border-white/10 flex items-center justify-center shrink-0 ${className}`}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={src || fallbackUrl}
-        alt={displayAlt}
-        className={imgClassName}
-        onError={(e) => {
-          const img = e.currentTarget;
-          if (img.src !== fallbackUrl) {
-            img.src = fallbackUrl;
-          }
-        }}
-      />
+      {showRealPhoto ? (
+        <Image
+          src={src}
+          alt={displayAlt}
+          width={displaySize}
+          height={displaySize}
+          loading="lazy"
+          className={imgClassName}
+          onError={() => setPhotoError(true)}
+        />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={fallbackUrl}
+          alt={displayAlt}
+          className={imgClassName}
+        />
+      )}
     </div>
   );
 }
