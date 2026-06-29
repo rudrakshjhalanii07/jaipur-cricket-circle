@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import Link from "next/link";
 import {
@@ -394,8 +393,6 @@ interface HeroStats {
 }
 
 export default function HeroSection({ stats }: { stats: HeroStats }) {
-  const [isMobile, setIsMobile] = useState(true);
-
   // Parallax Motion Values
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -405,7 +402,8 @@ export default function HeroSection({ stats }: { stats: HeroStats }) {
   const springX = useSpring(mouseX, springConfig);
   const springY = useSpring(mouseY, springConfig);
 
-  // Parallax layer transformations (Desktop Only)
+  // Parallax layer transformations — always wired up; mouse handler only fires
+  // on fine-pointer (non-touch) devices, so values stay at 0 on mobile.
   const bgX = useTransform(springX, [-0.5, 0.5], ["-8px", "8px"]);
   const bgY = useTransform(springY, [-0.5, 0.5], ["-8px", "8px"]);
 
@@ -419,21 +417,8 @@ export default function HeroSection({ stats }: { stats: HeroStats }) {
   const compY = useTransform(springY, [-0.5, 0.5], ["-35px", "35px"]);
   const compRotate = useTransform(springX, [-0.5, 0.5], [-2, 2]);
 
-  useEffect(() => {
-    // Wrap state update in requestAnimationFrame to prevent synchronous setState ESLint error
-    requestAnimationFrame(() => {
-      setIsMobile(window.innerWidth < 1024);
-    });
-
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024);
-    };
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
-
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isMobile) return;
+    if (!window.matchMedia("(pointer: fine)").matches) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const width = rect.width;
     const height = rect.height;
@@ -463,7 +448,7 @@ export default function HeroSection({ stats }: { stats: HeroStats }) {
          BACKGROUND LAYERS (Stadium Lights, Fog, Huge Ball)
          ============================================================ */}
       <motion.div
-        style={{ x: !isMobile ? bgX : 0, y: !isMobile ? bgY : 0 }}
+        style={{ x: bgX, y: bgY }}
         className="absolute inset-0 w-full h-full pointer-events-none z-0"
       >
         {/* Floodlights in top-left & top-right corners */}
@@ -492,7 +477,7 @@ export default function HeroSection({ stats }: { stats: HeroStats }) {
 
       {/* Large Low-Opacity Seam-Rotating Cricket Ball (Layer 2) */}
       <motion.div
-        style={{ x: !isMobile ? ballX : 0, y: !isMobile ? ballY : 0 }}
+        style={{ x: ballX, y: ballY }}
         className="absolute inset-0 w-full h-full pointer-events-none z-0 flex items-center justify-center"
       >
         <GiantBackgroundBall />
@@ -540,7 +525,7 @@ export default function HeroSection({ stats }: { stats: HeroStats }) {
              heading is present and painting at first paint, independent of JS
              hydration. The wrapper keeps the desktop mouse parallax. */}
           <motion.div
-            style={{ x: !isMobile ? textX : 0, y: !isMobile ? textY : 0 }}
+            style={{ x: textX, y: textY }}
             className="lg:col-span-7 text-center lg:text-left flex flex-col justify-center"
           >
             {/* Status Badge */}
@@ -606,11 +591,7 @@ export default function HeroSection({ stats }: { stats: HeroStats }) {
 
           {/* RIGHT SIDE: Floating Interactive Bat & Stumps Composition */}
           <motion.div
-            style={{
-              x: !isMobile ? compX : 0,
-              y: !isMobile ? compY : 0,
-              rotate: !isMobile ? compRotate : 0,
-            }}
+            style={{ x: compX, y: compY, rotate: compRotate }}
             className="lg:col-span-5 flex items-center justify-center pointer-events-none z-10"
           >
             <motion.div

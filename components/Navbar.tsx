@@ -45,7 +45,7 @@ export default function Navbar() {
               <img src="/jcc-logo.webp" alt="JCC Logo" width={96} height={96} fetchPriority="high" className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-300" />
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-black text-white tracking-wider font-[var(--font-heading)] uppercase">Jaipur Cricket Circle</span>
+              <span className="text-sm font-black text-white tracking-wider uppercase" style={{ fontFamily: "var(--font-wordmark)" }}>Jaipur Cricket Circle</span>
               <span className="text-[8px] text-white/50 tracking-[0.25em] uppercase leading-none font-bold">Est. 2026</span>
             </div>
           </Link>

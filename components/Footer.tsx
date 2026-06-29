@@ -1,8 +1,4 @@
-"use client";
-
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { fadeUp, staggerContainer, VIEWPORT_CONFIG } from "@/lib/animations";
 
 const quickLinks = [
   { href: "/chewvana-times", label: "Chewvana Times" },
@@ -18,15 +14,9 @@ export default function Footer() {
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-jcc-accent/20 to-transparent" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20">
-        <motion.div 
-          variants={staggerContainer}
-          initial="hidden"
-          whileInView="visible"
-          viewport={VIEWPORT_CONFIG}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-12 lg:gap-16"
-        >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-12 lg:gap-16">
           {/* Brand */}
-          <motion.div variants={fadeUp} className="space-y-8">
+          <div className="space-y-8">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center shadow-inner group/logo transition-all hover:border-jcc-accent/40 hover:bg-white/5 overflow-hidden p-2.5">
                 <img src="/jcc-logo.webp" alt="JCC Logo" width={96} height={96} loading="lazy" className="w-full h-full object-contain group-hover/logo:scale-110 transition-transform duration-300" />
@@ -44,10 +34,10 @@ export default function Footer() {
               Where Sundays Hit Different. A community of cricket lovers in
               Jaipur, playing hard and building bonds every weekend.
             </p>
-          </motion.div>
+          </div>
 
           {/* Quick Links */}
-          <motion.div variants={fadeUp} className="space-y-8">
+          <div className="space-y-8">
             <h3 className="text-[12px] font-black text-white uppercase tracking-[0.3em] opacity-50">
               Quick Links
             </h3>
@@ -63,10 +53,10 @@ export default function Footer() {
                 </li>
               ))}
             </ul>
-          </motion.div>
+          </div>
 
           {/* Connect */}
-          <motion.div variants={fadeUp} className="space-y-8">
+          <div className="space-y-8">
             <h3 className="text-[12px] font-black text-white uppercase tracking-[0.3em] opacity-50">
               Connect
             </h3>
@@ -84,17 +74,11 @@ export default function Footer() {
                 </div>
                 WhatsApp Group
               </a>
-
             </div>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
 
-        <motion.div 
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={VIEWPORT_CONFIG}
-          className="mt-14 pt-10 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-6"
-        >
+        <div className="mt-14 pt-10 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-6">
             <p className="text-[11px] text-white/40 font-bold uppercase tracking-widest">
               &copy; {new Date().getFullYear()} Jaipur Cricket Circle.
@@ -103,7 +87,7 @@ export default function Footer() {
           <p className="text-[11px] text-white/40 font-black uppercase tracking-[0.2em]">
             Where Sundays Hit Different 🏏
           </p>
-        </motion.div>
+        </div>
       </div>
     </footer>
   );

@@ -4,11 +4,11 @@ import localFont from "next/font/local";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import FloatingWhatsApp from "@/components/FloatingWhatsApp";
+import LazyFloatingWhatsApp from "@/components/LazyFloatingWhatsApp";
 import LoaderWrapper from "@/components/LoaderWrapper";
 import PageTransition from "@/components/PageTransition";
 import { Providers } from "@/components/Providers";
-import MotionCanvas from "@/components/MotionCanvas";
+import LazyMotionCanvas from "@/components/LazyMotionCanvas";
 import ScrollSystem from "@/components/ScrollSystem";
 import SectionProgress from "@/components/SectionProgress";
 import DeferredStyles from "@/components/DeferredStyles";
@@ -26,7 +26,7 @@ const fraunces = Fraunces({
   variable: "--font-fraunces",
   subsets: ["latin"],
   weight: ["900"],
-  display: "swap",
+  display: "optional",
   preload: false,
 });
 
@@ -74,24 +74,23 @@ export default function RootLayout({
       className={`${inter.variable} ${fraunces.variable} ${frauncesWordmark.variable} ${plexMono.variable} h-full antialiased`}
     >
       <head>
-        {/* Below-the-fold sections fetch from Supabase client-side. Use
-            dns-prefetch (cheap) NOT preconnect — a preconnect here opens a TLS
-            handshake in the first second that competes with the LCP font on
-            slow connections. Stats above the fold are fetched server-side. */}
+        {/* Some non-homepage pages still fetch from Supabase client-side.
+            dns-prefetch (cheap) NOT preconnect — preconnect opens a TLS
+            handshake that competes with the LCP font on slow connections. */}
         <link rel="dns-prefetch" href="https://sogyuojtetdroxnvoulb.supabase.co" />
       </head>
       <body className="min-h-full flex flex-col bg-jcc-bg text-jcc-text-primary">
         <DeferredStyles />
         <Providers>
           <ScrollSystem>
-            <MotionCanvas />
+            <LazyMotionCanvas />
             <LoaderWrapper>
               <Navbar />
               <main className="flex-1">
                 <PageTransition>{children}</PageTransition>
               </main>
               <Footer />
-              <FloatingWhatsApp />
+              <LazyFloatingWhatsApp />
               <SectionProgress />
             </LoaderWrapper>
           </ScrollSystem>

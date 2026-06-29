@@ -38,7 +38,6 @@ export default function LoaderWrapper({ children }: { children: React.ReactNode 
   const [ballActive, setBallActive] = useState(false);
   const [impacted, setImpacted] = useState(false);
   const [showLogo, setShowLogo] = useState(false);
-  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     // Skip intro entirely if already seen this session.
@@ -54,16 +53,8 @@ export default function LoaderWrapper({ children }: { children: React.ReactNode 
       sessionStorage.setItem("jcc_intro_seen", "1");
     }, 600);
 
-    let p = 0;
-    const iv = setInterval(() => {
-      p += 10;
-      setProgress(Math.min(p, 100));
-      if (p >= 100) clearInterval(iv);
-    }, 18);
-
     return () => {
       [t1, t2, t3, t4].forEach(clearTimeout);
-      clearInterval(iv);
     };
   }, []);
 
@@ -351,15 +342,15 @@ export default function LoaderWrapper({ children }: { children: React.ReactNode 
                         overflow: "hidden",
                       }}
                     >
-                      <motion.div
+                      <div
                         style={{
                           height: "100%",
                           borderRadius: 2,
                           background: "linear-gradient(90deg, var(--jcc-accent), var(--jcc-gold))",
                           boxShadow: "0 0 10px var(--jcc-accent)",
+                          transformOrigin: "left",
+                          animation: "loader-progress 0.6s linear forwards",
                         }}
-                        animate={{ width: `${progress}%` }}
-                        transition={{ duration: 0.08, ease: "linear" }}
                       />
                     </div>
                   </motion.div>

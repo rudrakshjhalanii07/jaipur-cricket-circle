@@ -29,12 +29,13 @@ export default function SectionProgress() {
             style={{ background: "rgba(237,227,206,0.10)", border: "none", padding: 0, cursor: "pointer" }}
           >
             <div
-              className="absolute inset-y-0 left-0 rounded-full"
+              className="absolute inset-y-0 left-0 right-0 rounded-full"
               style={{
-                width: `${fillPct}%`,
                 background: "linear-gradient(90deg, var(--jcc-accent), var(--jcc-gold))",
                 boxShadow: isActive && charge > 0.05 ? "0 0 6px var(--jcc-accent)" : "none",
-                transition: isActive ? "none" : "width 0.3s ease",
+                transform: `scaleX(${fillPct / 100})`,
+                transformOrigin: "left",
+                transition: isActive ? "none" : "transform 0.3s ease",
               }}
             />
           </button>

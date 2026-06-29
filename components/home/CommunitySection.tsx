@@ -1,15 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import NextLink from "next/link";
-import { Users, ChevronRight, ShieldCheck, Heart, CalendarCheck, Trophy, Calendar } from "lucide-react";
-import type { Member, MemberTag } from "@/lib/types";
-import { supabase } from "@/lib/supabase";
+import { Users, ChevronRight, ShieldCheck, Heart, Trophy, Calendar } from "lucide-react";
 import { getDiceBearUrl } from "@/lib/avatar";
+import type { CommunityMember } from "@/app/page";
 
-function MemberPhoto({ src, name, team, className }: { src?: string | null; name: string; team?: string | null; className?: string }) {
+function MemberPhoto({
+  src,
+  name,
+  team,
+  className,
+}: {
+  src?: string | null;
+  name: string;
+  team?: string | null;
+  className?: string;
+}) {
   const [photoError, setPhotoError] = useState(false);
   const fallback = getDiceBearUrl(name, team);
   if (src && !photoError) {
@@ -29,164 +38,19 @@ function MemberPhoto({ src, name, team, className }: { src?: string | null; name
   return <img src={fallback} alt={name} className={className} />;
 }
 
-function getDisplayRole(memberTag?: string, groupRole?: string, cricketRole?: string): string {
-  const isFounder = memberTag === "founding-member" || groupRole === "founding-member";
-  
-  if (groupRole === "captain") {
-    return isFounder ? "Founder & Captain" : "Captain";
-  }
-  if (groupRole === "vice-captain") {
-    return isFounder ? "Founding Member & Vice Captain" : "Vice Captain";
-  }
-  if (groupRole === "admin") {
-    return isFounder ? "Founding Member & Admin" : "Admin";
-  }
-  
-  if (isFounder) {
-    return "Founding Member";
-  }
-  
-  if (cricketRole) {
-    if (cricketRole === "all-rounder") return "All-Rounder";
-    if (cricketRole === "wicketkeeper") return "Wicketkeeper";
-    return cricketRole.charAt(0).toUpperCase() + cricketRole.slice(1);
-  }
-  
-  return "Member";
+interface CommunitySectionProps {
+  members: CommunityMember[];
+  stats: {
+    activePlayers: string;
+    sundayGames: string;
+    sundaysActive: string;
+    communityLove: string;
+  };
 }
 
-function findMatchingPlayer(staticName: string, dbPlayers: any[]) {
-  const cleanStatic = staticName.toLowerCase().replace(/[^a-z0-9]/g, "");
-  
-  // Try exact match or inclusion
-  let found = dbPlayers.find(p => {
-    const cleanDb = p.name.toLowerCase().replace(/[^a-z0-9]/g, "");
-    return cleanStatic.includes(cleanDb) || cleanDb.includes(cleanStatic);
-  });
-  
-  if (found) return found;
-  
-  // Try splitting by words and check intersection
-  const staticWords = staticName.toLowerCase().split(/\s+/).filter(w => w.length > 2 && w !== "singh" && w !== "kumar");
-  found = dbPlayers.find(p => {
-    const dbWords = p.name.toLowerCase().split(/\s+/);
-    return staticWords.some(sw => dbWords.includes(sw));
-  });
-  
-  return found;
-}
-
-export default function CommunitySection() {
-  const [displayMembers, setDisplayMembers] = useState<Member[]>([]);
-  const [stats, setStats] = useState({
-    activePlayers: "–",
-    sundayGames: "–",
-    sundaysActive: "–",
-    communityLove: "∞"
-  });
-
-  useEffect(() => {
-    async function loadDynamicData() {
-      try {
-        // 1. Fetch approved and active players from Supabase
-        const { data: dbPlayers, error: playersError } = await supabase
-          .from("players")
-          .select("*")
-          .eq("approval_status", "approved")
-          .eq("is_active", true);
-
-        if (playersError) throw playersError;
-
-        // 2. Fetch total matches played from rivalry_seasons (sum across ALL seasons)
-        const { data: rivalrySeasons, error: rsError } = await supabase
-          .from("rivalry_seasons")
-          .select("total_matches_played");
-
-        // Update stats dynamically based on database counts
-        const activeCount = dbPlayers ? dbPlayers.length : 0;
-        const totalMatches = rivalrySeasons
-          ? rivalrySeasons.reduce((sum: number, s: any) => sum + (s.total_matches_played || 0), 0)
-          : 0;
-
-        setStats({
-          activePlayers: `${activeCount}+`,
-          sundayGames: `${totalMatches}+`,
-          sundaysActive: `${totalMatches}+`,
-          communityLove: "∞"
-        });
-
-        // 3. Map dynamic members pool
-        if (dbPlayers && dbPlayers.length > 0) {
-          // Sort: captains first, then vice-captains, then founding members, then alphabetical by name
-          const sortedPlayers = [...dbPlayers].sort((a, b) => {
-            const aCaptain = a.group_role === "captain" ? 1 : 0;
-            const bCaptain = b.group_role === "captain" ? 1 : 0;
-            if (aCaptain !== bCaptain) return bCaptain - aCaptain;
-
-            const aVC = a.group_role === "vice-captain" ? 1 : 0;
-            const bVC = b.group_role === "vice-captain" ? 1 : 0;
-            if (aVC !== bVC) return bVC - aVC;
-
-            const aFounder = a.member_tag === "founding-member" || a.group_role === "founding-member" ? 1 : 0;
-            const bFounder = b.member_tag === "founding-member" || b.group_role === "founding-member" ? 1 : 0;
-            if (aFounder !== bFounder) return bFounder - aFounder;
-
-            // Prioritize Rudraksh Jhalani (User) to ensure inclusion in top 8
-            const aIsRudraksh = a.name.toLowerCase().includes("rudraksh") ? 1 : 0;
-            const bIsRudraksh = b.name.toLowerCase().includes("rudraksh") ? 1 : 0;
-            if (aIsRudraksh !== bIsRudraksh) return bIsRudraksh - aIsRudraksh;
-
-            // Hard-push Naman Saini to absolute last position (below all others)
-            const aIsNaman = a.name.toLowerCase().includes("naman") ? -1 : 0;
-            const bIsNaman = b.name.toLowerCase().includes("naman") ? -1 : 0;
-            if (aIsNaman !== bIsNaman) return bIsNaman - aIsNaman;
-
-            return a.name.localeCompare(b.name);
-          });
-
-          const mapped: Member[] = sortedPlayers.slice(0, 8).map((p) => {
-            const tags: MemberTag[] = [];
-            if (p.member_tag && p.member_tag !== "member") {
-              tags.push(p.member_tag as MemberTag);
-            }
-            if (p.cricket_role) {
-              tags.push(p.cricket_role as MemberTag);
-            }
-            if (p.group_role && (p.group_role === "captain" || p.group_role === "vice-captain")) {
-              if (!tags.includes(p.group_role as MemberTag)) {
-                tags.push(p.group_role as MemberTag);
-              }
-            }
-
-            return {
-              id: p.id,
-              name: p.name,
-              initials: p.name ? p.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) : "🏏",
-              team: (p.team || "Unassigned") as Member["team"],
-              role: getDisplayRole(p.member_tag, p.group_role, p.cricket_role),
-              tags: tags,
-              image: p.image_url || p.image,
-              cricketRole: p.cricket_role as Member["cricketRole"],
-              battingStyle: p.batting_style || "Right-hand Bat",
-              bowlingStyle: p.bowling_style || "N/A",
-              shortBio: p.short_bio || p.bio || "A valued member of the circle.",
-              joinedDate: p.approved_at || p.created_at || new Date().toISOString(),
-            };
-          });
-
-          setDisplayMembers(mapped);
-        }
-      } catch (err) {
-        console.error("Error loading dynamic community section data:", err);
-      }
-    }
-
-    loadDynamicData();
-  }, []);
-
+export default function CommunitySection({ members, stats }: CommunitySectionProps) {
   return (
     <section id="community" className="py-24 sm:py-32 relative section-bg-navy overflow-hidden">
-      {/* Subtle background wash */}
       <div className="absolute inset-0 bg-gradient-to-b from-jcc-navy/50 to-transparent" />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
@@ -209,9 +73,8 @@ export default function CommunitySection() {
           </p>
         </motion.div>
 
-        {/* Member Grid — Sharp & Premium */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-6">
-          {displayMembers.map((member, i) => {
+          {members.map((member, i) => {
             const isMavericks = member.team === "Mavericks";
             const isNeuroStrikers = member.team === "NeuroStrikers";
 
@@ -278,7 +141,6 @@ export default function CommunitySection() {
           })}
         </div>
 
-        {/* Community Stats Strip — Premium Sports Dashboard Style */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}

@@ -340,6 +340,13 @@ h1, h2, h3, h4 {
 .hero-enter-d2 { animation-delay: 0.18s; }
 .hero-enter-d3 { animation-delay: 0.28s; }
 
+/* Loader progress bar — CSS-only scaleX so the animation runs on the
+   compositor thread with no JS involvement after the loader mounts. */
+@keyframes loader-progress {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hero-enter { animation: none; opacity: 1; }
 }

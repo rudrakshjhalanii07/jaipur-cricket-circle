@@ -1,64 +1,26 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { ChevronRight, Swords, Zap } from "lucide-react";
 import ScorelineCard from "@/components/ScorelineCard";
-import { fetchRivalrySeasons, RivalrySeason, fallbackRivalrySeasons } from "@/lib/rivalry";
-import { supabase } from "@/lib/supabase";
-import { getTeam, TeamId } from "@/lib/teams";
+import type { RivalrySeason } from "@/lib/rivalry";
+import type { RecentMatch } from "@/app/page";
 
-type RecentMatch = { id: string; winner: string; date: string; result: string };
+interface RivalrySectionProps {
+  activeSeason: RivalrySeason;
+  recentMatches: RecentMatch[];
+  latestMatch: RecentMatch | null;
+}
 
-export default function RivalrySection() {
-  const [activeSeason, setActiveSeason] = useState<RivalrySeason>(fallbackRivalrySeasons[0]);
-  const [recentMatches, setRecentMatches] = useState<RecentMatch[]>([]);
-  const [latestMatch, setLatestMatch] = useState<RecentMatch | null>(null);
-
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const [seasons, { data: dbMatches }] = await Promise.all([
-          fetchRivalrySeasons(),
-          supabase
-            .from("series_matches")
-            .select("id, winner_id, match_date, margin_type, margin_value, is_tie")
-            .not("winner_id", "is", null)
-            .order("match_date", { ascending: false })
-            .limit(10),
-        ]);
-
-        const active = seasons.find((s) => s.status === "active");
-        if (active) setActiveSeason(active);
-
-        if (dbMatches && dbMatches.length > 0) {
-          const mapped: RecentMatch[] = dbMatches.map((m) => ({
-            id: m.id,
-            winner: m.winner_id ? getTeam(m.winner_id as TeamId).name : "",
-            date: m.match_date ?? "",
-            result: m.is_tie
-              ? "Match tied"
-              : m.margin_value && m.margin_type
-                ? `Won by ${m.margin_value} ${m.margin_type}`
-                : "Latest result",
-          }));
-          setRecentMatches(mapped);
-          setLatestMatch(mapped[0]);
-        }
-      } catch (err) {
-        console.error("Failed to load rivalry section data:", err);
-      }
-    }
-    loadData();
-  }, []);
-
+export default function RivalrySection({
+  activeSeason,
+  recentMatches,
+  latestMatch,
+}: RivalrySectionProps) {
   return (
     <section id="rivalry" className="py-24 sm:py-32 relative overflow-hidden section-bg-navy">
-      {/* Cinematic top accent */}
       <div className="absolute top-0 left-0 right-0 h-px bg-white/10" />
-
-      {/* Structured Glow — Refined */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-px bg-gradient-to-r from-transparent via-jcc-accent to-transparent opacity-40" />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-32 bg-jcc-accent/10 blur-[100px] pointer-events-none" />
 
@@ -86,7 +48,6 @@ export default function RivalrySection() {
         </motion.div>
 
         <div className="relative">
-          {/* Central VS Badge — Tech Style */}
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             whileInView={{ opacity: 1, scale: 1 }}
@@ -109,7 +70,6 @@ export default function RivalrySection() {
           </div>
         </div>
 
-        {/* Latest Result Pill — Structured Tech */}
         {latestMatch && (
           <motion.div initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: false, amount: 0.2 }} transition={{ delay: 0.4 }} className="mt-12 flex justify-center">
             <div className="inline-flex items-center gap-4 px-6 py-3 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
@@ -126,7 +86,6 @@ export default function RivalrySection() {
           </motion.div>
         )}
 
-        {/* Timeline Refinement */}
         <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: false, amount: 0.2 }} transition={{ delay: 0.5 }} className="mt-12 flex items-center justify-center gap-3">
           {recentMatches.map((match) => (
             <div
