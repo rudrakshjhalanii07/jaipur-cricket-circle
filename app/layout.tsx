@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Fraunces, IBM_Plex_Mono } from "next/font/google";
 import localFont from "next/font/local";
+import { unstable_cache } from "next/cache";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -12,6 +13,26 @@ import LazyMotionCanvas from "@/components/LazyMotionCanvas";
 import ScrollSystem from "@/components/ScrollSystem";
 import SectionProgress from "@/components/SectionProgress";
 import DeferredStyles from "@/components/DeferredStyles";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+
+// Cached server-side fetch — same 5-min TTL as the homepage.  Avoids a live
+// Supabase query on every request while keeping the ticker data fresh.
+const getNavbarMatch = unstable_cache(
+  async () => {
+    const today = new Date().toISOString().split("T")[0];
+    const { data } = await supabaseAdmin
+      .from("matches")
+      .select("id, match_date, match_time, location_name, player_limit, status")
+      .in("status", ["open", "closed"])
+      .gte("match_date", today)
+      .order("match_date", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    return data ?? null;
+  },
+  ["navbar-match"],
+  { revalidate: 300 }
+);
 
 const inter = Inter({
   variable: "--font-inter",
@@ -62,11 +83,12 @@ export const metadata: Metadata = {
     "Jaipur Cricket Circle is a premium community cricket club. Every Sunday, we play hard, compete fiercely, and build bonds that go beyond the boundary.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const nextMatch = await getNavbarMatch();
   return (
     <html
       lang="en"
@@ -85,7 +107,7 @@ export default function RootLayout({
           <ScrollSystem>
             <LazyMotionCanvas />
             <LoaderWrapper>
-              <Navbar />
+              <Navbar nextMatch={nextMatch} />
               <main className="flex-1">
                 <PageTransition>{children}</PageTransition>
               </main>
