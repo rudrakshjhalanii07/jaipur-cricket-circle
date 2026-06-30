@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import Link from "next/link";
 import {
@@ -397,6 +398,9 @@ export default function HeroSection({ stats }: { stats: HeroStats }) {
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
+  // Cache pointer-type check — avoids calling matchMedia on every mousemove.
+  const isFinePtrRef = useRef<boolean | null>(null);
+
   // Smooth springs for lag-free cinematic feel
   const springConfig = { damping: 45, stiffness: 180, mass: 1 };
   const springX = useSpring(mouseX, springConfig);
@@ -418,14 +422,15 @@ export default function HeroSection({ stats }: { stats: HeroStats }) {
   const compRotate = useTransform(springX, [-0.5, 0.5], [-2, 2]);
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!window.matchMedia("(pointer: fine)").matches) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
-    const xVal = (e.clientX - rect.left) / width - 0.5;
-    const yVal = (e.clientY - rect.top) / height - 0.5;
-    mouseX.set(xVal);
-    mouseY.set(yVal);
+    if (isFinePtrRef.current === null) {
+      isFinePtrRef.current = window.matchMedia("(pointer: fine)").matches;
+    }
+    if (!isFinePtrRef.current) return;
+    // Use viewport-normalised coords instead of getBoundingClientRect() to
+    // avoid forcing a layout reflow on every mousemove. Equivalent for a
+    // full-width, viewport-height section.
+    mouseX.set(e.clientX / window.innerWidth - 0.5);
+    mouseY.set(e.clientY / window.innerHeight - 0.5);
   };
 
   const handleMouseLeave = () => {
@@ -624,7 +629,7 @@ export default function HeroSection({ stats }: { stats: HeroStats }) {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-jcc-green opacity-60" />
                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-jcc-green" />
                 </span>
-                <h4 className="text-white/60 font-bold text-[10px] uppercase tracking-wider">Live Stats</h4>
+                <p className="text-white/65 font-bold text-[11px] uppercase tracking-wider">Live Stats</p>
               </div>
             </div>
           </div>
@@ -642,7 +647,7 @@ export default function HeroSection({ stats }: { stats: HeroStats }) {
               >
                 <div className="text-2xl mb-2">{stat.emoji}</div>
                 <div className={`text-xl font-black ${stat.textColor}`}>{stat.value}</div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-white/40 mt-0.5">{stat.label}</div>
+                <div className="text-[11px] font-black uppercase tracking-widest text-white/60 mt-0.5">{stat.label}</div>
               </div>
             ))}
           </div>

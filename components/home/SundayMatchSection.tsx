@@ -96,7 +96,7 @@ function CountdownUnit({ value, label }: { value: number; label: string }) {
         </span>
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-jcc-accent/40 to-transparent" />
       </div>
-      <span className="text-[7.5px] sm:text-[9px] uppercase tracking-[0.15em] font-black text-white/30">{label}</span>
+      <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.15em] font-black text-white/55">{label}</span>
     </div>
   );
 }
@@ -109,7 +109,7 @@ function TeamBadge({ name, color, accent }: { name: string; color: string; accen
       </div>
       <div className="text-center">
         <p className="text-white font-black text-xs sm:text-base uppercase tracking-wide leading-tight">{name}</p>
-        <p className="text-[8px] sm:text-[10px] uppercase tracking-widest text-white/30 font-bold mt-0.5">JCC Season 2026</p>
+        <p className="text-[9px] sm:text-[10px] uppercase tracking-widest text-white/55 font-bold mt-0.5">JCC Season 2026</p>
       </div>
     </div>
   );
@@ -175,7 +175,7 @@ export default function SundayMatchSection({
                     <div className="flex-1 min-w-0">
                       <div className={`text-2xl font-black ${item.textColor} leading-none`}>{item.value}</div>
                       <div className="text-[11px] font-black uppercase tracking-widest text-white/70 mt-0.5">{item.label}</div>
-                      <div className="text-[10px] text-white/40 font-medium mt-0.5">{item.sub}</div>
+                      <div className="text-[10px] text-white/60 font-medium mt-0.5">{item.sub}</div>
                     </div>
                   </div>
                 ))}
@@ -267,7 +267,7 @@ export default function SundayMatchSection({
                             {isFull ? "Match Full" : "Registration Open"}
                           </span>
                         )}
-                        <span className="text-[10px] uppercase tracking-widest text-white/20 font-black">Main Series</span>
+                        <span className="text-[10px] uppercase tracking-widest text-white/50 font-black">Main Series</span>
                       </div>
                       <h3 className="text-xl sm:text-3xl font-black text-white uppercase tracking-tight">
                         Next Sunday Match
@@ -285,7 +285,7 @@ export default function SundayMatchSection({
                       <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-jcc-accent/20 to-jcc-green/20 border border-white/10 flex items-center justify-center">
                         <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-jcc-accent" />
                       </div>
-                      <span className="text-[10px] sm:text-xs font-black text-white/30 uppercase tracking-widest">vs</span>
+                      <span className="text-[10px] sm:text-xs font-black text-white/55 uppercase tracking-widest">vs</span>
                     </div>
                     <TeamBadge name="Neuro Strikers" color="border-jcc-green/20" accent="bg-jcc-green/20" />
                   </div>
@@ -295,21 +295,21 @@ export default function SundayMatchSection({
                     <div className="col-span-2 sm:col-span-1 flex items-center gap-2 sm:gap-3 px-2.5 py-2 sm:px-4 sm:py-3 rounded-xl bg-white/5 border border-white/[0.07] flex-1 hover:bg-white/[0.08] transition-colors">
                       <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-jcc-accent flex-shrink-0" />
                       <div>
-                        <p className="text-[9px] sm:text-[10px] uppercase tracking-widest font-black text-white/30">Venue</p>
+                        <p className="text-[9px] sm:text-[10px] uppercase tracking-widest font-black text-white/55">Venue</p>
                         <p className="text-xs sm:text-sm font-bold text-white leading-tight uppercase mt-0.5">{match.location_name}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 sm:gap-3 px-2.5 py-2 sm:px-4 sm:py-3 rounded-xl bg-white/5 border border-white/[0.07] flex-1 hover:bg-white/[0.08] transition-colors">
                       <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-jcc-accent flex-shrink-0" />
                       <div>
-                        <p className="text-[9px] sm:text-[10px] uppercase tracking-widest font-black text-white/30">Reporting Time</p>
+                        <p className="text-[9px] sm:text-[10px] uppercase tracking-widest font-black text-white/55">Reporting Time</p>
                         <p className="text-xs sm:text-sm font-bold text-white uppercase mt-0.5">{match.match_time}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 sm:gap-3 px-2.5 py-2 sm:px-4 sm:py-3 rounded-xl bg-white/5 border border-white/[0.07] flex-1 hover:bg-white/[0.08] transition-colors">
                       <CalendarCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-jcc-accent flex-shrink-0" />
                       <div>
-                        <p className="text-[9px] sm:text-[10px] uppercase tracking-widest font-black text-white/30">Date</p>
+                        <p className="text-[9px] sm:text-[10px] uppercase tracking-widest font-black text-white/55">Date</p>
                         <p className="text-xs sm:text-sm font-bold text-white mt-0.5">
                           {new Date(match.match_date).toLocaleDateString("en-IN", {
                             day: "numeric", month: "short", year: "numeric",
@@ -321,16 +321,16 @@ export default function SundayMatchSection({
 
                   {/* Countdown */}
                   <div className="mb-3.5 sm:mb-6 md:mb-8">
-                    <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.3em] font-black text-white/30 mb-2">
+                    <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.3em] font-black text-white/55 mb-2">
                       Countdown to Match Day
                     </p>
                     <div className="flex items-start gap-2 sm:gap-3">
                       <CountdownUnit value={countdown.days} label="Days" />
-                      <span className="text-lg sm:text-2xl font-black text-white/20 h-11 sm:h-16 flex items-center">:</span>
+                      <span className="text-lg sm:text-2xl font-black text-white/40 h-11 sm:h-16 flex items-center">:</span>
                       <CountdownUnit value={countdown.hours} label="Hrs" />
-                      <span className="text-lg sm:text-2xl font-black text-white/20 h-11 sm:h-16 flex items-center">:</span>
+                      <span className="text-lg sm:text-2xl font-black text-white/40 h-11 sm:h-16 flex items-center">:</span>
                       <CountdownUnit value={countdown.minutes} label="Min" />
-                      <span className="text-lg sm:text-2xl font-black text-white/20 h-11 sm:h-16 flex items-center">:</span>
+                      <span className="text-lg sm:text-2xl font-black text-white/40 h-11 sm:h-16 flex items-center">:</span>
                       <CountdownUnit value={countdown.seconds} label="Sec" />
                     </div>
                   </div>
@@ -338,7 +338,7 @@ export default function SundayMatchSection({
                   {/* Registration progress */}
                   <div className="mb-3.5 sm:mb-6 md:mb-8">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="flex items-center gap-2 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-white/40">
+                      <span className="flex items-center gap-2 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-white/60">
                         <Users className="w-3.5 h-3.5" />
                         {isClosed ? "Registration Closed" : "Registration"}
                       </span>
@@ -352,7 +352,7 @@ export default function SundayMatchSection({
                         )}
                         <span className="text-sm font-black text-white">
                           {confirmedCount}
-                          <span className="text-white/30">/{finalPlayerLimit}</span>
+                          <span className="text-white/55">/{finalPlayerLimit}</span>
                         </span>
                       </div>
                     </div>
@@ -390,7 +390,7 @@ export default function SundayMatchSection({
                           </div>
                         )}
                       </div>
-                      <span className="ml-2.5 text-[10px] sm:text-[11px] text-white/30 font-black uppercase tracking-widest">registered</span>
+                      <span className="ml-2.5 text-[10px] sm:text-[11px] text-white/55 font-black uppercase tracking-widest">registered</span>
                     </div>
                   </div>
 
@@ -432,7 +432,7 @@ export default function SundayMatchSection({
                   <div className="flex-1 min-w-0">
                     <div className={`text-2xl font-black ${item.textColor} leading-none`}>{item.value}</div>
                     <div className="text-[11px] font-black uppercase tracking-widest text-white/70 mt-0.5">{item.label}</div>
-                    <div className="text-[10px] text-white/25 font-medium mt-0.5">{item.sub}</div>
+                    <div className="text-[10px] text-white/55 font-medium mt-0.5">{item.sub}</div>
                   </div>
                 </motion.div>
               ))}

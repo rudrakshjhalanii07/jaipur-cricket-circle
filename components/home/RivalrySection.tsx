@@ -31,7 +31,7 @@ export default function RivalrySection({
           <h2 className="text-3xl min-[380px]:text-4xl sm:text-6xl lg:text-7xl font-black text-white tracking-tighter mt-6 uppercase italic leading-tight">
             Mavericks vs <span className="text-gradient-cyan">NeuroStrikers</span>
           </h2>
-          <p className="mt-4 text-white/50 text-[11px] uppercase tracking-widest font-black">
+          <p className="mt-4 text-white/65 text-[12px] uppercase tracking-widest font-black">
             {activeSeason.title} — Cap: {activeSeason.mavericks_captain} vs {activeSeason.neurostrikers_captain}
           </p>
           <p className="mt-6 text-white/70 text-xl max-w-2xl mx-auto font-medium leading-relaxed">

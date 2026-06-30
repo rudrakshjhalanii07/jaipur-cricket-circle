@@ -25,7 +25,7 @@ export default function Footer() {
                 <div className="text-[14px] font-black text-white tracking-[0.2em] uppercase font-[var(--font-heading)] leading-tight">
                   Jaipur Cricket Circle
                 </div>
-                <div className="text-[9px] text-white/30 tracking-[0.5em] uppercase font-black mt-1">
+                <div className="text-[11px] text-white/60 tracking-[0.5em] uppercase font-black mt-1">
                   Established 2026
                 </div>
               </div>
@@ -38,7 +38,7 @@ export default function Footer() {
 
           {/* Quick Links */}
           <div className="space-y-8">
-            <h3 className="text-[12px] font-black text-white uppercase tracking-[0.3em] opacity-50">
+            <h3 className="text-[12px] font-black text-white/65 uppercase tracking-[0.3em]">
               Quick Links
             </h3>
             <ul className="space-y-4">
@@ -46,7 +46,7 @@ export default function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-[13px] text-white/50 hover:text-jcc-accent transition-all duration-300 font-black uppercase tracking-[0.15em] hover:tracking-[0.2em]"
+                    className="text-[13px] text-white/70 hover:text-jcc-accent transition-all duration-300 font-black uppercase tracking-[0.15em] hover:tracking-[0.2em]"
                   >
                     {link.label}
                   </Link>
@@ -57,7 +57,7 @@ export default function Footer() {
 
           {/* Connect */}
           <div className="space-y-8">
-            <h3 className="text-[12px] font-black text-white uppercase tracking-[0.3em] opacity-50">
+            <h3 className="text-[12px] font-black text-white/65 uppercase tracking-[0.3em]">
               Connect
             </h3>
             <div className="space-y-4">
@@ -65,7 +65,7 @@ export default function Footer() {
                 href="https://chat.whatsapp.com/LtuFpx2EcKO4E5yZWP8aue?mode=gi_t"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-4 text-[13px] text-white/50 hover:text-[#25D366] transition-all duration-300 font-black uppercase tracking-[0.15em] hover:tracking-[0.2em] group/wa"
+                className="flex items-center gap-4 text-[13px] text-white/70 hover:text-[#25D366] transition-all duration-300 font-black uppercase tracking-[0.15em] hover:tracking-[0.2em] group/wa"
               >
                 <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 group-hover/wa:border-[#25D366]/40 transition-colors">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -80,11 +80,11 @@ export default function Footer() {
 
         <div className="mt-14 pt-10 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-6">
-            <p className="text-[11px] text-white/40 font-bold uppercase tracking-widest">
+            <p className="text-[12px] text-white/60 font-bold uppercase tracking-widest">
               &copy; {new Date().getFullYear()} Jaipur Cricket Circle.
             </p>
           </div>
-          <p className="text-[11px] text-white/40 font-black uppercase tracking-[0.2em]">
+          <p className="text-[12px] text-white/60 font-black uppercase tracking-[0.2em]">
             Where Sundays Hit Different 🏏
           </p>
         </div>

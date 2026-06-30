@@ -21,12 +21,11 @@
     "remark-gfm": "^4.0.1"
   },
   "browserslist": [
-    "chrome >= 93",
-    "firefox >= 92",
-    "safari >= 15",
-    "edge >= 93",
-    "samsung >= 16",
-    "not dead"
+    "last 2 Chrome versions",
+    "last 2 Firefox versions",
+    "last 2 Safari versions",
+    "last 2 Edge versions",
+    "last 2 Samsung versions"
   ],
   "devDependencies": {
     "@next/bundle-analyzer": "^16.2.9",

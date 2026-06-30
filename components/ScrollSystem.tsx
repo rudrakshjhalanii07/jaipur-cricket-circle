@@ -41,10 +41,23 @@ export default function ScrollSystem({ children }: { children: React.ReactNode }
   const ignoreUntilRef = useRef(0);
   const touchStartYRef = useRef(0);
   const pathnameRef = useRef(pathname);
+  const scrollHeightRef = useRef(0);
 
   useEffect(() => {
     pathnameRef.current = pathname;
   }, [pathname]);
+
+  // Cache document height via ResizeObserver so wheel handler never forces a
+  // layout reflow by reading scrollHeight on the hot path.
+  useEffect(() => {
+    const update = () => {
+      scrollHeightRef.current = document.documentElement.scrollHeight;
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(document.documentElement);
+    return () => ro.disconnect();
+  }, []);
 
   // Reset state on every route change
   useEffect(() => {
@@ -78,7 +91,7 @@ export default function ScrollSystem({ children }: { children: React.ReactNode }
       if (delta > 0) {
         const atBottom =
           window.scrollY + window.innerHeight >=
-          document.documentElement.scrollHeight - BOTTOM_THRESHOLD;
+          scrollHeightRef.current - BOTTOM_THRESHOLD;
         if (!atBottom) return;
       }
 

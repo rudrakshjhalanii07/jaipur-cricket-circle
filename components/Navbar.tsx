@@ -46,14 +46,14 @@ export default function Navbar({ nextMatch }: { nextMatch: TickerMatch | null })
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-black text-white tracking-wider uppercase" style={{ fontFamily: "var(--font-wordmark)" }}>Jaipur Cricket Circle</span>
-              <span className="text-[8px] text-white/50 tracking-[0.25em] uppercase leading-none font-bold">Est. 2026</span>
+              <span className="text-[10px] text-white/65 tracking-[0.25em] uppercase leading-none font-bold">Est. 2026</span>
             </div>
           </Link>
           <div className="hidden md:flex items-center gap-0.5">
             {navLinks.map((link) => {
               const isActive = pathname === link.href;
               return (
-                <Link key={link.href} href={link.href} className={`relative px-5 py-2.5 text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-300 rounded-xl group ${isActive ? "text-jcc-accent" : "text-white/40 hover:text-white"}`}>
+                <Link key={link.href} href={link.href} className={`relative px-5 py-2.5 text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-300 rounded-xl group ${isActive ? "text-jcc-accent" : "text-white/60 hover:text-white"}`}>
                   <span className="relative z-10">{link.label}</span>
                   {isActive && (
                     <motion.span 
