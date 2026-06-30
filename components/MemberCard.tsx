@@ -116,11 +116,13 @@ export default function MemberCard({
   index,
   playerStats,
   onClick,
+  priority = false,
 }: {
   member: Member;
   index: number;
   playerStats?: PlayerStats;
   onClick?: () => void;
+  priority?: boolean;
 }) {
   const isDark = useIsDarkMode();
   const [photoError, setPhotoError] = useState(false);
@@ -161,13 +163,7 @@ export default function MemberCard({
   const primaryTag = statusTags[0] ?? member.tags[0];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.55, delay: index * 0.05, ease: [0.16, 1, 0.3, 1] }}
-      whileHover={{ y: -6, transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] } }}
-      className="group h-full max-w-[310px] sm:max-w-none mx-auto w-full"
-    >
+    <div className="group h-full max-w-77.5 sm:max-w-none mx-auto w-full transition-transform duration-300 ease-out hover:-translate-y-1.5 will-change-transform">
       <div
         onClick={onClick}
         className="relative rounded-xl sm:rounded-2xl border overflow-hidden h-full transition-all duration-300 cursor-pointer select-none"
@@ -250,7 +246,8 @@ export default function MemberCard({
                 alt={member.name}
                 width={96}
                 height={96}
-                loading={index < 6 ? "eager" : "lazy"}
+                priority={priority}
+                loading={priority ? undefined : index < 6 ? "eager" : "lazy"}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 onError={() => setPhotoError(true)}
               />
@@ -259,6 +256,9 @@ export default function MemberCard({
               <img
                 src={diceBearUrl}
                 alt={member.name}
+                loading={priority || index < 6 ? "eager" : "lazy"}
+                // eslint-disable-next-line react/no-unknown-property
+                fetchPriority={priority ? "high" : undefined}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
             )}
@@ -359,6 +359,6 @@ export default function MemberCard({
           style={{ background: `linear-gradient(to right, transparent, ${cfg.primary}, transparent)` }}
         />
       </div>
-    </motion.div>
+    </div>
   );
 }
