@@ -1,18 +1,12 @@
-"use client";
-
-import { motion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import { Newspaper, ChevronRight, Clock, Zap, Radio } from "lucide-react";
+import { AnimateIn } from "@/components/AnimateIn";
 import type { ArticleData } from "@/app/page";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-// Local alias using the exported ArticleData shape from page.tsx
 type Article = ArticleData;
 
-// ─── Live Ticker (pure renderer, no data fetching) ────────────────────────────
-
+// ─── Live Ticker (pure CSS scroll animation, no client JS) ───────────────────
 function LiveTicker({ items }: { items: string[] }) {
   const doubled = [...items, ...items];
   return (
@@ -22,17 +16,12 @@ function LiveTicker({ items }: { items: string[] }) {
     >
       <div className="flex items-center" style={{ minHeight: "36px" }}>
         <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-white/[0.05] border-r border-white/10 z-10">
-          <span className="text-[9px] font-black uppercase tracking-[0.25em] text-jcc-accent">
-            LATEST ISSUE
-          </span>
+          <span className="text-[9px] font-black uppercase tracking-[0.25em] text-jcc-accent">LATEST ISSUE</span>
         </div>
         <div className="flex-1 overflow-hidden relative">
           <div className="animate-ticker-scroll whitespace-nowrap">
             {doubled.map((item, i) => (
-              <span
-                key={i}
-                className="inline-flex items-center gap-2 px-8 text-[11px] font-black text-white/60 uppercase tracking-wide"
-              >
+              <span key={i} className="inline-flex items-center gap-2 px-8 text-[11px] font-black text-white/60 uppercase tracking-wide">
                 {item}
                 <span className="inline-block w-px h-3 bg-white/15 mx-2" />
               </span>
@@ -45,7 +34,6 @@ function LiveTicker({ items }: { items: string[] }) {
 }
 
 // ─── Category badge ───────────────────────────────────────────────────────────
-
 const CATEGORY_STYLE: Record<string, { bg: string; text: string; dot: string }> = {
   "Match Report": { bg: "bg-jcc-accent/15 border-jcc-accent/30", text: "text-jcc-accent", dot: "bg-jcc-accent" },
   Analysis: { bg: "bg-jcc-green/15 border-jcc-green/30", text: "text-jcc-green", dot: "bg-jcc-green" },
@@ -65,18 +53,11 @@ function CategoryBadge({ category }: { category: string }) {
   );
 }
 
-// ─── Feature card (breaking news, large) ─────────────────────────────────────
-
+// ─── Feature card ─────────────────────────────────────────────────────────────
 function FeatureCard({ article }: { article: Article }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: false, amount: 0.2 }}
-      transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
-      className="group"
-    >
-      <Link href={`/chewvana-times/${article.slug}`} className="block">
+    <AnimateIn>
+      <Link href={`/chewvana-times/${article.slug}`} className="block group">
         <div
           className="relative rounded-2xl overflow-hidden border border-jcc-ball-red/20 animate-border-pulse hover:border-jcc-ball-red/50 transition-all duration-500"
           style={{ background: "linear-gradient(160deg, #1a0a0a 0%, #07111F 100%)" }}
@@ -91,7 +72,7 @@ function FeatureCard({ article }: { article: Article }) {
                 sizes="(max-width: 768px) 100vw, 50vw"
                 className="object-cover group-hover:scale-105 transition-transform duration-700"
               />
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent md:from-transparent to-transparent md:to-[#07111F]" />
+              <div className="absolute inset-0 bg-linear-to-r from-transparent md:from-transparent to-transparent md:to-[#07111F]" />
               <div className="absolute top-4 left-4 flex items-center gap-2">
                 <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg animate-breaking-flash text-white text-[9px] font-black uppercase tracking-widest shadow-lg">
                   <Radio className="w-3 h-3" />
@@ -134,22 +115,15 @@ function FeatureCard({ article }: { article: Article }) {
           </div>
         </div>
       </Link>
-    </motion.div>
+    </AnimateIn>
   );
 }
 
-// ─── Editorial card (smaller) ─────────────────────────────────────────────────
-
+// ─── Editorial card ───────────────────────────────────────────────────────────
 function EditorialCard({ article, index }: { article: Article; index: number }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: false, amount: 0.2 }}
-      transition={{ duration: 0.55, delay: index * 0.1, ease: [0.16, 1, 0.3, 1] }}
-      className="group h-full"
-    >
-      <Link href={`/chewvana-times/${article.slug}`} className="block h-full">
+    <AnimateIn delay={index * 100}>
+      <Link href={`/chewvana-times/${article.slug}`} className="block h-full group">
         <div
           className="relative rounded-2xl overflow-hidden border border-white/[0.07] h-full flex flex-col hover:border-jcc-accent/30 transition-all duration-400 card-shimmer"
           style={{ background: "linear-gradient(160deg, #0C1E30 0%, #07111F 100%)" }}
@@ -162,7 +136,7 @@ function EditorialCard({ article, index }: { article: Article; index: number }) 
               sizes="(max-width: 768px) 100vw, 50vw"
               className="object-cover group-hover:scale-105 transition-transform duration-700"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#07111F] via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-[#07111F] via-transparent to-transparent" />
             <div className="absolute top-3 left-3">
               <CategoryBadge category={article.category} />
             </div>
@@ -186,15 +160,14 @@ function EditorialCard({ article, index }: { article: Article; index: number }) 
               <Zap className="w-4 h-4 text-jcc-gold opacity-0 group-hover:opacity-60 transition-opacity" />
             </div>
           </div>
-          <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-jcc-accent via-jcc-green to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-linear-to-r from-jcc-accent via-jcc-green to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         </div>
       </Link>
-    </motion.div>
+    </AnimateIn>
   );
 }
 
 // ─── Main section ─────────────────────────────────────────────────────────────
-
 interface ChewvanaTimesSectionProps {
   articles: Article[];
   tickerItems: string[];
@@ -209,27 +182,18 @@ export default function ChewvanaTimesSection({ articles, tickerItems }: Chewvana
       className="theme-static-dark relative overflow-hidden"
       style={{ background: "linear-gradient(180deg, #07111F 0%, #0C1E30 50%, #07111F 100%)" }}
     >
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+      <div className="absolute top-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-white/10 to-transparent" />
 
-      {/* Newsroom masthead */}
       <div className="relative z-10 pt-20 pb-0">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: false, amount: 0.3 }}
-            transition={{ duration: 0.6 }}
-            className="mb-8"
-          >
+          <AnimateIn className="mb-8">
             <div className="flex items-center gap-4 mb-4">
               <div className="flex items-center gap-2.5">
                 <Newspaper className="w-4 h-4 text-jcc-accent" />
                 <span className="text-[10px] font-black uppercase tracking-[0.5em] text-jcc-accent">The Circle Journal</span>
               </div>
               <span className="w-px h-4 bg-white/15" />
-              <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/40">
-                UPDATED MONDAYS
-              </span>
+              <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/40">UPDATED MONDAYS</span>
             </div>
             <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white tracking-tighter uppercase italic leading-none mb-4">
               Chewvana <span className="text-gradient-cyan">Times</span>
@@ -237,13 +201,11 @@ export default function ChewvanaTimesSection({ articles, tickerItems }: Chewvana
             <p className="text-white/40 text-base font-medium max-w-2xl leading-relaxed">
               Unfiltered match reports, tactical dispatches, and editorial investigations from inside the circle.
             </p>
-          </motion.div>
+          </AnimateIn>
         </div>
-
         <LiveTicker items={tickerItems} />
       </div>
 
-      {/* Articles grid */}
       <div className="relative z-10 pt-10 pb-20 sm:pb-28">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 space-y-6">
           {articles.length > 0 ? (
@@ -262,19 +224,11 @@ export default function ChewvanaTimesSection({ articles, tickerItems }: Chewvana
               className="text-center py-24 rounded-2xl border border-white/[0.06]"
               style={{ background: "linear-gradient(160deg, #0C1E30 0%, #07111F 100%)" }}
             >
-              <p className="text-white/25 font-black uppercase tracking-[0.2em] text-sm">
-                No dispatches in the archive yet.
-              </p>
+              <p className="text-white/25 font-black uppercase tracking-[0.2em] text-sm">No dispatches in the archive yet.</p>
             </div>
           )}
 
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: false, amount: 0.5 }}
-            transition={{ duration: 0.5 }}
-            className="flex justify-center pt-4"
-          >
+          <AnimateIn delay={200} className="flex justify-center pt-4">
             <Link
               href="/chewvana-times"
               className="group inline-flex items-center gap-3 px-8 py-4 rounded-xl border border-white/10 bg-white/[0.03] text-white font-black text-[12px] hover:bg-white/[0.07] hover:border-jcc-accent/40 hover:text-jcc-accent transition-all duration-400 uppercase tracking-widest"
@@ -283,11 +237,11 @@ export default function ChewvanaTimesSection({ articles, tickerItems }: Chewvana
               EXPLORE THE ARCHIVE
               <ChevronRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
             </Link>
-          </motion.div>
+          </AnimateIn>
         </div>
       </div>
 
-      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+      <div className="absolute bottom-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-white/10 to-transparent" />
     </section>
   );
 }

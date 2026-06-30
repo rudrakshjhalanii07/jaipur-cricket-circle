@@ -1,22 +1,13 @@
-"use client";
-
-// This Client Component wrapper exists solely so that next/dynamic() code
-// splitting works correctly.  The Next.js docs explicitly note that dynamic()
-// imports of Client Components are only code-split when called from within a
-// Client Component — not from a Server Component.  All data arrives as
-// serialised props from the Server Component in app/page.tsx.
-
-import dynamic from "next/dynamic";
+// Server Component — all below-fold sections are Server Components and carry
+// zero client JS themselves. Only their small client islands (AnimateIn,
+// MemberPhoto, ScorelineCard) are downloaded by the browser.
+import RivalrySection from "./RivalrySection";
+import CommunitySection from "./CommunitySection";
+import ChewvanaTimesSection from "./ChewvanaTimesSection";
+import WhyJCCSection from "./WhyJCCSection";
+import FinalCTASection from "./FinalCTASection";
 import type { CommunityMember, ArticleData, RecentMatch } from "@/app/page";
 import type { RivalrySeason } from "@/lib/rivalry";
-
-// Each of these creates its own webpack chunk, downloaded in parallel but
-// parsed/executed only when the browser reaches the component.
-const RivalrySection = dynamic(() => import("./RivalrySection"));
-const CommunitySection = dynamic(() => import("./CommunitySection"));
-const ChewvanaTimesSection = dynamic(() => import("./ChewvanaTimesSection"));
-const WhyJCCSection = dynamic(() => import("./WhyJCCSection"));
-const FinalCTASection = dynamic(() => import("./FinalCTASection"));
 
 interface HomepageBelowFoldProps {
   rivalry: {

@@ -1,9 +1,7 @@
-"use client";
-
-import { motion } from "framer-motion";
 import Link from "next/link";
 import { ChevronRight, Swords, Zap } from "lucide-react";
 import ScorelineCard from "@/components/ScorelineCard";
+import { AnimateIn } from "@/components/AnimateIn";
 import type { RivalrySeason } from "@/lib/rivalry";
 import type { RecentMatch } from "@/app/page";
 
@@ -21,17 +19,11 @@ export default function RivalrySection({
   return (
     <section id="rivalry" className="py-24 sm:py-32 relative overflow-hidden section-bg-navy">
       <div className="absolute top-0 left-0 right-0 h-px bg-white/10" />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-px bg-gradient-to-r from-transparent via-jcc-accent to-transparent opacity-40" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-px bg-linear-to-r from-transparent via-jcc-accent to-transparent opacity-40" />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-32 bg-jcc-accent/10 blur-[100px] pointer-events-none" />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-16"
-        >
+        <AnimateIn className="text-center mb-16">
           <span className="inline-flex items-center gap-2.5 text-[11px] uppercase tracking-[0.5em] text-jcc-accent font-black">
             <Zap className="w-5 h-5 animate-pulse" />
             ACTIVE CAPTAIN RIVALRY
@@ -45,33 +37,35 @@ export default function RivalrySection({
           <p className="mt-6 text-white/70 text-xl max-w-2xl mx-auto font-medium leading-relaxed">
             Every new captain pairing writes its own chapter. Two teams, one circle, pure tactical drama.
           </p>
-        </motion.div>
+        </AnimateIn>
 
         <div className="relative">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: false, amount: 0.2 }}
-            transition={{ delay: 0.2 }}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 hidden lg:flex"
-          >
+          {/* VS badge — purely decorative, CSS positioned */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 hidden lg:flex">
             <div className="w-16 h-16 rounded-full bg-jcc-navy-deep border-2 border-jcc-accent/30 shadow-[0_0_30px_rgba(0,194,255,0.2)] flex items-center justify-center">
               <Swords className="w-7 h-7 text-jcc-accent" />
             </div>
-          </motion.div>
+          </div>
 
+          {/* ScorelineCard is a Client Component — handles its own animated count-up */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: false, amount: 0.2 }} transition={{ duration: 0.6 }}>
-              <ScorelineCard label="Main Series Score" team1="Mavericks" team1Score={activeSeason.mavericks_main_wins} team1Color="text-jcc-accent" team2="NeuroStrikers" team2Score={activeSeason.neurostrikers_main_wins} team2Color="text-jcc-ball-red" isDark={true} />
-            </motion.div>
-            <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: false, amount: 0.2 }} transition={{ duration: 0.6 }}>
-              <ScorelineCard label="Exhibition Series Score" team1="Mavericks" team1Score={activeSeason.mavericks_exhibition_wins} team1Color="text-jcc-accent" team2="NeuroStrikers" team2Score={activeSeason.neurostrikers_exhibition_wins} team2Color="text-jcc-ball-red" isDark={true} />
-            </motion.div>
+            <ScorelineCard
+              label="Main Series Score"
+              team1="Mavericks" team1Score={activeSeason.mavericks_main_wins} team1Color="text-jcc-accent"
+              team2="NeuroStrikers" team2Score={activeSeason.neurostrikers_main_wins} team2Color="text-jcc-ball-red"
+              isDark={true}
+            />
+            <ScorelineCard
+              label="Exhibition Series Score"
+              team1="Mavericks" team1Score={activeSeason.mavericks_exhibition_wins} team1Color="text-jcc-accent"
+              team2="NeuroStrikers" team2Score={activeSeason.neurostrikers_exhibition_wins} team2Color="text-jcc-ball-red"
+              isDark={true}
+            />
           </div>
         </div>
 
         {latestMatch && (
-          <motion.div initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: false, amount: 0.2 }} transition={{ delay: 0.4 }} className="mt-12 flex justify-center">
+          <AnimateIn delay={400} className="mt-12 flex justify-center">
             <div className="inline-flex items-center gap-4 px-6 py-3 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-jcc-accent">Latest Match</span>
               <div className="w-px h-4 bg-white/20" />
@@ -83,10 +77,10 @@ export default function RivalrySection({
                 {latestMatch.winner} WON
               </span>
             </div>
-          </motion.div>
+          </AnimateIn>
         )}
 
-        <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: false, amount: 0.2 }} transition={{ delay: 0.5 }} className="mt-12 flex items-center justify-center gap-3">
+        <AnimateIn delay={500} className="mt-12 flex items-center justify-center gap-3">
           {recentMatches.map((match) => (
             <div
               key={match.id}
@@ -98,7 +92,7 @@ export default function RivalrySection({
               title={`${match.date}: ${match.result}`}
             />
           ))}
-        </motion.div>
+        </AnimateIn>
 
         <div className="text-center mt-12">
           <Link href="/rivalry" className="group inline-flex items-center gap-2 px-8 py-4 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md text-white font-black text-[13px] hover:bg-white/10 hover:border-jcc-accent/50 transition-all duration-300">

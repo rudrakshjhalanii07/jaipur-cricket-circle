@@ -350,3 +350,23 @@ h1, h2, h3, h4 {
 @media (prefers-reduced-motion: reduce) {
   .hero-enter { animation: none; opacity: 1; }
 }
+
+/* ── Scroll-triggered fade-in (Server Component sections) ──────────────────
+   AnimateIn client island adds .anim-visible via IntersectionObserver.
+   No framer-motion needed for simple whileInView patterns.
+   ──────────────────────────────────────────────────────────────────────── */
+.anim-fade-up {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.anim-from-left  { transform: translateX(-20px); }
+.anim-from-right { transform: translateX(20px); }
+.anim-scale-in   { transform: scale(0.97); }
+.anim-visible {
+  opacity: 1 !important;
+  transform: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .anim-fade-up { opacity: 1; transform: none; transition: none; }
+}
