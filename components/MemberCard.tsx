@@ -247,7 +247,7 @@ export default function MemberCard({
                 width={96}
                 height={96}
                 priority={priority}
-                loading={priority ? undefined : index < 6 ? "eager" : "lazy"}
+                loading={priority ? undefined : "lazy"}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 onError={() => setPhotoError(true)}
               />
@@ -256,7 +256,7 @@ export default function MemberCard({
               <img
                 src={diceBearUrl}
                 alt={member.name}
-                loading={priority || index < 6 ? "eager" : "lazy"}
+                loading={priority ? "eager" : "lazy"}
                 // eslint-disable-next-line react/no-unknown-property
                 fetchPriority={priority ? "high" : undefined}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
