@@ -381,6 +381,7 @@ export default function MembersClient({ members }: { members: Member[] }) {
           title="The Circle"
           subtitle="Meet the legends who define Sunday cricket in Jaipur."
           accentColor="blue"
+          priority
         />
 
         {/* Search Bar */}
