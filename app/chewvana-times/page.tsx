@@ -232,11 +232,7 @@ export default function ChewvanaTimesPage() {
         <NewsTicker />
 
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          >
+          <div>
             {/* Eyebrow */}
             <div className="flex items-center gap-3 mb-5">
               <div className="flex items-center gap-2">
@@ -266,7 +262,7 @@ export default function ChewvanaTimesPage() {
             <p className="text-white/40 text-base font-medium max-w-xl leading-relaxed">
               Match dispatches, tactical analysis, origin stories and everything that happens inside the circle — published every Monday.
             </p>
-          </motion.div>
+          </div>
         </div>
       </div>
 

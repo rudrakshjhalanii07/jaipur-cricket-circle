@@ -125,12 +125,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
         </motion.div>
 
         {/* Hero Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="mb-16"
-        >
+        <div className="mb-16">
           <div className="flex items-center gap-3 mb-6">
             <span className="px-3 py-1 bg-purple-500/10 text-purple-400 text-[10px] font-black uppercase tracking-widest rounded-sm border border-purple-500/20">
               {post.category}
@@ -170,7 +165,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
               </p>
             </div>
           </div>
-        </motion.div>
+        </div>
 
         {/* Investigative Blocks (ONLY for DB articles) */}
         {post.isDb && (

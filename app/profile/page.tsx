@@ -586,6 +586,7 @@ export default function ProfilePage() {
               : "Login with your registered number, or sign up to request JCC membership."
           }
           accentColor="blue"
+          priority
         />
 
         {/* Dynamic Alerts Banner */}

@@ -202,14 +202,9 @@ export default function AboutPage() {
             </span>
           </motion.div>
 
-          <motion.h1
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.08 }}
-            className="text-4xl sm:text-5xl lg:text-6xl font-black text-white font-[var(--font-heading)] uppercase tracking-tight leading-none mb-4"
-          >
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white font-[var(--font-heading)] uppercase tracking-tight leading-none mb-4">
             Jaipur Cricket Circle
-          </motion.h1>
+          </h1>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

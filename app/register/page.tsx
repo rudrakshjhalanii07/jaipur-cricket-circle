@@ -572,6 +572,7 @@ export default function RegisterPage() {
             title="Sunday Registration"
             subtitle="No match is currently scheduled."
             accentColor="blue"
+            priority
           />
           <div className="premium-card p-12 max-w-md mx-auto mt-8">
             <CalendarCheck className="w-12 h-12 text-white/10 mx-auto mb-4" />
@@ -666,6 +667,7 @@ export default function RegisterPage() {
           title="Sunday Registration"
           subtitle="Reserve your spot for this week's high-stakes encounter."
           accentColor="turf"
+          priority
         />
 
         {/* ENLARGED MATCH DETAILS BOX (FULL WIDTH DASHBOARD) */}

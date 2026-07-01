@@ -1201,12 +1201,7 @@ export default function RivalryPageClient({
       <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
 
         {/* ── Header ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="mb-12 text-center sm:text-left"
-        >
+        <div className="mb-12 text-center sm:text-left">
           <div className="flex items-center justify-center sm:justify-start gap-2 mb-4">
             <span className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.45em] text-jcc-ball-red font-black">
               <span className="relative flex h-2 w-2">
@@ -1222,18 +1217,12 @@ export default function RivalryPageClient({
           <p className="mt-4 text-white/60 text-lg font-black tracking-tight max-w-xl">
             "Every new captain pairing writes its own chapter."
           </p>
-        </motion.div>
+        </div>
 
         {/* ── Active Captain Scoreboard ── */}
         <div className="mb-16">
           {liveActiveSeason ? (
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7 }}
-            >
-              <ActiveScoreboard season={liveActiveSeason} />
-            </motion.div>
+            <ActiveScoreboard season={liveActiveSeason} />
           ) : (
             <div className="p-8 text-center text-white/40 border border-white/10 rounded-2xl bg-white/[0.02]">
               No active captain rivalry season found.
