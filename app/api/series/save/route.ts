@@ -197,7 +197,7 @@ export async function POST(request: Request) {
             team_id: inn.batting_team_id,
             player_name: b.player_name,
             batting_order: b.batting_order ?? idx + 1,
-            runs: b.runs,
+            runs: b.runs ?? 0,
             balls_faced: b.balls_faced ?? null,
             fours: b.fours ?? 0,
             sixes: b.sixes ?? 0,

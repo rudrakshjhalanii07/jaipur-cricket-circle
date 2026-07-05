@@ -462,6 +462,9 @@ export default function SeriesImportPage() {
           dismissed_by: b.dismissed_by ?? "",
           caught_by: b.caught_by ?? "",
           player_name: b.player_name ?? "",
+          runs: b.runs ?? 0,
+          fours: b.fours ?? 0,
+          sixes: b.sixes ?? 0,
         })),
         bowling: (inn.bowling || []).map((b: BowlerRow) => ({
           ...b,
