@@ -73,6 +73,21 @@ interface SaveBody {
 }
 
 export async function POST(request: Request) {
+  // Tracks what this request created, so a later failure can roll it back.
+  // Deleting `series` or `series_matches` cascades to everything under it
+  // (series -> series_matches -> series_innings -> series_batting/bowling),
+  // so only the top-most created row needs to be deleted.
+  let createdSeriesId: string | null = null;
+  let createdMatchId: string | null = null;
+
+  const rollback = async () => {
+    if (createdSeriesId) {
+      await supabaseAdmin.from("series").delete().eq("id", createdSeriesId);
+    } else if (createdMatchId) {
+      await supabaseAdmin.from("series_matches").delete().eq("id", createdMatchId);
+    }
+  };
+
   try {
     const password = request.headers.get("x-admin-password");
     if (!password || password !== process.env.ADMIN_PASSWORD) {
@@ -108,6 +123,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Failed to create series", detail: ce?.message }, { status: 500 });
       }
       seriesId = created.id;
+      createdSeriesId = created.id;
     }
 
     // Insert match
@@ -138,10 +154,12 @@ export async function POST(request: Request) {
       .single();
 
     if (me || !match) {
+      await rollback();
       return NextResponse.json({ error: "Failed to save match", detail: me?.message }, { status: 500 });
     }
 
     const matchId = match.id;
+    createdMatchId = matchId;
 
     // Insert innings + batting + bowling
     for (const inn of inningsInput) {
@@ -166,6 +184,7 @@ export async function POST(request: Request) {
         .single();
 
       if (ie || !innings) {
+        await rollback();
         return NextResponse.json({ error: `Failed to save innings ${inn.innings_no}`, detail: ie?.message }, { status: 500 });
       }
 
@@ -187,7 +206,10 @@ export async function POST(request: Request) {
             caught_by: b.caught_by ?? null,
           }))
         );
-        if (be) console.error("Batting insert error:", be);
+        if (be) {
+          await rollback();
+          return NextResponse.json({ error: `Failed to save batting for innings ${inn.innings_no}`, detail: be.message }, { status: 500 });
+        }
       }
 
       if (inn.bowling.length > 0) {
@@ -205,13 +227,17 @@ export async function POST(request: Request) {
             no_balls: bw.no_balls ?? 0,
           }))
         );
-        if (bwe) console.error("Bowling insert error:", bwe);
+        if (bwe) {
+          await rollback();
+          return NextResponse.json({ error: `Failed to save bowling for innings ${inn.innings_no}`, detail: bwe.message }, { status: 500 });
+        }
       }
     }
 
     return NextResponse.json({ ok: true, match_id: matchId, series_id: seriesId });
   } catch (err) {
     console.error("series/save error:", err);
+    await rollback();
     return NextResponse.json({ error: "Server error", detail: String(err) }, { status: 500 });
   }
 }
