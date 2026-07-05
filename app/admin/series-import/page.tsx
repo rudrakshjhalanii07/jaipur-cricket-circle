@@ -582,7 +582,7 @@ export default function SeriesImportPage() {
         body: JSON.stringify(body),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
+      if (!res.ok) throw new Error(json.detail ? `${json.error}: ${json.detail}` : json.error);
 
       setSaveResult({ match_id: json.match_id, series_id: json.series_id });
 
@@ -615,7 +615,7 @@ export default function SeriesImportPage() {
         headers: { "x-admin-password": password },
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
+      if (!res.ok) throw new Error(json.detail ? `${json.error}: ${json.detail}` : json.error);
       setArtItems(json.articles ?? []);
       setArtMsg(`Loaded: ${json.name}`);
     } catch (err) {
@@ -636,7 +636,7 @@ export default function SeriesImportPage() {
         body: JSON.stringify({ series_id: artSeriesId.trim(), articles: artItems }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
+      if (!res.ok) throw new Error(json.detail ? `${json.error}: ${json.detail}` : json.error);
       setArtMsg("Articles saved!");
     } catch (err) {
       setArtMsg(String(err));
