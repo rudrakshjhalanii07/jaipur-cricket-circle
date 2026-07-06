@@ -512,7 +512,7 @@ export default function SeriesImportPage() {
         toss_winner_id: info.toss_winner_id || "",
         team1_captain: info.team1_captain || "",
         team2_captain: info.team2_captain || "",
-        toss_decision: info.toss_decision || "bat",
+        toss_decision: info.toss_decision === "field" ? "bowl" : info.toss_decision || "bat",
         winner_id: info.winner_id || "",
         margin_type: info.margin_type || "runs",
         margin_value: info.margin_value ?? null,
