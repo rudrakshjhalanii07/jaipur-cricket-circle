@@ -8,6 +8,7 @@ export default function SectionProgress() {
   const pathname = usePathname();
   const router = useRouter();
   const activeIdx = NAV_ROUTES.findIndex((r) => r.href === pathname);
+  if (activeIdx === -1) return null;
 
   return (
     <div

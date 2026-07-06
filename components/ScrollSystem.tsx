@@ -18,6 +18,8 @@ const CHARGE_TARGET = 4000;
 const BOTTOM_THRESHOLD = 10; // px
 const POST_NAV_IGNORE_MS = 800;
 const TOUCH_MULTIPLIER = 2.5;
+const BOTTOM_DWELL_MS = 200; // must sit at the bottom this long before charge starts filling
+const MAX_DELTA_PER_EVENT = 150; // px — caps how much a single wheel/touch tick can contribute
 
 interface ScrollContextValue {
   charge: number;       // 0–1
@@ -42,6 +44,7 @@ export default function ScrollSystem({ children }: { children: React.ReactNode }
   const touchStartYRef = useRef(0);
   const pathnameRef = useRef(pathname);
   const scrollHeightRef = useRef(0);
+  const atBottomSinceRef = useRef(0);
 
   useEffect(() => {
     pathnameRef.current = pathname;
@@ -66,6 +69,7 @@ export default function ScrollSystem({ children }: { children: React.ReactNode }
     transitioningRef.current = false;
     setTransitioning(false);
     ignoreUntilRef.current = Date.now() + POST_NAV_IGNORE_MS;
+    atBottomSinceRef.current = 0;
   }, [pathname]);
 
   // Keep navigate function current without re-attaching wheel listeners
@@ -78,7 +82,20 @@ export default function ScrollSystem({ children }: { children: React.ReactNode }
       transitioningRef.current = true;
       setTransitioning(true);
       ignoreUntilRef.current = Date.now() + 9999;
-      setTimeout(() => router.push(NAV_ROUTES[nextIdx].href), 600);
+      setTimeout(() => {
+        router.push(NAV_ROUTES[nextIdx].href);
+        // Clear the lock unconditionally — don't rely on the [pathname]
+        // reset effect firing, since a destination that redirects
+        // client-side (or otherwise doesn't yield a new pathname) would
+        // leave transitioningRef stuck true forever, freezing scroll
+        // input on every page for the rest of the session.
+        chargeRef.current = 0;
+        setCharge(0);
+        transitioningRef.current = false;
+        setTransitioning(false);
+        ignoreUntilRef.current = Date.now() + POST_NAV_IGNORE_MS;
+        atBottomSinceRef.current = 0;
+      }, 600);
     };
   }, [router]);
 
@@ -87,15 +104,29 @@ export default function ScrollSystem({ children }: { children: React.ReactNode }
     const handleDelta = (delta: number) => {
       if (Date.now() < ignoreUntilRef.current) return;
       if (transitioningRef.current) return;
+      if (!NAV_ROUTES.some((r) => r.href === pathnameRef.current)) return;
 
       if (delta > 0) {
         const atBottom =
           window.scrollY + window.innerHeight >=
           scrollHeightRef.current - BOTTOM_THRESHOLD;
-        if (!atBottom) return;
+        if (!atBottom) {
+          atBottomSinceRef.current = 0;
+          return;
+        }
+        if (atBottomSinceRef.current === 0) {
+          atBottomSinceRef.current = Date.now();
+        }
+        // Must have been resting at the bottom for a beat before it counts —
+        // stops a fling that merely lands on a still-loading (short) page
+        // from instantly reading as "at bottom" and consuming its whole delta.
+        if (Date.now() - atBottomSinceRef.current < BOTTOM_DWELL_MS) return;
+      } else {
+        atBottomSinceRef.current = 0;
       }
 
-      chargeRef.current = Math.max(0, Math.min(CHARGE_TARGET, chargeRef.current + delta));
+      const clampedDelta = Math.max(-MAX_DELTA_PER_EVENT, Math.min(MAX_DELTA_PER_EVENT, delta));
+      chargeRef.current = Math.max(0, Math.min(CHARGE_TARGET, chargeRef.current + clampedDelta));
       setCharge(chargeRef.current / CHARGE_TARGET);
 
       if (chargeRef.current >= CHARGE_TARGET) {
