@@ -2,9 +2,9 @@
 
 import { useRef, useEffect, useState } from "react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
-import { Trophy, Star, TrendingUp, History, ChevronRight, Swords, Calendar, ChevronDown, ChevronUp, Newspaper, ExternalLink, Sparkles } from "lucide-react";
+import { Trophy, Star, TrendingUp, History, ChevronRight, Swords, Calendar, ChevronDown, ChevronUp, Newspaper, ExternalLink, Sparkles, Users } from "lucide-react";
 import { fadeUp, staggerContainer, VIEWPORT_CONFIG } from "@/lib/animations";
-import { type RivalrySeason, eraTitle, eraFirstNames } from "@/lib/rivalry";
+import { type RivalrySeason, eraFirstNames } from "@/lib/rivalry";
 import {
   computeOverallStandings,
   type FullSeries,
@@ -13,8 +13,10 @@ import {
   type BowlingLeaderRow,
   type AllRounderRow,
   type FieldingRow,
+  type PlayerPoolRow,
 } from "@/lib/series";
 import { TEAMS } from "@/lib/teams";
+import PlayersPoolModal from "@/components/PlayersPoolModal";
 
 // ── Animated counting number ──────────────────────────────────────────────────
 function AnimatedNumber({
@@ -118,10 +120,10 @@ function ActiveScoreboard({ season }: { season: RivalrySeason }) {
         <div className="flex flex-col gap-1.5 min-w-0">
           <div className="flex items-center gap-2.5">
             <span className="relative flex h-2.5 w-2.5 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-jcc-accent opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-jcc-accent" />
             </span>
-            <span className="text-[11px] font-black uppercase tracking-[0.25em] text-emerald-400">
+            <span className="text-[11px] font-black uppercase tracking-[0.25em] text-jcc-accent">
               Active {isThreeWay ? "3-Captain" : "Captain"} Rivalry
             </span>
           </div>
@@ -149,7 +151,7 @@ function ActiveScoreboard({ season }: { season: RivalrySeason }) {
           <h2 className="font-black text-white uppercase leading-none flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
             {eraFirstNames(season).map((name, i) => (
               <span key={name} className="flex items-center gap-x-2">
-                {i > 0 && <span className="text-[#E8537E] text-lg sm:text-xl font-black">·</span>}
+                {i > 0 && <span className="text-[#D4AF37] text-lg sm:text-xl font-black">·</span>}
                 <span className="text-2xl sm:text-4xl tracking-tight">{name}</span>
               </span>
             ))}
@@ -255,7 +257,7 @@ function ActiveScoreboard({ season }: { season: RivalrySeason }) {
         <div className="px-6 py-4 flex flex-col justify-center border-b sm:border-b-0 sm:border-r border-white/[0.06] hover:bg-white/[0.02] transition-colors">
           <span className="text-[9px] font-black uppercase tracking-widest text-white/30">Exhibition Series Wins</span>
           {teams.every((t) => t.exhWins === 0) ? (
-            <span className="text-xs font-black text-amber-400/80 uppercase tracking-wider mt-1.5 italic">
+            <span className="text-xs font-black text-jcc-accent-dark/80 uppercase tracking-wider mt-1.5 italic">
               No exhibition matches yet
             </span>
           ) : (
@@ -271,7 +273,7 @@ function ActiveScoreboard({ season }: { season: RivalrySeason }) {
         </div>
         <div className="px-6 py-4 flex flex-col justify-center hover:bg-white/[0.02] transition-colors">
           <span className="text-[9px] font-black uppercase tracking-widest text-white/30">Total Matches Played</span>
-          <span className="text-lg font-black text-cyan-400 mt-1">
+          <span className="text-lg font-black text-jcc-accent mt-1">
             {season.total_matches_played} Matches Recorded <span className="text-white/30 font-bold text-sm">[Main Series]</span>
           </span>
         </div>
@@ -303,7 +305,7 @@ function ArchivedEraCard({ season }: { season: RivalrySeason }) {
         </span>
       </div>
       <h3 className="text-lg font-black text-white uppercase tracking-tight group-hover:text-jcc-accent transition-colors duration-300">
-        {eraTitle(season)}
+        {season.title}
       </h3>
       <div className={`grid ${captainCols} gap-4 mt-3 py-3 px-3 bg-white/[0.01] border border-white/[0.03] rounded-lg`}>
         <div>
@@ -334,15 +336,15 @@ function ArchivedEraCard({ season }: { season: RivalrySeason }) {
         <div className="flex items-center justify-between text-xs border-b border-white/[0.04] pb-1.5">
           <span className="font-bold text-white/40">Exhibition Series</span>
           <span className="font-mono font-black text-white text-right">
-            <span className="text-purple-400">Mav {season.mavericks_exhibition_wins}</span>
+            <span style={{ color: TEAMS.mavericks.primary }}>Mav {season.mavericks_exhibition_wins}</span>
             <span className="text-white/20 mx-1">–</span>
-            <span className="text-orange-400">NS {season.neurostrikers_exhibition_wins}</span>
-            {isThreeWay && <><span className="text-white/20 mx-1">–</span><span className="text-teal-400">Out {season.outliers_exhibition_wins ?? 0}</span></>}
+            <span style={{ color: TEAMS.neurostrikers.primary }}>NS {season.neurostrikers_exhibition_wins}</span>
+            {isThreeWay && <><span className="text-white/20 mx-1">–</span><span style={{ color: TEAMS.outliers.primary }}>Out {season.outliers_exhibition_wins ?? 0}</span></>}
           </span>
         </div>
         <div className="flex items-center justify-between text-xs pt-0.5">
           <span className="font-bold text-white/40">Total Matches</span>
-          <span className="font-mono font-black text-cyan-400">{season.total_matches_played} Matches</span>
+          <span className="font-mono font-black text-jcc-accent">{season.total_matches_played} Matches</span>
         </div>
       </div>
       {season.notes && (
@@ -439,7 +441,7 @@ function PlayerCell({ rank, name, teamId }: { rank: number; name: string; teamId
   const team = teamId ? TEAMS[teamId as keyof typeof TEAMS] : undefined;
   return (
     <>
-      <span className="inline-block w-5 text-right text-white/20 font-black mr-2 shrink-0">{rank}</span>
+      <span className={`inline-block w-5 text-right font-black mr-2 shrink-0 ${rank === 1 ? "text-jcc-accent drop-shadow-[0_0_6px_rgba(212,175,55,0.55)]" : "text-white/20"}`}>{rank}</span>
       <span className="font-black text-white">{name}</span>
       {team && <span className="ml-2 text-[9px] uppercase tracking-wider" style={{ color: team.primary }}>{team.name}</span>}
     </>
@@ -455,7 +457,7 @@ function StatLeaderMobile({ rank, name, teamId, headLabel, headValue, stats }: {
   return (
     <div className="py-3 border-b border-white/[0.05] last:border-0">
       <div className="flex items-baseline gap-2">
-        <span className="text-white/20 font-black text-xs tabular-nums shrink-0 w-4">{rank}</span>
+        <span className={`font-black text-xs tabular-nums shrink-0 w-4 ${rank === 1 ? "text-jcc-accent drop-shadow-[0_0_6px_rgba(212,175,55,0.55)]" : "text-white/20"}`}>{rank}</span>
         <div className="min-w-0 flex-1">
           <p className="font-black text-white text-[13px] leading-tight truncate">{name}</p>
           {team && (
@@ -465,7 +467,7 @@ function StatLeaderMobile({ rank, name, teamId, headLabel, headValue, stats }: {
           )}
         </div>
         <div className="shrink-0 text-right">
-          <span className="text-[#E8537E] font-black text-lg leading-none tabular-nums">{headValue}</span>
+          <span className="text-[#D4AF37] font-black text-lg leading-none tabular-nums">{headValue}</span>
           <p className="text-[7px] uppercase tracking-widest text-white/30 mt-0.5">{headLabel}</p>
         </div>
       </div>
@@ -509,7 +511,7 @@ function StatsLeaderboards({ current, overall, finals }: {
             onClick={() => setScope(s)}
             className={`px-4 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-full transition-all ${
               scope === s
-                ? "bg-[#E8537E] text-white shadow-[0_0_12px_rgba(232,83,126,0.3)]"
+                ? "bg-[#D4AF37] text-white shadow-[0_0_12px_rgba(212,175,55,0.3)]"
                 : "text-white/30 hover:text-white/55 bg-white/[0.04] border border-white/[0.08]"
             }`}
           >
@@ -527,7 +529,7 @@ function StatsLeaderboards({ current, overall, finals }: {
       <div className="flex border-b border-white/[0.08] mt-3">
         {tabs.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${tab === t.id ? "text-[#E8537E] border-b-2 border-[#E8537E]" : "text-white/30 hover:text-white/50"}`}>
+            className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${tab === t.id ? "text-[#D4AF37] border-b-2 border-[#D4AF37]" : "text-white/30 hover:text-white/50"}`}>
             {t.label}
           </button>
         ))}
@@ -602,7 +604,7 @@ function StatsLeaderboards({ current, overall, finals }: {
                   <td className="py-2 text-center text-white/60 tabular-nums">{r.strike_rate != null ? r.strike_rate.toFixed(1) : "—"}</td>
                   <td className="py-2 text-center text-white/40">{r.fours}</td>
                   <td className="py-2 text-center text-white/40">{r.sixes}</td>
-                  <td className="py-2 text-center"><span className="text-[#E8537E] font-black">{r.batting_score}</span></td>
+                  <td className="py-2 text-center"><span className="text-[#D4AF37] font-black">{r.batting_score}</span></td>
                 </tr>
               ))}
             </tbody>
@@ -634,7 +636,7 @@ function StatsLeaderboards({ current, overall, finals }: {
                   <td className="py-2 text-center text-white/50">{r.runs_conceded}</td>
                   <td className="py-2 text-center text-white/50">{r.economy}</td>
                   <td className="py-2 text-center text-white/60 tabular-nums">{r.bowling_average != null ? r.bowling_average.toFixed(2) : "—"}</td>
-                  <td className="py-2 text-center"><span className="text-[#E8537E] font-black">{r.bowling_score}</span></td>
+                  <td className="py-2 text-center"><span className="text-[#D4AF37] font-black">{r.bowling_score}</span></td>
                 </tr>
               ))}
             </tbody>
@@ -664,7 +666,7 @@ function StatsLeaderboards({ current, overall, finals }: {
                     <td className="py-2 text-center text-white/60">{r.total_wickets}</td>
                     <td className="py-2 text-center text-white/40">{r.batting_score}</td>
                     <td className="py-2 text-center text-white/40">{r.bowling_score}</td>
-                    <td className="py-2 text-center font-black text-[#E8537E] text-sm">{r.combined_score}</td>
+                    <td className="py-2 text-center font-black text-[#D4AF37] text-sm">{r.combined_score}</td>
                   </tr>
                 ))}
               </tbody>
@@ -683,7 +685,7 @@ function StatsLeaderboards({ current, overall, finals }: {
               {fielding.slice(0, 10).map((r, i) => (
                 <tr key={r.player_name} className="border-b border-white/[0.03]">
                   <td className={STICKY_CELL}><PlayerCell rank={i + 1} name={r.player_name} /></td>
-                  <td className="py-2 text-center font-black text-[#E8537E]">{r.catches}</td>
+                  <td className="py-2 text-center font-black text-[#D4AF37]">{r.catches}</td>
                 </tr>
               ))}
             </tbody>
@@ -703,7 +705,7 @@ function SectionHeading({ eyebrow, title, aside }: { eyebrow: string; title: str
     <div className="mb-6 border-b border-white/[0.08] pb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-2">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <span className="h-2.5 w-1 rounded-full bg-[#E8537E] shrink-0" />
+          <span className="h-2.5 w-1 rounded-full bg-[#D4AF37] shrink-0" />
           <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-[0.18em] sm:tracking-[0.4em] text-white/35 leading-relaxed">
             {eyebrow}
           </p>
@@ -729,7 +731,7 @@ function PointsTable({ rows, compact = false }: { rows: SeriesStandingRow[]; com
     <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <table className={`w-full ${compact ? "max-w-md text-xs min-w-0 [&_th]:px-1.5 [&_td]:px-1.5" : "text-sm min-w-[360px] [&_th]:px-2.5 [&_td]:px-2.5"}`}>
         <thead>
-          <tr className="text-[9px] text-white/25 uppercase tracking-widest border-b border-white/[0.05]">
+          <tr className="text-[9px] text-jcc-accent/60 uppercase tracking-widest border-b border-white/[0.05]">
             <th className="text-left pb-2">Team</th>
             <th className="text-center pb-2 w-7">P</th>
             <th className="text-center pb-2 w-7">W</th>
@@ -745,16 +747,16 @@ function PointsTable({ rows, compact = false }: { rows: SeriesStandingRow[]; com
             const color = TEAMS[r.team_id as keyof typeof TEAMS]?.primary ?? "#888";
             const name = TEAMS[r.team_id as keyof typeof TEAMS]?.name ?? r.team_id;
             return (
-              <tr key={r.team_id} className={`border-b border-white/[0.03] ${i === 0 ? "bg-white/[0.02]" : ""}`}>
+              <tr key={r.team_id} className={`border-b border-white/[0.03] ${i === 0 ? "bg-jcc-accent/[0.05] shadow-[inset_0_0_20px_rgba(212,175,55,0.08)]" : ""}`}>
                 <td className={`py-1.5 font-black ${compact ? "pr-1 truncate max-w-[110px]" : "pr-3"}`} style={{ color }}>{name}</td>
                 <td className="py-1.5 text-center text-white/40">{r.played}</td>
                 <td className="py-1.5 text-center font-black text-white">{r.won}</td>
                 <td className="py-1.5 text-center text-white/40">{r.tied}</td>
                 <td className="py-1.5 text-center text-white/40">{r.lost}</td>
-                <td className="py-1.5 text-center font-black text-[#E8537E]">{r.points}</td>
+                <td className="py-1.5 text-center font-black text-[#D4AF37]">{r.points}</td>
                 {!compact && <td className="py-1.5 text-center text-white/50">{r.win_pct}%</td>}
                 <td className="py-1.5 text-center font-bold text-[10px]">
-                  <span className={r.nrr >= 0 ? "text-emerald-400/80" : "text-red-400/70"}>
+                  <span className={r.nrr >= 0 ? "text-jcc-accent/80" : "text-jcc-danger/70"}>
                     {fmtNRR(r.nrr)}
                   </span>
                 </td>
@@ -771,7 +773,7 @@ function PointsTable({ rows, compact = false }: { rows: SeriesStandingRow[]; com
 function FinalsTrophyPanel({ rows }: { rows: SeriesStandingRow[] }) {
   return (
     <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] bg-gradient-to-b from-[var(--jcc-navy)] to-[var(--jcc-navy-light)] p-6 h-full max-w-2xl mx-auto">
-      <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-[0.18em] sm:tracking-[0.4em] text-[#E8537E]/70 mb-1">Finals · Exhibition Series</p>
+      <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-[0.18em] sm:tracking-[0.4em] text-[#D4AF37]/70 mb-1">Finals · Exhibition Series</p>
       <h3 className="text-base sm:text-lg font-black uppercase tracking-tight text-white mb-4">Trophy Cabinet</h3>
       {rows.length === 0 ? (
         <p className="text-center text-white/30 text-sm py-8">No finals recorded yet.</p>
@@ -816,7 +818,7 @@ function FinalsTrophyPanel({ rows }: { rows: SeriesStandingRow[] }) {
 function StandingsPanel({ label, sub, rows }: { label: string; sub: string; rows: SeriesStandingRow[] }) {
   return (
     <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] bg-gradient-to-b from-[var(--jcc-navy)] to-[var(--jcc-navy-light)] p-6 h-full max-w-2xl mx-auto">
-      <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-[0.18em] sm:tracking-[0.4em] text-[#E8537E]/70 mb-1">{sub}</p>
+      <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-[0.18em] sm:tracking-[0.4em] text-[#D4AF37]/70 mb-1">{sub}</p>
       <h3 className="text-base sm:text-lg font-black uppercase tracking-tight text-white mb-4">{label}</h3>
       {rows.length > 0
         ? <PointsTable rows={rows} />
@@ -868,7 +870,7 @@ function SwipeableStandings({ current, overall, finals, currentSeriesName }: {
             onClick={() => go(i)}
             aria-label={`Panel ${i + 1}`}
             className="h-1.5 rounded-full transition-all duration-300"
-            style={{ width: idx === i ? 22 : 8, background: idx === i ? "#E8537E" : "color-mix(in srgb, var(--color-white) 22%, transparent)" }}
+            style={{ width: idx === i ? 22 : 8, background: idx === i ? "#D4AF37" : "color-mix(in srgb, var(--color-white) 22%, transparent)" }}
           />
         ))}
       </div>
@@ -946,7 +948,7 @@ function MatchScorecardCard({ match }: { match: FullSeries["matches"][0] }) {
               </span>
             ))}
           </span>
-          <span className="hidden sm:block sm:flex-1 min-w-0 truncate text-[10px] text-[#E8537E] font-bold">{result}</span>
+          <span className="hidden sm:block sm:flex-1 min-w-0 truncate text-[10px] text-[#D4AF37] font-bold">{result}</span>
           {match.player_of_match && (
             <span className="hidden sm:flex items-center gap-1 shrink-0 sm:w-44 text-[10px] font-black text-jcc-gold/80">
               <Star className="w-3 h-3 shrink-0" /> {match.player_of_match}
@@ -955,7 +957,7 @@ function MatchScorecardCard({ match }: { match: FullSeries["matches"][0] }) {
           {open ? <ChevronUp className="w-3.5 h-3.5 text-white/20 shrink-0 ml-auto sm:ml-0" /> : <ChevronDown className="w-3.5 h-3.5 text-white/20 shrink-0 ml-auto sm:ml-0" />}
         </div>
         <div className="sm:hidden flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
-          <span className="text-[10px] text-[#E8537E] font-bold">{result}</span>
+          <span className="text-[10px] text-[#D4AF37] font-bold">{result}</span>
           {match.player_of_match && (
             <span className="flex items-center gap-1 text-[10px] font-black text-jcc-gold/80">
               <Star className="w-3 h-3 shrink-0" /> {match.player_of_match.split(" ")[0]}
@@ -1062,7 +1064,7 @@ function MatchScorecardCard({ match }: { match: FullSeries["matches"][0] }) {
 
               {match.ai_analysis && (
                 <div className="mt-2">
-                  <button onClick={() => setShowAnalysis(!showAnalysis)} className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-[#E8537E]/70 hover:text-[#E8537E] transition-colors mb-2">
+                  <button onClick={() => setShowAnalysis(!showAnalysis)} className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-[#D4AF37]/70 hover:text-[#D4AF37] transition-colors mb-2">
                     <Sparkles className="w-3.5 h-3.5" />
                     {showAnalysis ? "Hide" : "Show"} AI Match Analysis
                   </button>
@@ -1074,7 +1076,7 @@ function MatchScorecardCard({ match }: { match: FullSeries["matches"][0] }) {
                     }}
                   >
                     <div className="overflow-hidden">
-                      <div className="bg-[#E8537E]/5 border border-[#E8537E]/15 rounded-xl p-4">
+                      <div className="bg-[#D4AF37]/5 border border-[#D4AF37]/15 rounded-xl p-4">
                         <p className="text-xs text-white/60 leading-relaxed whitespace-pre-wrap">{match.ai_analysis}</p>
                       </div>
                     </div>
@@ -1101,7 +1103,7 @@ function TriSeriesCard({ series }: { series: FullSeries }) {
     <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] bg-gradient-to-b from-[var(--jcc-navy)] to-[var(--jcc-navy-light)]">
       <button onClick={() => setOpen(!open)} className="w-full flex items-center gap-4 px-6 py-5 hover:bg-white/[0.02] transition-colors text-left">
         <div className="flex-1">
-          <p className="text-[9px] font-black uppercase tracking-[0.4em] text-[#E8537E]/60 mb-1">Tri-Series #{series.series_no}</p>
+          <p className="text-[9px] font-black uppercase tracking-[0.4em] text-[#D4AF37]/60 mb-1">Tri-Series #{series.series_no}</p>
           <h3 className="text-lg font-black text-white uppercase tracking-tight">{series.name}</h3>
           <div className="flex items-center gap-3 mt-1 text-[9px] text-white/25 font-bold">
             {series.started_at && <span>{new Date(series.started_at).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}</span>}
@@ -1116,7 +1118,7 @@ function TriSeriesCard({ series }: { series: FullSeries }) {
         <div className="px-6 pb-3 flex flex-wrap gap-2">
           {articles.map((a, i) => (
             <a key={i} href={a.url} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-[#E8537E]/80 transition-colors border border-white/[0.06] hover:border-[#E8537E]/20 rounded-full px-3 py-1.5">
+              className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-[#D4AF37]/80 transition-colors border border-white/[0.06] hover:border-[#D4AF37]/20 rounded-full px-3 py-1.5">
               <Newspaper className="w-3 h-3" />
               {a.title}
               <ExternalLink className="w-2.5 h-2.5" />
@@ -1150,7 +1152,7 @@ function TriSeriesCard({ series }: { series: FullSeries }) {
               <>
                 <div className="flex items-center gap-2 py-1">
                   <div className="flex-1 h-px bg-white/[0.06]" />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[#E8537E]/50">Final</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-[#D4AF37]/50">Final</span>
                   <div className="flex-1 h-px bg-white/[0.06]" />
                 </div>
                 <MatchScorecardCard match={finalMatch} />
@@ -1167,6 +1169,9 @@ function TriSeriesCard({ series }: { series: FullSeries }) {
 interface RivalryPageClientProps {
   liveActiveSeason: RivalrySeason | null;
   archivedSeasons: RivalrySeason[];
+  totalClubMatches: number;
+  sundaysPlayed: number;
+  playersPool: PlayerPoolRow[];
   fullSeries: FullSeries[];
   activeSeasonSeries: FullSeries[];
   overallStandings: SeriesStandingRow[];
@@ -1182,6 +1187,9 @@ interface RivalryPageClientProps {
 export default function RivalryPageClient({
   liveActiveSeason,
   archivedSeasons,
+  totalClubMatches,
+  sundaysPlayed,
+  playersPool,
   fullSeries,
   activeSeasonSeries,
   overallStandings,
@@ -1192,6 +1200,7 @@ export default function RivalryPageClient({
   allLeagueLeaderboards,
   finalsLeaderboards,
 }: RivalryPageClientProps) {
+  const [poolOpen, setPoolOpen] = useState(false);
   return (
     <div className="min-h-screen pt-36 pb-20 relative overflow-hidden hero-gradient">
       <div className="absolute inset-0 stadium-glow opacity-40 z-0" />
@@ -1217,6 +1226,26 @@ export default function RivalryPageClient({
           <p className="mt-4 text-white/60 text-lg font-black tracking-tight max-w-xl">
             "Every new captain pairing writes its own chapter."
           </p>
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/[0.03]">
+              <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Club Stats</span>
+              <span className="h-3 w-px bg-white/15" />
+              <span className="font-mono font-black text-jcc-accent text-sm">{totalClubMatches}</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Total Matches · All Eras</span>
+            </div>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/[0.03]">
+              <span className="font-mono font-black text-jcc-accent text-sm">{sundaysPlayed}</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Sundays Played</span>
+            </div>
+            <button
+              onClick={() => setPoolOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/[0.03] hover:border-jcc-accent/40 hover:bg-white/[0.06] transition-all"
+            >
+              <Users className="w-3.5 h-3.5 text-jcc-accent" />
+              <span className="font-mono font-black text-jcc-accent text-sm">{playersPool.length}</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Players Pool</span>
+            </button>
+          </div>
         </div>
 
         {/* ── Active Captain Scoreboard ── */}
@@ -1315,11 +1344,13 @@ export default function RivalryPageClient({
             href="/register"
             className="inline-flex items-center gap-2 btn-vibrant-blue text-sm font-black"
           >
-            Register for Sunday
+            Register for Next Match
             <ChevronRight className="w-4 h-4" />
           </a>
         </motion.div>
       </div>
+
+      <PlayersPoolModal isOpen={poolOpen} onClose={() => setPoolOpen(false)} players={playersPool} />
     </div>
   );
 }

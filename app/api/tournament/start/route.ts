@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { generateSchedule } from "@/lib/tournament";
+import { generateSchedule, generateTournamentCode } from "@/lib/tournament";
+
+const DEFAULT_OVERS_PER_INNINGS = 10;
+const MAX_CODE_ATTEMPTS = 5;
 
 export async function POST(request: Request) {
   try {
@@ -10,26 +13,29 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { week_label, overs_per_innings } = body as {
-      week_label: string;
-      overs_per_innings: number;
-    };
+    const { week_label } = body as { week_label: string };
 
-    if (!week_label || !overs_per_innings) {
-      return NextResponse.json(
-        { error: "week_label and overs_per_innings are required" },
-        { status: 400 }
-      );
+    if (!week_label) {
+      return NextResponse.json({ error: "week_label is required" }, { status: 400 });
     }
 
-    // Create tournament row
-    const { data: tournament, error: tError } = await supabaseAdmin
-      .from("tournaments")
-      .insert({ week_label, overs_per_innings, status: "scheduled" })
-      .select()
-      .single();
+    // Create tournament row, retrying on the rare join-code collision.
+    let tournament: { id: string; code: string } | null = null;
+    let tError: unknown = null;
+    for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS && !tournament; attempt++) {
+      const code = generateTournamentCode();
+      const { data, error } = await supabaseAdmin
+        .from("tournaments")
+        .insert({ week_label, overs_per_innings: DEFAULT_OVERS_PER_INNINGS, status: "scheduled", code })
+        .select()
+        .single();
+      if (data) { tournament = data; break; }
+      tError = error;
+      // 23505 = unique_violation — only worth retrying if it's a code collision.
+      if ((error as { code?: string } | null)?.code !== "23505") break;
+    }
 
-    if (tError || !tournament) {
+    if (!tournament) {
       console.error("Failed to create tournament:", tError);
       return NextResponse.json({ error: "Failed to create tournament" }, { status: 500 });
     }
@@ -56,7 +62,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Failed to create match schedule" }, { status: 500 });
     }
 
-    return NextResponse.json({ tournament_id: tournament.id });
+    return NextResponse.json({ tournament_id: tournament.id, code: tournament.code });
   } catch (err) {
     console.error("tournament/start error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

@@ -8,6 +8,8 @@ import HomepageBelowFold from "@/components/home/HomepageBelowFold";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { fallbackRivalrySeasons, type RivalrySeason } from "@/lib/rivalry";
 import { getTeam, type TeamId } from "@/lib/teams";
+import { getClubStatistics } from "@/lib/statistics";
+import { getDisplayRole } from "@/lib/member-role";
 
 // ─── Type aliases used only server-side ──────────────────────────────────────
 
@@ -46,27 +48,9 @@ export type RecentMatch = { id: string; winner: string; date: string; result: st
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function getDisplayRole(
-  memberTag?: string,
-  groupRole?: string,
-  cricketRole?: string
-): string {
-  const isFounder =
-    memberTag === "founding-member" || groupRole === "founding-member";
-  if (groupRole === "captain")
-    return isFounder ? "Founder & Captain" : "Captain";
-  if (groupRole === "vice-captain")
-    return isFounder ? "Founding Member & Vice Captain" : "Vice Captain";
-  if (groupRole === "admin")
-    return isFounder ? "Founding Member & Admin" : "Admin";
-  if (isFounder) return "Founding Member";
-  if (cricketRole) {
-    if (cricketRole === "all-rounder") return "All-Rounder";
-    if (cricketRole === "wicketkeeper") return "Wicketkeeper";
-    return cricketRole.charAt(0).toUpperCase() + cricketRole.slice(1);
-  }
-  return "Member";
-}
+// getDisplayRole now lives in lib/member-role.ts — shared with /members,
+// /members/[id], and the Profile portal so a player's role reads the same
+// everywhere.
 
 function buildTickerItems(
   nextMatch: SundayMatchRow | null,
@@ -122,6 +106,7 @@ async function getHomepageData() {
       seriesMatchesRes,
       articlesRes,
       nextMatchRes,
+      clubStats,
     ] = await Promise.all([
       supabaseAdmin
         .from("players")
@@ -138,7 +123,7 @@ async function getHomepageData() {
         .from("series_matches")
         .select("id, winner_id, match_date, margin_type, margin_value, is_tie")
         .not("winner_id", "is", null)
-        .order("match_date", { ascending: false })
+        .order("created_at", { ascending: false })
         .limit(10),
       supabaseAdmin
         .from("chewvana_articles")
@@ -156,6 +141,7 @@ async function getHomepageData() {
         .order("match_date", { ascending: true })
         .limit(1)
         .maybeSingle(),
+      getClubStatistics(),
     ]);
 
     // Phase 2: registrations depend on the match id
@@ -186,15 +172,15 @@ async function getHomepageData() {
       (nextMatchRes.data as SundayMatchRow) ?? null;
 
     // ── Derived stats ─────────────────────────────────────────────────────────
-    const activePlayerCount = players.length;
-    const totalMatchesPlayed = seasons.reduce(
-      (sum, s) => sum + (s.total_matches_played || 0),
-      0
-    );
+    // Sourced from the centralized statistics service (lib/statistics.ts) so
+    // homepage, rivalry, members, and future pages never compute these
+    // independently.
+    const activePlayerCount = clubStats.activeMembers;
+    const totalMatchesPlayed = clubStats.matchesPlayed;
     const stats = {
       activePlayers: `${activePlayerCount}+`,
       sundayGames: `${totalMatchesPlayed}+`,
-      sundaysActive: `${totalMatchesPlayed}+`,
+      sundaysActive: `${clubStats.activeSundays}+`,
       communityLove: "∞",
     };
 
@@ -281,7 +267,7 @@ async function getHomepageData() {
         art.reporter_alias ||
         art.editor_name ||
         art.author ||
-        "Chewvana Desk",
+        "Boundary Desk",
     }));
 
     // ── Ticker items (pre-computed on server, no client fetch needed) ─────────

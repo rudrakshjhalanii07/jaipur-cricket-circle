@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node toss_anim.js)",
+      "Bash(curl -s http://localhost:3000/toss -o /tmp/toss_page.html -w \"%{http_code}\\\\n\")",
+      "Bash(lsof -i :3000 -sTCP:LISTEN)",
+      "Bash(lsof -p 81811 -a -i -sTCP:LISTEN)",
+      "Bash(rm -rf /private/tmp/claude-501/-Users-rudrakshjhalani-Projects-jaipur-cricket-circle/6f3f7a1b-6af1-4be2-9f8e-3dc923019942/scratchpad/pw2 /private/tmp/claude-501/-Users-rudrakshjhalani-Projects-jaipur-cricket-circle/6f3f7a1b-6af1-4be2-9f8e-3dc923019942/scratchpad/anim_*.png)",
+      "Bash(pkill -f \"next dev -p 3100\")",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(lsof -i :3100 -sTCP:LISTEN -t)",
+      "Bash(curl -sf http://localhost:3002)",
+      "Bash(node toss_check.js)",
+      "Bash(node debug_coin.js)",
+      "Bash(node debug_coin2.js)",
+      "Bash(xargs -r kill)",
+      "Bash(curl -sf http://localhost:3003)",
+      "Bash(break)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3002/toss)",
+      "Bash(npm ls *)"
+    ],
+    "additionalDirectories": [
+      "/Users/rudrakshjhalani/.claude",
+      "/private/tmp/claude-501/-Users-rudrakshjhalani-Projects-jaipur-cricket-circle/6f3f7a1b-6af1-4be2-9f8e-3dc923019942/scratchpad"
+    ]
+  }
+}

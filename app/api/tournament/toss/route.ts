@@ -5,23 +5,41 @@ import type { TossDecision } from "@/lib/tournament";
 
 export async function POST(request: Request) {
   try {
-    const password = request.headers.get("x-admin-password");
-    if (!password || password !== process.env.ADMIN_PASSWORD) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const body = await request.json();
-    const { match_id, toss_winner_id, toss_decision } = body as {
+    const { match_id, toss_winner_id, toss_decision, code } = body as {
       match_id: string;
       toss_winner_id: TeamId;
       toss_decision: TossDecision;
+      code: string;
     };
 
-    if (!match_id || !toss_winner_id || !toss_decision) {
+    if (!match_id || !toss_winner_id || !toss_decision || !code) {
       return NextResponse.json(
-        { error: "match_id, toss_winner_id, and toss_decision are required" },
+        { error: "match_id, toss_winner_id, toss_decision, and code are required" },
         { status: 400 }
       );
+    }
+
+    // The tournament join code (not the admin password) gates who can toss —
+    // anyone who has the code for this tournament may conduct its tosses.
+    const { data: match } = await supabaseAdmin
+      .from("tournament_matches")
+      .select("tournament_id")
+      .eq("id", match_id)
+      .single();
+
+    if (!match) {
+      return NextResponse.json({ error: "Match not found" }, { status: 404 });
+    }
+
+    const { data: tournament } = await supabaseAdmin
+      .from("tournaments")
+      .select("code, status")
+      .eq("id", match.tournament_id)
+      .single();
+
+    if (!tournament || !tournament.code || tournament.code !== code.trim().toUpperCase()) {
+      return NextResponse.json({ error: "Invalid tournament code" }, { status: 401 });
     }
 
     const { error } = await supabaseAdmin
@@ -41,13 +59,7 @@ export async function POST(request: Request) {
     }
 
     // Also mark the tournament in_progress if it's still scheduled
-    const { data: match } = await supabaseAdmin
-      .from("tournament_matches")
-      .select("tournament_id")
-      .eq("id", match_id)
-      .single();
-
-    if (match) {
+    if (tournament.status === "scheduled") {
       await supabaseAdmin
         .from("tournaments")
         .update({ status: "in_progress", updated_at: new Date().toISOString() })

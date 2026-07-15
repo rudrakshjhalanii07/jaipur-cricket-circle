@@ -1,1028 +1,463 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useCallback, useEffect, useState } from "react";
+import {
+  animate,
+  AnimatePresence,
+  motion,
+  useAnimationControls,
+  useMotionValue,
+  useMotionValueEvent,
+  useTransform,
+} from "framer-motion";
+import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, RefreshCw, Trophy } from "lucide-react";
-import { type TeamId, type TeamConfig as Team, TEAMS, TEAM_ORDER } from "@/lib/teams";
+import { ArrowRight, RefreshCw } from "lucide-react";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+type Choice = "Heads" | "Tails";
+type TossPhase = "ready" | "flight" | "reveal";
 
-type Phase = "landing" | "selection" | "captains" | "result";
+const EASE_PREMIUM = [0.16, 1, 0.3, 1] as const;
 
-// ─── Logo with Fallback ───────────────────────────────────────────────────────
+const DUST = [
+  { left: "8%", top: "18%", size: 2, delay: 0.1, duration: 10 },
+  { left: "16%", top: "72%", size: 1, delay: 1.4, duration: 13 },
+  { left: "24%", top: "38%", size: 2, delay: 0.7, duration: 12 },
+  { left: "36%", top: "12%", size: 1, delay: 2.1, duration: 15 },
+  { left: "44%", top: "82%", size: 2, delay: 0.4, duration: 11 },
+  { left: "57%", top: "22%", size: 1, delay: 1.8, duration: 14 },
+  { left: "66%", top: "68%", size: 2, delay: 0.9, duration: 12 },
+  { left: "78%", top: "34%", size: 1, delay: 2.6, duration: 16 },
+  { left: "88%", top: "58%", size: 2, delay: 1.1, duration: 13 },
+  { left: "93%", top: "20%", size: 1, delay: 0.2, duration: 15 },
+];
 
-function TeamLogo({
-  team,
-  className = "",
-}: {
-  team: Team;
-  className?: string;
-}) {
-  const [error, setError] = useState(false);
-  if (error) {
-    return (
-      <span
-        className="font-black text-2xl select-none"
-        style={{ color: team.primary }}
-      >
-        {team.shortName}
-      </span>
-    );
-  }
-  return (
-    <img
-      src={team.logo}
-      alt={team.name}
-      className={className}
-      onError={() => setError(true)}
-    />
-  );
-}
-
-// ─── Jersey Pattern SVGs ──────────────────────────────────────────────────────
-
-function TribalPattern({ color }: { color: string }) {
-  return (
-    <svg
-      viewBox="0 0 200 280"
-      className="absolute inset-0 w-full h-full"
-      preserveAspectRatio="xMidYMid slice"
-    >
-      <path
-        d="M160,0 L200,40 L180,120 L140,160 L160,220 L120,280 L80,240 L60,170 L80,100 L40,40 Z"
-        fill={color}
-        opacity="0.12"
-      />
-      <path
-        d="M-10,60 L30,30 L70,80 L50,150 L10,180 Z"
-        fill={color}
-        opacity="0.08"
-      />
-      <circle cx="100" cy="100" r="50" fill="none" stroke={color} strokeWidth="1.5" opacity="0.1" />
-      <circle cx="100" cy="100" r="70" fill="none" stroke={color} strokeWidth="1" opacity="0.06" />
-      {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
-        <circle
-          key={i}
-          cx={100 + 62 * Math.cos((i * Math.PI) / 4)}
-          cy={100 + 62 * Math.sin((i * Math.PI) / 4)}
-          r="3"
-          fill={color}
-          opacity="0.18"
-        />
-      ))}
-      <path
-        d="M80,200 Q100,180 120,200 Q140,220 120,240 Q100,260 80,240 Q60,220 80,200"
-        fill={color}
-        opacity="0.09"
-      />
-    </svg>
-  );
-}
-
-function LightningPattern({ color }: { color: string }) {
-  return (
-    <svg
-      viewBox="0 0 200 280"
-      className="absolute inset-0 w-full h-full"
-      preserveAspectRatio="xMidYMid slice"
-    >
-      <path d="M130,0 L90,110 L118,110 L78,280 L148,130 L118,130 Z" fill={color} opacity="0.14" />
-      <path d="M155,0 L115,110 L143,110 L103,280 L173,130 L143,130 Z" fill={color} opacity="0.07" />
-      <path d="M105,0 L65,110 L93,110 L53,280 L123,130 L93,130 Z" fill={color} opacity="0.07" />
-      <line x1="0" y1="140" x2="200" y2="140" stroke={color} strokeWidth="0.5" opacity="0.1" />
-      <line x1="0" y1="200" x2="200" y2="200" stroke={color} strokeWidth="0.5" opacity="0.07" />
-    </svg>
-  );
-}
-
-function ScratchPattern({ color }: { color: string }) {
-  return (
-    <svg
-      viewBox="0 0 200 280"
-      className="absolute inset-0 w-full h-full"
-      preserveAspectRatio="xMidYMid slice"
-    >
-      <path d="M60,0 L120,70 M65,0 L125,70 M55,0 L115,70" stroke={color} strokeWidth="2" strokeLinecap="round" opacity="0.12" />
-      <path d="M30,80 L110,170 M35,75 L115,165 M25,85 L105,175" stroke={color} strokeWidth="1.5" strokeLinecap="round" opacity="0.09" />
-      <path d="M80,170 L160,250 M85,165 L165,245 M75,175 L155,255" stroke={color} strokeWidth="2" strokeLinecap="round" opacity="0.1" />
-      <path d="M140,20 L200,80" stroke={color} strokeWidth="3" strokeLinecap="round" opacity="0.08" />
-      <path d="M0,100 L60,160" stroke={color} strokeWidth="2" strokeLinecap="round" opacity="0.08" />
-    </svg>
-  );
-}
-
-// ─── Pink Button Seam ─────────────────────────────────────────────────────────
-
-function SeamLines() {
-  // Two parallel diagonal lines running bottom-left → top-right, like a pink ball seam
-  return (
-    <>
-      {(["calc(50% - 5px)", "calc(50% + 5px)"] as const).map((top, i) => (
-        <span
-          key={i}
-          aria-hidden
-          style={{
-            position: "absolute",
-            left: "-4rem",
-            right: "-4rem",
-            top,
-            height: "1px",
-            pointerEvents: "none",
-            transform: "rotate(-12deg)",
-            transformOrigin: "center",
-            background:
-              "repeating-linear-gradient(90deg, rgba(0,0,0,0.6) 0px, rgba(0,0,0,0.6) 3px, transparent 3px, transparent 8px)",
-          }}
-        />
-      ))}
-    </>
-  );
-}
-
-// ─── Coin Face ────────────────────────────────────────────────────────────────
-
-function CoinFace({ team, isBack }: { team: Team; isBack: boolean }) {
+function CoinFace({ side, flat = false }: { side: Choice; flat?: boolean }) {
   return (
     <div
-      className="absolute inset-0 rounded-full flex items-center justify-center overflow-hidden"
+      className="absolute inset-0 rounded-full overflow-hidden flex items-center justify-center"
       style={{
-        backfaceVisibility: "hidden",
-        WebkitBackfaceVisibility: "hidden",
-        transform: isBack ? "rotateY(180deg)" : undefined,
+        backfaceVisibility: flat ? undefined : "hidden",
+        WebkitBackfaceVisibility: flat ? undefined : "hidden",
+        transform: !flat && side === "Tails" ? "rotateY(180deg)" : undefined,
         background:
-          "radial-gradient(circle at 32% 22%, #FFFACC 0%, #F9D020 14%, #D4940A 38%, #A06308 62%, #5C3A00 100%)",
-        boxShadow: [
-          "inset 0 10px 28px rgba(255,245,100,0.55)",
-          "inset 0 -10px 28px rgba(0,0,0,0.65)",
-          "inset 5px 0 16px rgba(255,200,40,0.28)",
-          "inset -3px 0 10px rgba(0,0,0,0.25)",
-        ].join(", "),
+          "radial-gradient(circle at 50% 50%, #132442 0%, #132442 45%, #0c172b 72%, #07101f 100%)",
+        boxShadow:
+          "inset 0 0 0 12px #D4AF37, inset 0 0 0 15px rgba(255,255,255,0.12), inset 18px 20px 34px rgba(255,245,210,0.12), inset -22px -26px 42px rgba(0,0,0,0.56)",
       }}
     >
-      {/* Sunburst rays — CSS conic-gradient, no trig, no SSR mismatch */}
       <div
-        className="absolute inset-0 rounded-full pointer-events-none"
+        className="absolute inset-0 rounded-full"
         style={{
           background:
-            "repeating-conic-gradient(rgba(122,82,0,0.22) 0deg, rgba(122,82,0,0.22) 3deg, transparent 3deg, transparent 8deg)",
-          WebkitMask:
-            "radial-gradient(circle, transparent 49%, black 50%, black 82%, transparent 83%)",
-          mask:
-            "radial-gradient(circle, transparent 49%, black 50%, black 82%, transparent 83%)",
+            "radial-gradient(ellipse at 28% 18%, rgba(255,255,235,0.42) 0%, rgba(243,201,106,0.18) 28%, transparent 54%), linear-gradient(128deg, transparent 34%, rgba(255,255,255,0.16) 48%, transparent 62%)",
         }}
       />
 
-      {/* SVG coin detail — circles only, no trig */}
-      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
-        {/* Milled/knurled outer rim */}
-        <circle cx={128} cy={128} r={122} fill="none" stroke="#3A1E00" strokeWidth={8} strokeDasharray="3 2.2" opacity={0.85} />
-        {/* Bright gold rim highlights */}
-        <circle cx={128} cy={128} r={115} fill="none" stroke="#FFE066" strokeWidth={2} opacity={0.55} />
-        <circle cx={128} cy={128} r={112} fill="none" stroke="#7A5200" strokeWidth={1} opacity={0.45} />
-        <circle cx={128} cy={128} r={109} fill="none" stroke="#FFD700" strokeWidth={0.6} opacity={0.3} />
-
-        {/* Logo platform */}
-        <circle cx={128} cy={128} r={65} fill="#C98E08" opacity={0.18} />
-        <circle cx={128} cy={128} r={63} fill="none" stroke="#FFE066" strokeWidth={2} opacity={0.55} />
-        <circle cx={128} cy={128} r={59} fill="none" stroke="#7A5200" strokeWidth={1} opacity={0.35} />
+      <svg className="absolute inset-[9%] h-[82%] w-[82%]" viewBox="0 0 240 240" aria-hidden="true">
+        <circle cx="120" cy="120" r="102" fill="none" stroke="#F3C96A" strokeWidth="1.5" opacity="0.7" />
+        <circle cx="120" cy="120" r="87" fill="none" stroke="#D4AF37" strokeWidth="1" opacity="0.48" />
+        <circle cx="120" cy="120" r="70" fill="none" stroke="#F3C96A" strokeWidth="0.75" opacity="0.28" />
+        <path
+          d="M58 120c18-30 39-46 62-46s44 16 62 46c-18 30-39 46-62 46s-44-16-62-46Z"
+          fill="none"
+          stroke="#D4AF37"
+          strokeWidth="2"
+          opacity="0.36"
+        />
       </svg>
 
-      {/* Team-colour halo — makes each face distinguishable */}
-      <div
-        className="absolute w-[38%] h-[38%] rounded-full blur-xl opacity-30 pointer-events-none"
-        style={{ background: team.primary }}
-      />
-
-      {/* Logo with deep emboss shadows */}
-      <div
-        className="relative z-10 w-[43%] h-[43%] flex items-center justify-center"
-        style={{
-          filter:
-            "drop-shadow(0 4px 12px rgba(0,0,0,0.95)) drop-shadow(0 1px 4px rgba(50,25,0,0.9))",
-        }}
-      >
-        <TeamLogo team={team} className="w-full h-full object-contain" />
+      <div className="relative z-10 flex translate-y-[2px] items-center justify-center">
+        <Image
+          src="/jcc_logo.png"
+          alt="Jaipur Cricket Circle crest"
+          width={168}
+          height={168}
+          priority
+          className="h-28 w-28 object-contain opacity-90 sm:h-36 sm:w-36"
+          style={{
+            filter:
+              "grayscale(1) sepia(0.6) saturate(1.4) brightness(1.2) drop-shadow(0 8px 14px rgba(0,0,0,0.52))",
+          }}
+        />
       </div>
-
-      {/* Gloss specular — top-left reflection like a real coin */}
-      <div
-        className="absolute inset-0 rounded-full pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(ellipse at 27% 14%, rgba(255,255,230,0.58) 0%, rgba(255,240,160,0.22) 28%, transparent 58%)",
-        }}
-      />
+      <span className="absolute bottom-[9%] z-10 rounded-full border border-[#F3C96A]/45 bg-[#07101f]/50 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.34em] text-[#FFF8E7]/90 shadow-[0_0_18px_rgba(212,175,55,0.16),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-sm">
+        {side}
+      </span>
     </div>
   );
 }
 
-// ─── Jersey Card ──────────────────────────────────────────────────────────────
+function PremiumCoin({
+  phase,
+  result,
+  onLanded,
+}: {
+  phase: TossPhase;
+  result: Choice | null;
+  onLanded: () => void;
+}) {
+  const controls = useAnimationControls();
+  const finalRotation = result === "Tails" ? 2340 : 2160;
 
-function JerseyCard({ team, delay = 0 }: { team: Team; delay?: number }) {
-  const Pattern =
-    team.patternType === "tribal"
-      ? TribalPattern
-      : team.patternType === "lightning"
-        ? LightningPattern
-        : ScratchPattern;
+  // The flip is driven by a plain motion value (spin, in degrees) rather than a
+  // 3D `rotateY` + `backface-visibility` pair. That older approach depended on
+  // `preserve-3d` surviving through the coin's transform stack — which some
+  // browsers get wrong mid-flip, hiding both faces and leaving only the bare
+  // gold edge disc visible. Here a single flat face is squashed horizontally
+  // (scaleX = |cos(spin)|) and its content is swapped Heads<->Tails each time
+  // the coin turns edge-on, so a fully designed face is always showing.
+  const spin = useMotionValue(0);
+  const flipScaleX = useTransform(spin, (deg) =>
+    Math.max(0.05, Math.abs(Math.cos((deg * Math.PI) / 180))),
+  );
+  const [flightSide, setFlightSide] = useState<Choice>("Heads");
+
+  useMotionValueEvent(spin, "change", (deg) => {
+    const normalized = ((deg % 360) + 360) % 360;
+    const facingBack = normalized > 90 && normalized < 270;
+    setFlightSide(facingBack ? "Tails" : "Heads");
+  });
+
+  useEffect(() => {
+    if (phase !== "flight") {
+      spin.set(0);
+      return;
+    }
+
+    const flip = animate(spin, finalRotation, {
+      duration: 2.7,
+      ease: [0.15, 0.05, 0.05, 1.0],
+    });
+
+    controls
+      .start({
+        y: [0, 10, -292, -330, -70, 0, -16, 0],
+        scale: [1, 0.94, 1.03, 1.02, 1, 0.98, 1.01, 1],
+        rotateX: [0, -7, 22, 13, 4, 0, 0, 0],
+        transition: {
+          duration: 4.2,
+          times: [0, 0.08, 0.34, 0.48, 0.72, 0.88, 0.94, 1],
+          ease: "easeInOut",
+        },
+      })
+      .then(onLanded)
+      .catch(() => undefined);
+
+    return () => flip.stop();
+  }, [controls, finalRotation, onLanded, phase, spin]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 50, scale: 0.92 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.65, delay, ease: [0.22, 1, 0.36, 1] }}
-      className="flex flex-col items-center gap-4"
-    >
-      {/* Jersey back card */}
-      <div
-        className="relative w-44 sm:w-52 aspect-[3/4] rounded-2xl overflow-hidden flex flex-col items-center justify-center gap-1"
-        style={{
-          background: `linear-gradient(155deg, ${team.secondary} 0%, ${team.primary}18 60%, ${team.secondary} 100%)`,
-          border: `1px solid ${team.primary}33`,
-          boxShadow: `0 0 50px ${team.glow}, 0 0 0 1px ${team.primary}18`,
+    <div className="relative h-[15.5rem] sm:h-[19rem] w-full flex items-center justify-center">
+      <motion.div
+        className="absolute bottom-10 h-4 w-48 rounded-full bg-black/38 blur-xl"
+        animate={{
+          opacity: phase === "flight" ? [0.42, 0.12, 0.34, 0.5] : 0.42,
+          scaleX: phase === "flight" ? [1, 0.52, 0.84, 1.05] : 1,
         }}
+        transition={{ duration: phase === "flight" ? 4.2 : 3, ease: EASE_PREMIUM }}
+      />
+
+      {/* Drop-shadow lives on this wrapper so it tracks the coin as a whole
+          without interfering with the inner flip squash. */}
+      <div
+        className="relative h-56 w-56 sm:h-72 sm:w-72"
+        style={{ filter: "drop-shadow(0 34px 44px rgba(0,0,0,0.38)) drop-shadow(0 0 44px rgba(212,175,55,0.18))" }}
       >
-        <Pattern color={team.primary} />
-
-        {/* Collar strip */}
-        <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-10 h-5 rounded-b-lg opacity-60"
-          style={{ background: `linear-gradient(to bottom, ${team.primary}88, transparent)` }}
-        />
-
-        {/* Button placeholders */}
-        {[0, 1].map((i) => (
-          <div
-            key={i}
-            className="absolute rounded-full"
-            style={{
-              width: 6,
-              height: 6,
-              background: `${team.primary}44`,
-              border: `1px solid ${team.primary}66`,
-              top: 14 + i * 12,
-              left: "50%",
-              transform: "translateX(-50%)",
-            }}
-          />
-        ))}
-
-        {/* Content */}
-        <div className="relative z-10 flex flex-col items-center gap-1.5 pt-6">
-          {/* CAPTAIN badge */}
-          <div
-            className="px-2.5 py-0.5 rounded text-[9px] font-black tracking-[0.35em] uppercase"
-            style={{
-              background: `${team.primary}22`,
-              color: team.primary,
-              border: `1px solid ${team.primary}44`,
-            }}
-          >
-            CAPTAIN
-          </div>
-
-          {/* Player name */}
-          <span
-            className="text-2xl sm:text-3xl font-black tracking-[0.15em] uppercase text-white"
-            style={{ textShadow: `0 0 20px ${team.glow}` }}
-          >
-            {team.captainShort}
-          </span>
-
-          {/* Jersey number */}
-          {team.jerseyNumber !== null ? (
-            <span
-              className="text-5xl sm:text-6xl font-black leading-none"
-              style={{
-                color: team.primary,
-                textShadow: `0 0 30px ${team.glow}, 0 2px 0 rgba(0,0,0,0.5)`,
-              }}
-            >
-              {team.jerseyNumber}
-            </span>
-          ) : (
-            <span className="text-2xl font-black opacity-30 text-white">—</span>
-          )}
-        </div>
-
-        {/* Bottom team stripe */}
-        <div
-          className="absolute bottom-0 left-0 right-0 h-1.5 opacity-40"
-          style={{ background: `linear-gradient(to right, transparent, ${team.primary}, transparent)` }}
-        />
-      </div>
-
-      {/* Caption below card */}
-      <div className="text-center">
-        <p className="text-white font-bold text-sm leading-tight">{team.captain}</p>
-        <p
-          className="text-xs font-semibold mt-0.5 opacity-60"
-          style={{ color: team.primary }}
+        <motion.div
+          aria-label="Jaipur Cricket Circle ceremonial toss coin"
+          className="absolute inset-0 rounded-full"
+          initial={{ opacity: 0, y: 24 }}
+          animate={
+            phase === "flight"
+              ? controls
+              : {
+                  opacity: 1,
+                  y: [0, -10, 0],
+                  rotateX: 0,
+                  scale: 1,
+                  transition: {
+                    y: { duration: 5.5, repeat: Infinity, ease: "easeInOut" },
+                    opacity: { duration: 0.9, ease: EASE_PREMIUM },
+                  },
+                }
+          }
         >
-          {team.name}
-        </p>
+          {/*
+            Inner wrapper carries the horizontal-squash flip so the edge disc,
+            face and sheen all compress together into a thin gold edge as the
+            coin turns — never a full plain-gold disc.
+          */}
+          <motion.div
+            className="absolute inset-0 rounded-full"
+            style={{ scaleX: phase === "flight" ? flipScaleX : 1 }}
+          >
+            <div
+              className="absolute inset-[-2px] rounded-full"
+              style={{
+                background: "linear-gradient(90deg, #8A611D, #F3C96A 36%, #60400E 72%, #D4AF37)",
+              }}
+            />
+            <CoinFace
+              side={phase === "flight" ? flightSide : phase === "reveal" && result ? result : "Heads"}
+              flat
+            />
+            <motion.div
+              className="absolute inset-0 rounded-full pointer-events-none"
+              style={{
+                background:
+                  "linear-gradient(115deg, transparent 22%, rgba(255,255,255,0.34) 44%, rgba(243,201,106,0.22) 50%, transparent 68%)",
+                mixBlendMode: "screen",
+              }}
+              animate={{ x: ["-135%", "135%"], opacity: [0, 0.8, 0] }}
+              transition={{ duration: 2.4, repeat: Infinity, repeatDelay: 3.8, ease: EASE_PREMIUM }}
+            />
+          </motion.div>
+        </motion.div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
-// ─── Coin Toss Component ──────────────────────────────────────────────────────
+export default function TossPage() {
+  const [choice, setChoice] = useState<Choice>("Heads");
+  const [phase, setPhase] = useState<TossPhase>("ready");
+  const [result, setResult] = useState<Choice | null>(null);
 
-function CoinToss({
-  teamA,
-  teamB,
-  onResult,
-}: {
-  teamA: Team;
-  teamB: Team;
-  onResult: (winner: TeamId) => void;
-}) {
-  const [rotation, setRotation] = useState(0);
-  const [isFlipping, setIsFlipping] = useState(false);
-  const [winner, setWinner] = useState<Team | null>(null);
-  const [hasFlipped, setHasFlipped] = useState(false);
+  const isBusy = phase === "flight";
+  const surroundingOpacity = phase === "ready" ? 1 : phase === "reveal" ? 0.34 : 0.16;
 
-  // Auto-flip on mount — no manual confirmation needed
-  useEffect(() => {
-    const t = setTimeout(() => flip(), 700);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function flip() {
-    if (isFlipping || hasFlipped) return;
-    setIsFlipping(true);
-
-    const winnerTeam = Math.random() < 0.5 ? teamA : teamB;
-    // teamA is at face (0° modulo 360°), teamB is at back (180° modulo 360°)
-    const winnerIsA = winnerTeam.id === teamA.id;
-    const spins = 6 + Math.floor(Math.random() * 3); // 6–8 full rotations
-    const finalRotation = spins * 360 + (winnerIsA ? 0 : 180);
-
-    setRotation(finalRotation);
-
-    // Show result after animation completes
-    setTimeout(() => {
-      setWinner(winnerTeam);
-      setHasFlipped(true);
-      setIsFlipping(false);
-      onResult(winnerTeam.id);
-    }, 3600);
+  function beginToss() {
+    if (isBusy) return;
+    setResult(Math.random() < 0.5 ? "Heads" : "Tails");
+    setPhase("flight");
   }
 
-  return (
-    <div className="flex flex-col items-center gap-10">
-      {/* Coin */}
-      <div style={{ perspective: "1200px" }} className="relative">
-        {/* Permanent gold ambient glow */}
-        <div
-          className="absolute -inset-6 rounded-full blur-2xl opacity-30 pointer-events-none"
-          style={{ background: "radial-gradient(circle, #F5C418, #8B5E00)" }}
-        />
+  function resetToss() {
+    setResult(null);
+    setPhase("ready");
+  }
 
-        {/* Winner team glow — fades in on top of gold glow */}
-        <AnimatePresence>
-          {winner && (
+  const handleCoinLanded = useCallback(() => setPhase("reveal"), []);
+
+  return (
+    <section
+      className="theme-static-dark relative min-h-screen overflow-hidden px-5 pt-28 pb-16 text-white sm:px-8"
+      style={{
+        isolation: "isolate",
+        background: "linear-gradient(178deg, #1B3663 0%, #12233F 46%, #0F1D36 100%)",
+      }}
+    >
+      {/* Royal Blue deepens as the coin takes the stage. */}
+      <motion.div
+        className="absolute inset-0 bg-[#0D1728] pointer-events-none"
+        animate={{ opacity: phase === "ready" ? 0 : 0.34 }}
+        transition={{ duration: 1.2, ease: EASE_PREMIUM }}
+      />
+
+      {/* Ceremonial ripple — concentric gold rings spreading out from the coin,
+          echoing the milled edge of the crest. This is the page's signature
+          motif; nothing else on the site uses it. */}
+      <svg
+        className="absolute left-1/2 top-[36%] h-[190vmax] w-[190vmax] -translate-x-1/2 -translate-y-1/2"
+        viewBox="0 0 1000 1000"
+        aria-hidden="true"
+        preserveAspectRatio="xMidYMid slice"
+      >
+        {Array.from({ length: 13 }, (_, ring) => (
+          <circle
+            key={ring}
+            cx="500"
+            cy="500"
+            r={44 + ring * 36}
+            fill="none"
+            stroke="#D4AF37"
+            strokeWidth={ring % 3 === 0 ? 1.1 : 0.5}
+            opacity={Math.max(0.04, 0.3 - ring * 0.021)}
+          />
+        ))}
+      </svg>
+
+      {/* Two broad floodlight beams raking in from the wings. */}
+      <div
+        className="absolute inset-0 opacity-[0.5]"
+        style={{
+          background:
+            "conic-gradient(from 196deg at 18% -12%, transparent 0deg, rgba(243,201,106,0.11) 12deg, transparent 26deg), conic-gradient(from 118deg at 82% -12%, transparent 0deg, rgba(243,201,106,0.09) 13deg, transparent 27deg)",
+        }}
+      />
+
+      {/* Warm pool of light on the coin, cooling into Royal Blue at the rim. */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_52%_42%_at_50%_36%,rgba(243,201,106,0.14),transparent_64%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_128%_86%_at_50%_42%,transparent_40%,rgba(13,23,40,0.82)_100%)]" />
+
+      {DUST.map((particle, index) => (
+        <motion.span
+          key={index}
+          aria-hidden
+          className="absolute rounded-full bg-[#F3C96A]/45 shadow-[0_0_18px_rgba(243,201,106,0.5)]"
+          style={{
+            left: particle.left,
+            top: particle.top,
+            width: particle.size,
+            height: particle.size,
+          }}
+          animate={{ y: [-10, 14, -10], opacity: [0.14, 0.58, 0.14] }}
+          transition={{
+            duration: particle.duration,
+            delay: particle.delay,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
+      ))}
+
+      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-11rem)] w-full max-w-5xl flex-col items-center justify-center">
+        <motion.div
+          className="w-full text-center"
+          animate={{ opacity: surroundingOpacity, filter: phase === "ready" ? "blur(0px)" : "blur(1px)" }}
+          transition={{ duration: 1.1, ease: EASE_PREMIUM }}
+        >
+          <motion.p
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: EASE_PREMIUM }}
+            className="mt-10 mb-6 text-[10px] font-black uppercase tracking-[0.32em] text-[#D4AF37]"
+          >
+            Jaipur Cricket Circle
+          </motion.p>
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.08, ease: EASE_PREMIUM }}
+            className="font-heading text-[clamp(4rem,12vw,9rem)] font-semibold normal-case leading-[0.86] tracking-normal text-[#FFF8E7]"
+            style={{ textShadow: "0 28px 70px rgba(0,0,0,0.44), 0 0 46px rgba(212,175,55,0.13)" }}
+          >
+            Match Toss
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.18, ease: EASE_PREMIUM }}
+            className="mx-auto mt-5 max-w-xl text-base font-medium leading-8 text-[#FFF8E7]/72 sm:text-lg"
+          >
+            Every great contest begins with a single call.
+          </motion.p>
+        </motion.div>
+
+        <motion.div
+          className="relative my-3 w-full sm:my-5"
+          animate={{ y: phase === "flight" ? -24 : 0 }}
+          transition={{ duration: 4.2, ease: EASE_PREMIUM }}
+        >
+          <PremiumCoin phase={phase} result={result} onLanded={handleCoinLanded} />
+        </motion.div>
+
+        <AnimatePresence mode="popLayout">
+          {phase !== "reveal" && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.5 }}
-              animate={{ opacity: 0.55, scale: 1 }}
-              className="absolute -inset-8 rounded-full blur-2xl pointer-events-none"
-              style={{ background: winner.primary }}
-            />
+              className="flex w-full flex-col items-center gap-5"
+              initial={{ opacity: 1 }}
+              animate={{ opacity: surroundingOpacity, y: phase === "ready" ? 0 : 12 }}
+              exit={{ opacity: 0, y: 12, transition: { duration: 0.3, ease: EASE_PREMIUM } }}
+              transition={{ duration: 1, ease: EASE_PREMIUM }}
+            >
+              <div className="grid w-full max-w-sm grid-cols-2 rounded-full border border-[#D4AF37]/26 bg-white/[0.045] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_24px_70px_rgba(0,0,0,0.22)] backdrop-blur-xl">
+                {(["Heads", "Tails"] as const).map((option) => {
+                  const selected = choice === option;
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      disabled={isBusy}
+                      onClick={() => setChoice(option)}
+                      className="relative rounded-full px-7 py-3.5 text-xs font-black uppercase tracking-[0.2em] transition disabled:cursor-not-allowed"
+                      style={{
+                        color: selected ? "#FFF8E7" : "rgba(255,248,231,0.58)",
+                        border: selected ? "1px solid rgba(243,201,106,0.72)" : "1px solid transparent",
+                        background: selected ? "rgba(212,175,55,0.09)" : "transparent",
+                        boxShadow: selected ? "0 0 28px rgba(212,175,55,0.18), inset 0 1px 0 rgba(255,255,255,0.1)" : "none",
+                      }}
+                    >
+                      {option}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                type="button"
+                onClick={beginToss}
+                disabled={isBusy}
+                className="group relative inline-flex min-w-56 items-center justify-center overflow-hidden rounded-full border border-[#D4AF37] bg-[#D4AF37] px-8 py-4 text-xs font-black uppercase tracking-[0.18em] text-[#132442] shadow-[0_22px_52px_rgba(0,0,0,0.28),0_0_34px_rgba(212,175,55,0.22)] transition duration-500 hover:-translate-y-0.5 hover:border-[#F3C96A] hover:bg-[#F3C96A] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <span className="absolute inset-0 -translate-x-full bg-[linear-gradient(115deg,transparent,rgba(255,255,255,0.48),transparent)] transition-transform duration-1000 group-hover:translate-x-full" />
+                <span className="relative">Begin Toss</span>
+              </button>
+            </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Shadow under coin — golden tint */}
-        <div
-          className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-44 h-5 rounded-full blur-xl opacity-50"
-          style={{
-            background: isFlipping
-              ? "#6B4A00"
-              : winner
-                ? winner.primary
-                : "#C98E08",
-          }}
-        />
-
-        {/* The coin */}
-        <motion.div
-          className="relative w-52 h-52 sm:w-64 sm:h-64"
-          style={{ transformStyle: "preserve-3d" }}
-          animate={{ rotateY: rotation }}
-          transition={{
-            duration: isFlipping ? 3.4 : 0,
-            ease: [0.15, 0.05, 0.05, 1.0],
-            type: "tween",
-          }}
-        >
-          <CoinFace team={teamA} isBack={false} />
-          <CoinFace team={teamB} isBack={true} />
-        </motion.div>
-      </div>
-
-      {/* Team labels */}
-      <div className="flex items-center gap-6 text-xs font-black tracking-widest uppercase">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full" style={{ background: teamA.primary }} />
-          <span style={{ color: teamA.primary }}>{teamA.name}</span>
-        </div>
-        <span className="text-white/20">·</span>
-        <div className="flex items-center gap-2">
-          <span style={{ color: teamB.primary }}>{teamB.name}</span>
-          <div className="w-2 h-2 rounded-full" style={{ background: teamB.primary }} />
-        </div>
-      </div>
-
-      {/* Flipping indicator */}
-      {isFlipping && (
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-white/40 text-xs font-black tracking-[0.4em] uppercase"
-        >
-          Flipping...
-        </motion.p>
-      )}
-
-      {/* Result */}
-      <AnimatePresence>
-        {winner && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.85, y: 24 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ type: "spring", stiffness: 200, damping: 22 }}
-            className="flex flex-col items-center gap-5 text-center"
-          >
-            <div
-              className="px-10 py-7 rounded-3xl border"
-              style={{
-                background: `linear-gradient(135deg, ${winner.secondary}, ${winner.primary}22)`,
-                borderColor: `${winner.primary}44`,
-                boxShadow: `0 0 60px ${winner.glow}`,
-              }}
-            >
-              <Trophy
-                className="w-9 h-9 mx-auto mb-3"
-                style={{ color: winner.primary }}
-              />
-              <p className="text-white/50 text-[10px] font-black tracking-[0.4em] uppercase mb-1.5">
-                Won The Toss
-              </p>
-              <h3
-                className="text-4xl sm:text-5xl font-black uppercase tracking-wide"
-                style={{
-                  color: winner.primary,
-                  textShadow: `0 0 40px ${winner.glow}`,
-                }}
-              >
-                {winner.name}
-              </h3>
-              <p className="text-white/30 text-sm mt-2 font-medium italic">
-                &ldquo;{winner.tagline}&rdquo;
-              </p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
-
-export default function TossPage() {
-  const [phase, setPhase] = useState<Phase>("landing");
-  const [selected, setSelected] = useState<TeamId[]>([]);
-  const [winner, setWinner] = useState<TeamId | null>(null);
-  const proceedRef = useRef<HTMLButtonElement>(null);
-
-  const teamA = selected[0] ? TEAMS[selected[0]] : null;
-  const teamB = selected[1] ? TEAMS[selected[1]] : null;
-
-  // Auto-scroll to proceed button when 2 teams are picked
-  useEffect(() => {
-    if (selected.length === 2) {
-      // Let AnimatePresence add the button first, then scroll
-      const t = setTimeout(() => {
-        proceedRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 120);
-      return () => clearTimeout(t);
-    }
-  }, [selected.length]);
-
-  function toggleTeam(id: TeamId) {
-    setSelected((prev) => {
-      if (prev.includes(id)) return prev.filter((t) => t !== id);
-      if (prev.length >= 2) return prev;
-      return [...prev, id];
-    });
-  }
-
-  function reset() {
-    setSelected([]);
-    setWinner(null);
-    setPhase("landing");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function resetToFlip() {
-    setWinner(null);
-    setPhase("captains");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  // Seam decoration shared across phases
-  const SeamDots = () => (
-    <div className="absolute top-0 left-1/2 -translate-x-1/2 flex gap-1.5 pt-6 opacity-20 pointer-events-none">
-      {[...Array(7)].map((_, i) => (
-        <div
-          key={i}
-          className="w-0.5 h-5 rounded-full bg-[#EDE3CE]"
-          style={{ transform: `rotate(${8 + i * 2}deg)` }}
-        />
-      ))}
-    </div>
-  );
-
-  // ── Landing ────────────────────────────────────────────────────────────────
-  if (phase === "landing") {
-    return (
-      <div className="theme-static-dark min-h-screen bg-[#07040A] flex flex-col items-center justify-center relative overflow-hidden">
-        <SeamDots />
-
-        {/* Background atmosphere */}
-        <div
-          className="absolute top-1/4 left-1/3 w-[480px] h-[480px] rounded-full blur-[140px] opacity-[0.18] pointer-events-none"
-          style={{ background: "#E8537E" }}
-        />
-        <div
-          className="absolute bottom-1/3 right-1/4 w-[360px] h-[360px] rounded-full blur-[120px] opacity-[0.12] pointer-events-none"
-          style={{ background: "#3B6FC4" }}
-        />
-
-        {/* Back to home */}
-        <Link
-          href="/"
-          className="absolute top-6 left-6 flex items-center gap-1.5 text-white/30 hover:text-white/70 transition-colors text-xs font-black uppercase tracking-widest"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Home
-        </Link>
-
-        <motion.div
-          className="flex flex-col items-center gap-8 text-center px-6"
-          initial="hidden"
-          animate="visible"
-          variants={{ visible: { transition: { staggerChildren: 0.18 } } }}
-        >
-          {/* Pre-label */}
-          <motion.span
-            variants={{ hidden: { opacity: 0, y: -16 }, visible: { opacity: 1, y: 0 } }}
-            className="text-jcc-accent text-[10px] font-black tracking-[0.5em] uppercase"
-          >
-            Jaipur Cricket Circle
-          </motion.span>
-
-          {/* Main title */}
-          <motion.div
-            variants={{
-              hidden: { opacity: 0, scale: 0.75 },
-              visible: { opacity: 1, scale: 1, transition: { type: "spring", stiffness: 100, damping: 14 } },
-            }}
-            className="flex flex-col items-center leading-none"
-          >
-            <h1
-              className="text-[clamp(5rem,18vw,11rem)] font-black uppercase tracking-tight text-white"
-              style={{ textShadow: "0 0 100px rgba(232,83,126,0.35), 0 0 40px rgba(232,83,126,0.15)" }}
-            >
-              THE
-            </h1>
-            <h1
-              className="text-[clamp(5rem,18vw,11rem)] font-black uppercase tracking-tight"
-              style={{
-                color: "#E8537E",
-                textShadow: "0 0 80px rgba(232,83,126,0.7), 0 0 160px rgba(232,83,126,0.3)",
-              }}
-            >
-              TOSS
-            </h1>
-          </motion.div>
-
-          {/* Decorative coin — golden IPL-style */}
-          <motion.div
-            variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }}
-            className="relative flex items-center justify-center"
-          >
-            <div
-              className="w-24 h-24 rounded-full flex items-center justify-center relative overflow-hidden"
-              style={{
-                background: "radial-gradient(circle at 32% 22%, #FFFACC 0%, #F9D020 14%, #D4940A 38%, #A06308 62%, #5C3A00 100%)",
-                boxShadow: [
-                  "0 0 60px rgba(245,196,24,0.65)",
-                  "0 0 120px rgba(200,140,8,0.3)",
-                  "inset 0 8px 20px rgba(255,245,100,0.5)",
-                  "inset 0 -8px 20px rgba(0,0,0,0.65)",
-                ].join(", "),
-              }}
-            >
-              {/* Sunburst via conic-gradient — no trig, no SSR mismatch */}
-              <div
-                className="absolute rounded-full pointer-events-none"
-                style={{
-                  inset: "13px",
-                  background:
-                    "repeating-conic-gradient(rgba(122,82,0,0.18) 0deg, rgba(122,82,0,0.18) 2deg, transparent 2deg, transparent 10deg)",
-                }}
-              />
-              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 96 96">
-                {/* Milled rim — pure circle geometry, no trig */}
-                <circle cx={48} cy={48} r={45} fill="none" stroke="#3A1E00" strokeWidth={4} strokeDasharray="2.2 1.8" opacity={0.9} />
-                <circle cx={48} cy={48} r={41} fill="none" stroke="#FFE066" strokeWidth={1} opacity={0.6} />
-                <circle cx={48} cy={48} r={39} fill="none" stroke="#7A5200" strokeWidth={0.6} opacity={0.4} />
-                {/* Logo platform rings */}
-                <circle cx={48} cy={48} r={22} fill="#C98E08" opacity={0.2} />
-                <circle cx={48} cy={48} r={21} fill="none" stroke="#FFE066" strokeWidth={1.5} opacity={0.55} />
-              </svg>
-              {/* Cricket symbol */}
-              <span className="relative z-10 text-2xl select-none" style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.8))" }}>
-                🏏
-              </span>
-              {/* Gloss */}
-              <div className="absolute inset-0 rounded-full pointer-events-none"
-                style={{ background: "radial-gradient(ellipse at 27% 14%, rgba(255,255,230,0.55) 0%, transparent 55%)" }}
-              />
-            </div>
-            <div
-              className="absolute inset-[-10px] rounded-full border border-yellow-400/20 animate-spin"
-              style={{ animationDuration: "9s" }}
-            />
-            <div
-              className="absolute inset-[-22px] rounded-full border border-yellow-600/10 animate-spin"
-              style={{ animationDuration: "14s", animationDirection: "reverse" }}
-            />
-          </motion.div>
-
-          {/* Tagline */}
-          <motion.p
-            variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }}
-            className="text-white/35 text-sm font-medium tracking-widest max-w-xs"
-          >
-            The coin decides. The team delivers.
-          </motion.p>
-
-          {/* Teams preview chips */}
-          <motion.div
-            variants={{ hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0 } }}
-            className="flex gap-3 flex-wrap justify-center"
-          >
-            {TEAM_ORDER.map((id) => {
-              const t = TEAMS[id];
-              return (
-                <div
-                  key={id}
-                  className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl"
-                  style={{
-                    background: `${t.primary}1A`,
-                    border: `1.5px solid ${t.primary}55`,
-                    boxShadow: `0 0 18px ${t.primary}28`,
-                  }}
-                >
-                  {/* Team logo */}
-                  <div className="w-6 h-6 rounded-md overflow-hidden flex-shrink-0 flex items-center justify-center"
-                    style={{ background: `${t.primary}22` }}>
-                    <TeamLogo team={t} className="w-full h-full object-contain" />
-                  </div>
-                  <span
-                    className="text-xs font-black uppercase tracking-widest"
-                    style={{
-                      color: "#FFFFFF",
-                      textShadow: `0 0 12px ${t.primary}, 0 0 24px ${t.primary}88`,
-                    }}
-                  >
-                    {t.name}
-                  </span>
-                </div>
-              );
-            })}
-          </motion.div>
-
-          {/* CTA */}
-          <motion.button
-            variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-            onClick={() => { setPhase("selection"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.97 }}
-            className="relative overflow-hidden px-12 py-4 rounded-2xl font-black text-sm uppercase tracking-[0.2em] text-white"
-            style={{
-              background: "linear-gradient(135deg, #E8537E, #B83060)",
-              boxShadow: "0 8px 36px rgba(232,83,126,0.45)",
-            }}
-          >
-            <SeamLines />
-            Begin The Toss
-          </motion.button>
-        </motion.div>
-      </div>
-    );
-  }
-
-  // ── Selection ──────────────────────────────────────────────────────────────
-  if (phase === "selection") {
-    return (
-      <div className="theme-static-dark min-h-screen bg-[#07040A] flex flex-col items-center justify-center relative overflow-hidden px-4 pt-32 pb-24">
-        <SeamDots />
-
-        {/* Back to landing */}
-        <button
-          onClick={() => setPhase("landing")}
-          className="absolute top-6 left-6 flex items-center gap-1.5 text-white/30 hover:text-white/70 transition-colors text-xs font-black uppercase tracking-widest"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Back
-        </button>
-
-        <div
-          className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[300px] rounded-full blur-[120px] opacity-[0.1] pointer-events-none"
-          style={{ background: "#E8537E" }}
-        />
-
-        <motion.div
-          className="w-full max-w-5xl flex flex-col items-center gap-10"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4 }}
-        >
-          {/* Header */}
-          <div className="flex flex-col items-center gap-2 text-center">
-            <span className="text-jcc-accent text-[10px] font-black tracking-[0.5em] uppercase">
-              Step 1 of 3
-            </span>
-            <h2 className="text-4xl sm:text-5xl font-black text-white uppercase tracking-tight">
-              Select Two Teams
-            </h2>
-            <p className="text-white/35 text-sm font-medium min-h-[1.5rem]">
-              {selected.length === 0 && "Pick the first team for the toss"}
-              {selected.length === 1 && "Now pick the second team"}
-              {selected.length === 2 && "Ready — bring out the captains"}
-            </p>
-          </div>
-
-          {/* Team cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
-            {TEAM_ORDER.map((id, i) => {
-              const team = TEAMS[id];
-              const isSelected = selected.includes(id);
-              const isDisabled = !isSelected && selected.length >= 2;
-              const selOrder = selected.indexOf(id) + 1;
-
-              return (
-                <motion.button
-                  key={id}
-                  initial={{ opacity: 0, y: 28 }}
-                  animate={{ opacity: isDisabled ? 0.38 : 1, y: 0 }}
-                  transition={{ delay: i * 0.08, duration: 0.45 }}
-                  onClick={() => !isDisabled && toggleTeam(id)}
-                  whileHover={!isDisabled ? { scale: 1.02, y: -4 } : {}}
-                  whileTap={!isDisabled ? { scale: 0.98 } : {}}
-                  disabled={isDisabled}
-                  className="relative flex flex-col items-center gap-5 p-6 rounded-2xl border text-center w-full transition-all duration-300"
-                  style={{
-                    background: isSelected
-                      ? `linear-gradient(155deg, ${team.secondary}, ${team.primary}22)`
-                      : "rgba(255,255,255,0.025)",
-                    borderColor: isSelected ? `${team.primary}66` : "rgba(255,255,255,0.07)",
-                    boxShadow: isSelected
-                      ? `0 0 50px ${team.glow}, 0 0 0 1px ${team.primary}33`
-                      : "none",
-                  }}
-                >
-                  {/* Selection badge */}
-                  {isSelected && (
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center text-xs font-black text-black"
-                      style={{ background: team.primary }}
-                    >
-                      {selOrder}
-                    </motion.div>
-                  )}
-
-                  {/* Logo */}
-                  <div
-                    className="w-28 h-28 rounded-2xl flex items-center justify-center p-3 overflow-hidden"
-                    style={{
-                      background: `${team.primary}10`,
-                      border: `1px solid ${team.primary}22`,
-                    }}
-                  >
-                    <TeamLogo team={team} className="w-full h-full object-contain" />
-                  </div>
-
-                  {/* Info */}
-                  <div>
-                    <h3
-                      className="font-black text-xl uppercase tracking-wider leading-tight"
-                      style={{
-                        color: "#FFFFFF",
-                        textShadow: `0 0 18px ${team.primary}, 0 0 36px ${team.primary}99, 0 2px 4px rgba(0,0,0,0.9)`,
-                      }}
-                    >
-                      {team.name}
-                    </h3>
-                    <p
-                      className="text-xs font-bold mt-1.5 tracking-widest uppercase"
-                      style={{ color: team.primary, opacity: 0.9 }}
-                    >
-                      {team.tagline}
-                    </p>
-                  </div>
-                </motion.button>
-              );
-            })}
-          </div>
-
-          {/* Proceed button */}
-          <AnimatePresence>
-            {selected.length === 2 && (
-              <motion.button
-                ref={proceedRef}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                onClick={() => { setPhase("captains"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.97 }}
-                className="relative overflow-hidden px-12 py-4 rounded-2xl font-black text-sm uppercase tracking-[0.2em] text-white"
-                style={{
-                  background: "linear-gradient(135deg, #E8537E, #B83060)",
-                  boxShadow: "0 8px 36px rgba(232,83,126,0.45)",
-                }}
-              >
-                <SeamLines />
-                Bring Out The Captains →
-              </motion.button>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      </div>
-    );
-  }
-
-  // ── Captains ───────────────────────────────────────────────────────────────
-  if (phase === "captains" && teamA && teamB) {
-    return (
-      <div className="theme-static-dark min-h-screen bg-[#07040A] flex flex-col items-center justify-center relative overflow-hidden px-4 pt-32 pb-24">
-        <SeamDots />
-
-        {/* Back to team selection */}
-        <button
-          onClick={() => setPhase("selection")}
-          className="absolute top-6 left-6 flex items-center gap-1.5 text-white/30 hover:text-white/70 transition-colors text-xs font-black uppercase tracking-widest"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Back
-        </button>
-
-        {/* Dual team glows */}
-        <div
-          className="absolute top-1/3 left-1/4 w-80 h-80 rounded-full blur-[130px] opacity-20 pointer-events-none"
-          style={{ background: teamA.primary }}
-        />
-        <div
-          className="absolute top-1/3 right-1/4 w-80 h-80 rounded-full blur-[130px] opacity-20 pointer-events-none"
-          style={{ background: teamB.primary }}
-        />
-
-        <motion.div
-          className="w-full max-w-3xl flex flex-col items-center gap-12"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4 }}
-        >
-          {/* Header */}
-          <div className="flex flex-col items-center gap-2 text-center">
-            <span className="text-jcc-accent text-[10px] font-black tracking-[0.5em] uppercase">
-              Step 2 of 3
-            </span>
-            <h2 className="text-4xl sm:text-5xl font-black text-white uppercase tracking-tight">
-              The Captains
-            </h2>
-          </div>
-
-          {/* Captain jerseys */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-8 sm:gap-16 w-full">
-            <JerseyCard team={teamA} delay={0.15} />
-
+        <AnimatePresence>
+          {phase === "reveal" && result && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.5 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.5, type: "spring", stiffness: 180, damping: 16 }}
-              className="flex flex-col items-center"
+              className="mx-auto flex w-full max-w-xl flex-col items-center text-center"
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 16 }}
+              transition={{ type: "spring", stiffness: 190, damping: 24, mass: 0.9 }}
             >
-              <span className="text-6xl font-black text-white/8 uppercase select-none">
-                vs
-              </span>
-            </motion.div>
-
-            <JerseyCard team={teamB} delay={0.3} />
-          </div>
-
-          {/* Next: coin flip */}
-          <motion.button
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.1 }}
-            onClick={() => { setPhase("result"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.97 }}
-            className="relative overflow-hidden px-12 py-5 rounded-2xl font-black text-sm uppercase tracking-[0.2em] text-white"
-            style={{
-              background: "linear-gradient(135deg, #E8537E, #B83060)",
-              boxShadow: "0 8px 40px rgba(232,83,126,0.5)",
-            }}
-          >
-            <SeamLines />
-            Proceed to Coin Flip →
-          </motion.button>
-        </motion.div>
-      </div>
-    );
-  }
-
-  // ── Result (coin flip) ─────────────────────────────────────────────────────
-  if (phase === "result" && teamA && teamB) {
-    return (
-      <div className="theme-static-dark min-h-screen bg-[#07040A] flex flex-col items-center justify-center relative overflow-hidden px-4 pt-32 pb-24">
-        <SeamDots />
-
-        {/* Winner glow (revealed after toss) */}
-        {winner && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1 }}
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: `radial-gradient(ellipse at 50% 30%, ${TEAMS[winner].glow} 0%, transparent 65%)`,
-            }}
-          />
-        )}
-
-        <motion.div
-          className="w-full max-w-2xl flex flex-col items-center gap-10"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4 }}
-        >
-          {/* Header */}
-          <div className="flex flex-col items-center gap-2 text-center">
-            <span className="text-jcc-accent text-[10px] font-black tracking-[0.5em] uppercase">
-              Step 3 of 3
-            </span>
-            <h2 className="text-4xl sm:text-5xl font-black text-white uppercase tracking-tight">
-              {winner ? "Toss Result" : "The Coin Flip"}
-            </h2>
-          </div>
-
-          {/* Coin toss */}
-          <CoinToss
-            teamA={teamA}
-            teamB={teamB}
-            onResult={(w) => setWinner(w)}
-          />
-
-          {/* Post-result actions */}
-          <AnimatePresence>
-            {winner && (
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="flex gap-3"
+                transition={{ duration: 0.5, delay: 0.04, ease: EASE_PREMIUM }}
+                className="text-[10px] font-black uppercase tracking-[0.34em] text-[#D4AF37]"
+              >
+                The Coin Decides
+              </motion.p>
+              <motion.h2
+                initial={{ opacity: 0, y: 18, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ type: "spring", stiffness: 220, damping: 18, mass: 0.8, delay: 0.09 }}
+                className="mt-3 font-heading text-6xl font-semibold normal-case leading-none tracking-normal text-[#FFF8E7] sm:text-7xl"
+              >
+                {result}
+              </motion.h2>
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2, ease: EASE_PREMIUM }}
+                className="mt-4 text-sm font-semibold text-[#FFF8E7]/55"
+              >
+                {choice === result ? "The call stands." : "The call falls away."}
+              </motion.p>
+
+              <motion.div
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.55, delay: 0.3, ease: EASE_PREMIUM }}
+                className="mt-8 flex w-full flex-col justify-center gap-3 sm:flex-row"
               >
                 <button
-                  onClick={resetToFlip}
-                  className="flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-black tracking-widest uppercase text-white/50 border border-white/10 hover:border-white/25 hover:text-white/80 transition-all duration-200"
+                  type="button"
+                  onClick={resetToss}
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-[#D4AF37]/55 bg-white/[0.055] px-7 py-3.5 text-xs font-black uppercase tracking-[0.16em] text-[#FFF8E7] shadow-[0_18px_44px_rgba(0,0,0,0.2)] backdrop-blur-xl transition duration-500 hover:-translate-y-0.5 hover:border-[#F3C96A]"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  Flip Again
+                  <RefreshCw className="h-4 w-4 text-[#D4AF37]" />
+                  Toss Again
                 </button>
-                <button
-                  onClick={reset}
-                  className="flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-black tracking-widest uppercase text-white/50 border border-white/10 hover:border-white/25 hover:text-white/80 transition-all duration-200"
+                <Link
+                  href="/tournament"
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-[#D4AF37] bg-[#D4AF37] px-7 py-3.5 text-xs font-black uppercase tracking-[0.16em] text-[#132442] shadow-[0_20px_48px_rgba(0,0,0,0.24)] transition duration-500 hover:-translate-y-0.5 hover:bg-[#F3C96A]"
                 >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  Start Toss Again
-                </button>
+                  Continue
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
               </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-    );
-  }
-
-  return null;
+    </section>
+  );
 }

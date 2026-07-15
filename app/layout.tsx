@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Fraunces, IBM_Plex_Mono } from "next/font/google";
-import localFont from "next/font/local";
+import { Inter, Cormorant_Garamond, IBM_Plex_Mono } from "next/font/google";
 import { unstable_cache } from "next/cache";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
@@ -40,28 +39,16 @@ const inter = Inter({
   display: "swap",
 });
 
-// Full Fraunces 900 for all headings across the site. No longer preloaded —
-// the LCP <h1> uses the tiny wordmark subset below, so the full file can load
-// lazily without blocking the critical path.
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
+// High-contrast classical serif for all display type (headlines, match names,
+// tournament/section titles) — the "editorial institution" register. Weights
+// capped at 700 (Cormorant Garamond has no true black); italic is loaded
+// since most headline treatments in the design system are italic.
+const displaySerif = Cormorant_Garamond({
+  variable: "--font-display",
   subsets: ["latin"],
-  weight: ["900"],
-  display: "optional",
-  preload: false,
-});
-
-// LCP-only font: Fraunces 900 subset to the 11 glyphs in the hero wordmark
-// "JAIPUR CRICKET CIRCLE" (~2 KB). Preloaded so it arrives before 2.5s even on
-// slow connections, locking LCP to a fast first paint in the real brand font.
-const frauncesWordmark = localFont({
-  src: "./fonts/fraunces-wordmark.woff2",
-  variable: "--font-wordmark",
-  weight: "900",
+  weight: ["500", "600", "700"],
+  style: ["normal", "italic"],
   display: "swap",
-  preload: true,
-  fallback: ["Georgia", "Times New Roman", "serif"],
-  adjustFontFallback: "Times New Roman",
 });
 
 // Mono is only used in below-the-fold tickers/labels — don't preload it so it
@@ -93,7 +80,7 @@ export default async function RootLayout({
     <html
       lang="en"
       data-scroll-behavior="smooth"
-      className={`${inter.variable} ${fraunces.variable} ${frauncesWordmark.variable} ${plexMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${displaySerif.variable} ${plexMono.variable} h-full antialiased`}
     >
       <head>
         {/* Some non-homepage pages still fetch from Supabase client-side.

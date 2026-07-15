@@ -2,26 +2,13 @@ import { unstable_cache } from "next/cache";
 import type { Metadata } from "next";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import type { Member, MemberTag } from "@/lib/types";
+import { getDisplayRole } from "@/lib/member-role";
 import MembersClient from "./MembersClient";
 
 export const metadata: Metadata = {
   title: "Members",
   description: "Meet the legends who define Sunday cricket in Jaipur.",
 };
-
-function getDisplayRole(memberTag?: string, groupRole?: string, cricketRole?: string): string {
-  const isFounder = memberTag === "founding-member" || groupRole === "founding-member";
-  if (groupRole === "captain") return isFounder ? "Founder & Captain" : "Captain";
-  if (groupRole === "vice-captain") return isFounder ? "Founding Member & Vice Captain" : "Vice Captain";
-  if (groupRole === "admin") return isFounder ? "Founding Member & Admin" : "Admin";
-  if (isFounder) return "Founding Member";
-  if (cricketRole) {
-    if (cricketRole === "all-rounder") return "All-Rounder";
-    if (cricketRole === "wicketkeeper") return "Wicketkeeper";
-    return cricketRole.charAt(0).toUpperCase() + cricketRole.slice(1);
-  }
-  return "Member";
-}
 
 const getMembers = unstable_cache(
   async (): Promise<Member[]> => {

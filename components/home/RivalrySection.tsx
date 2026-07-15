@@ -4,6 +4,13 @@ import ScorelineCard from "@/components/ScorelineCard";
 import { AnimateIn } from "@/components/AnimateIn";
 import type { RivalrySeason } from "@/lib/rivalry";
 import type { RecentMatch } from "@/app/page";
+import { TEAMS } from "@/lib/teams";
+
+const DOT_COLOR: Record<string, string> = {
+  Mavericks: TEAMS.mavericks.primary,
+  NeuroStrikers: TEAMS.neurostrikers.primary,
+  "The Outliers": TEAMS.outliers.primary,
+};
 
 interface RivalrySectionProps {
   activeSeason: RivalrySeason;
@@ -16,6 +23,8 @@ export default function RivalrySection({
   recentMatches,
   latestMatch,
 }: RivalrySectionProps) {
+  const isThreeWay = !!activeSeason.outliers_captain;
+
   return (
     <section id="rivalry" className="py-24 sm:py-32 relative overflow-hidden section-bg-navy">
       <div className="absolute top-0 left-0 right-0 h-px bg-white/10" />
@@ -26,23 +35,36 @@ export default function RivalrySection({
         <AnimateIn className="text-center mb-16">
           <span className="inline-flex items-center gap-2.5 text-[11px] uppercase tracking-[0.5em] text-jcc-accent font-black">
             <Zap className="w-5 h-5 animate-pulse" />
-            ACTIVE CAPTAIN RIVALRY
+            ACTIVE {isThreeWay ? "3-CAPTAIN" : "CAPTAIN"} RIVALRY
           </span>
-          <h2 className="text-3xl min-[380px]:text-4xl sm:text-6xl lg:text-7xl font-black text-white tracking-tighter mt-6 uppercase italic leading-tight">
-            Mavericks vs <span className="text-gradient-cyan">NeuroStrikers</span>
+          <h2 className="text-3xl min-[380px]:text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tighter mt-6 uppercase italic leading-tight">
+            Mavericks vs
+            {isThreeWay ? (
+              <>
+                <br />
+                <span className="text-gradient-cyan">NeuroStrikers</span> vs{" "}
+                <span style={{ color: TEAMS.outliers.primary }}>Outliers</span>
+              </>
+            ) : (
+              <>
+                {" "}
+                <span className="text-gradient-cyan">NeuroStrikers</span>
+              </>
+            )}
           </h2>
           <p className="mt-4 text-white/65 text-[12px] uppercase tracking-widest font-black">
             {activeSeason.title} — Cap: {activeSeason.mavericks_captain} vs {activeSeason.neurostrikers_captain}
+            {isThreeWay && <> vs {activeSeason.outliers_captain}</>}
           </p>
           <p className="mt-6 text-white/70 text-xl max-w-2xl mx-auto font-medium leading-relaxed">
-            Every new captain pairing writes its own chapter. Two teams, one circle, pure tactical drama.
+            Every new captain pairing writes its own chapter. {isThreeWay ? "Three teams" : "Two teams"}, one circle, pure tactical drama.
           </p>
         </AnimateIn>
 
         <div className="relative">
           {/* VS badge — purely decorative, CSS positioned */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 hidden lg:flex">
-            <div className="w-16 h-16 rounded-full bg-jcc-navy-deep border-2 border-jcc-accent/30 shadow-[0_0_30px_rgba(0,194,255,0.2)] flex items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-jcc-navy-deep border-2 border-jcc-accent/30 shadow-[0_0_30px_rgba(212,175,55,0.2)] flex items-center justify-center">
               <Swords className="w-7 h-7 text-jcc-accent" />
             </div>
           </div>
@@ -51,15 +73,23 @@ export default function RivalrySection({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <ScorelineCard
               label="Main Series Score"
-              team1="Mavericks" team1Score={activeSeason.mavericks_main_wins} team1Color="text-jcc-accent"
-              team2="NeuroStrikers" team2Score={activeSeason.neurostrikers_main_wins} team2Color="text-jcc-ball-red"
+              team1="Mavericks" team1Score={activeSeason.mavericks_main_wins} team1Color="text-jcc-accent" team1Ties={activeSeason.mavericks_main_ties ?? 0}
+              team2="NeuroStrikers" team2Score={activeSeason.neurostrikers_main_wins} team2Color="text-jcc-ball-red" team2Ties={activeSeason.neurostrikers_main_ties ?? 0}
+              team3={isThreeWay ? "Outliers" : undefined}
+              team3Score={isThreeWay ? activeSeason.outliers_main_wins : undefined}
+              team3Color={isThreeWay ? "text-[#1A7A5E]" : undefined}
+              team3Ties={isThreeWay ? (activeSeason.outliers_main_ties ?? 0) : undefined}
               isDark={true}
             />
             <ScorelineCard
               label="Exhibition Series Score"
-              team1="Mavericks" team1Score={activeSeason.mavericks_exhibition_wins} team1Color="text-jcc-accent"
-              team2="NeuroStrikers" team2Score={activeSeason.neurostrikers_exhibition_wins} team2Color="text-jcc-ball-red"
-              isDark={true}
+              team1="Mavericks" team1Score={activeSeason.mavericks_exhibition_wins} team1Color="text-jcc-accent" team1Ties={activeSeason.mavericks_exhibition_ties ?? 0}
+              team2="NeuroStrikers" team2Score={activeSeason.neurostrikers_exhibition_wins} team2Color="text-jcc-ball-red" team2Ties={activeSeason.neurostrikers_exhibition_ties ?? 0}
+              team3={isThreeWay ? "Outliers" : undefined}
+              team3Score={isThreeWay ? activeSeason.outliers_exhibition_wins : undefined}
+              team3Color={isThreeWay ? "text-[#1A7A5E]" : undefined}
+              team3Ties={isThreeWay ? (activeSeason.outliers_exhibition_ties ?? 0) : undefined}
+              isDark={false}
             />
           </div>
         </div>
@@ -73,7 +103,13 @@ export default function RivalrySection({
                 {latestMatch.result || "Latest result"}
               </span>
               <div className="w-px h-4 bg-white/20 hidden sm:block" />
-              <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${latestMatch.winner === "Mavericks" ? "bg-jcc-accent/20 text-jcc-accent" : "bg-jcc-ball-red/20 text-jcc-ball-red"}`}>
+              <span
+                className="text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest"
+                style={{
+                  color: DOT_COLOR[latestMatch.winner] ?? "#fff",
+                  backgroundColor: `${DOT_COLOR[latestMatch.winner] ?? "#fff"}20`,
+                }}
+              >
                 {latestMatch.winner} WON
               </span>
             </div>
@@ -86,8 +122,8 @@ export default function RivalrySection({
               key={match.id}
               className="w-2.5 h-2.5 rounded-full border border-white/10"
               style={{
-                background: match.winner === "Mavericks" ? "var(--jcc-accent)" : match.winner === "NeuroStrikers" ? "var(--jcc-ball-red)" : "rgba(255,255,255,0.2)",
-                boxShadow: match.winner === "Mavericks" ? "0 0 10px rgba(0,194,255,0.4)" : match.winner === "NeuroStrikers" ? "0 0 10px rgba(255,77,77,0.4)" : "none",
+                background: DOT_COLOR[match.winner] ?? "rgba(255,255,255,0.2)",
+                boxShadow: DOT_COLOR[match.winner] ? `0 0 10px ${DOT_COLOR[match.winner]}66` : "none",
               }}
               title={`${match.date}: ${match.result}`}
             />

@@ -64,7 +64,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/chewvana-times`,
+      url: `${baseUrl}/boundary-banter`,
       lastModified: new Date(),
       changeFrequency: 'weekly' as const,
       priority: 0.9,
@@ -73,7 +73,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // 4. Map dynamic pages
   const dynamicBlogPages = Array.from(articleEntries.entries()).map(([slug, lastMod]) => ({
-    url: `${baseUrl}/chewvana-times/${slug}`,
+    url: `${baseUrl}/boundary-banter/${slug}`,
     lastModified: lastMod,
     changeFrequency: 'monthly' as const,
     priority: 0.7,

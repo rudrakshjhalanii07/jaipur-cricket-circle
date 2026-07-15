@@ -42,3 +42,34 @@ export function getDiceBearUrl(
     `&shapeColor=${shapeColor}`
   );
 }
+
+/**
+ * Generates an ivory "membership certificate" placeholder for a member
+ * without a photo — engraved initials on paper stock, matching the
+ * monochrome portrait treatment instead of a playful colored illustration.
+ * Used by the Member Directory card components only.
+ */
+export function getMonogramAvatar(name: string): string {
+  const initials =
+    (name || "JCC")
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((word) => word[0]?.toUpperCase() ?? "")
+      .join("") || "JCC";
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500" viewBox="0 0 400 500">
+    <defs>
+      <radialGradient id="g" cx="50%" cy="40%" r="75%">
+        <stop offset="0%" stop-color="#FFFFFF"/>
+        <stop offset="100%" stop-color="#F3EFE4"/>
+      </radialGradient>
+    </defs>
+    <rect width="400" height="500" fill="url(#g)"/>
+    <rect x="20" y="20" width="360" height="460" rx="6" fill="none" stroke="rgba(18,35,63,0.10)" stroke-width="1"/>
+    <text x="201" y="273" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="112" font-weight="700" letter-spacing="4" fill="rgba(255,255,255,0.65)">${initials}</text>
+    <text x="200" y="271" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="112" font-weight="700" letter-spacing="4" fill="rgba(18,35,63,0.40)">${initials}</text>
+  </svg>`;
+
+  return `data:image/svg+xml,${encodeURIComponent(svg.replace(/\s+/g, " ").trim())}`;
+}

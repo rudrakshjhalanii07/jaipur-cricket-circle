@@ -97,7 +97,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
             animate={{ opacity: 1, y: 0 }}
             className="inline-block px-6 py-2 bg-jcc-accent text-black text-[11px] font-black uppercase tracking-[0.2em] mb-6 shadow-xl news-headline"
           >
-            Chewvana Times Investigation Desk
+            Boundary Banter Investigation Desk
           </motion.div>
           
           <div className="flex items-center justify-center gap-8 text-[10px] font-black text-white/60 uppercase tracking-widest">
@@ -116,7 +116,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
           className="mb-10"
         >
           <Link
-            href="/chewvana-times"
+            href="/boundary-banter"
             className="inline-flex items-center gap-2 text-[11px] text-white/60 hover:text-jcc-accent transition-colors duration-300 group font-black uppercase tracking-widest"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
@@ -127,7 +127,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
         {/* Hero Section */}
         <div className="mb-16">
           <div className="flex items-center gap-3 mb-6">
-            <span className="px-3 py-1 bg-purple-500/10 text-purple-400 text-[10px] font-black uppercase tracking-widest rounded-sm border border-purple-500/20">
+            <span className="px-3 py-1 bg-jcc-accent-dark/10 text-jcc-accent-dark text-[10px] font-black uppercase tracking-widest rounded-sm border border-jcc-accent-dark/20">
               {post.category}
             </span>
             <span className="px-3 py-1 bg-jcc-accent/10 text-jcc-accent text-[10px] font-black uppercase tracking-widest rounded-sm border border-jcc-accent/20">
@@ -148,7 +148,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-8 border-t border-white/5">
             <div className="space-y-1">
               <span className="text-[9px] font-black text-white/50 uppercase tracking-widest">Editor Name</span>
-              <p className="text-sm font-black text-white news-headline uppercase italic">{post.editor_name || "Chewvana Desk"}</p>
+              <p className="text-sm font-black text-white news-headline uppercase italic">{post.editor_name || "Boundary Desk"}</p>
             </div>
             <div className="space-y-1">
               <span className="text-[9px] font-black text-white/50 uppercase tracking-widest">Reporter Alias</span>
@@ -160,7 +160,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
             </div>
             <div className="space-y-1">
               <span className="text-[9px] font-black text-white/50 uppercase tracking-widest">Report Status</span>
-              <p className="text-sm font-black text-emerald-400 flex items-center gap-1.5 uppercase tracking-widest">
+              <p className="text-sm font-black text-jcc-accent flex items-center gap-1.5 uppercase tracking-widest">
                 <CheckCircle className="w-3.5 h-3.5" /> Filed & Verified
               </p>
             </div>
@@ -187,8 +187,8 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
               viewport={{ once: false, amount: 0.2 }}
               className="premium-card p-8 relative overflow-hidden"
             >
-              <Search className="absolute -top-4 -right-4 w-24 h-24 text-purple-500/5 -rotate-12" />
-              <h3 className="text-[11px] font-black text-purple-400 uppercase tracking-widest mb-4">What Actually Happened?</h3>
+              <Search className="absolute -top-4 -right-4 w-24 h-24 text-jcc-accent-dark/5 -rotate-12" />
+              <h3 className="text-[11px] font-black text-jcc-accent-dark uppercase tracking-widest mb-4">What Actually Happened?</h3>
               <p className="text-sm font-medium text-white/80 leading-relaxed italic">{post.match_summary || "Chaos ensued, as per standard protocol."}</p>
             </motion.div>
 

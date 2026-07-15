@@ -65,7 +65,9 @@ export async function POST(request: Request) {
       .from("players")
       .update(filteredUpdates)
       .eq("id", playerId)
-      .select("id, name, phone, cricket_role, batting_style, bowling_style, short_bio, image_url, team, member_tag, approval_status")
+      // select("*") rather than an explicit column list so this keeps working
+      // whether or not supabase/add_governance_fields.sql has been run yet.
+      .select("*")
       .maybeSingle();
 
     if (error) {
@@ -91,6 +93,10 @@ export async function POST(request: Request) {
         image_url: updatedPlayer.image_url,
         team: updatedPlayer.team,
         member_tag: updatedPlayer.member_tag,
+        group_role: updatedPlayer.group_role || "member",
+        governance_role: updatedPlayer.governance_role || null,
+        is_core_committee: updatedPlayer.is_core_committee || false,
+        is_exec_committee: updatedPlayer.is_exec_committee || false,
         approval_status: updatedPlayer.approval_status
       }
     });

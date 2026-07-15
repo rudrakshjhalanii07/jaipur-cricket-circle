@@ -4,11 +4,13 @@ import {
   computeLeaderboards,
   computeSeriesStandings,
   computeOverallStandings,
+  computePlayersPool,
   type FullSeries,
   type SeriesMatch,
   type SeriesStandingRow,
   type SeriesTeamId,
 } from "@/lib/series";
+import { getClubStatistics } from "@/lib/statistics";
 import RivalryPageClient from "./RivalryPageClient";
 
 type BaselineEntry = { team_id: SeriesTeamId; won: number; lost: number; tied: number };
@@ -47,13 +49,20 @@ function mergeBaseline(rows: SeriesStandingRow[], baseline: BaselineEntry[]): Se
 
 
 export default async function RivalryPage() {
-  const [seasons, fullSeries] = await Promise.all([
+  const [seasons, fullSeries, clubStats] = await Promise.all([
     fetchRivalrySeasons(),
     fetchFullSeries(),
+    getClubStatistics(),
   ]);
 
   const activeSeason = seasons.find((s) => s.status === "active") ?? null;
   const archivedSeasons = seasons.filter((s) => s.status === "archived");
+
+  // Sourced from the centralized statistics service (lib/statistics.ts) so this
+  // page and the homepage/about page never drift apart.
+  const totalClubMatches = clubStats.matchesPlayed;
+  const sundaysPlayed = clubStats.activeSundays;
+  const playersPool = computePlayersPool(fullSeries);
 
   const overallStandings = mergeBaseline(computeOverallStandings(fullSeries), buildOverallBaseline(activeSeason));
   const activeSeasonSeries = activeSeason
@@ -76,6 +85,9 @@ export default async function RivalryPage() {
     <RivalryPageClient
       liveActiveSeason={activeSeason}
       archivedSeasons={archivedSeasons}
+      totalClubMatches={totalClubMatches}
+      sundaysPlayed={sundaysPlayed}
+      playersPool={playersPool}
       fullSeries={fullSeries}
       activeSeasonSeries={activeSeasonSeries}
       overallStandings={overallStandings}

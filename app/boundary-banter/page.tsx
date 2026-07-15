@@ -113,8 +113,8 @@ function NewsTicker() {
   const doubled = tickerItems.length > 0 ? [...tickerItems, ...tickerItems] : [];
   return (
     <div
-      className="relative overflow-hidden border-b border-white/[0.07]"
-      style={{ background: "linear-gradient(90deg, #07111F 0%, #0C1E30 50%, #07111F 100%)" }}
+      className="theme-static-dark relative overflow-hidden border-b border-jcc-accent/15"
+      style={{ background: "var(--color-jcc-blue)" }}
     >
       <div className="flex items-center" style={{ minHeight: "34px" }}>
         {/* Live tag */}
@@ -142,34 +142,32 @@ const TAG_CONFIG: Record<string, { icon: React.ReactNode; color: string; active:
   "All Stories":    { icon: <Newspaper className="w-3 h-3" />,   color: "border-white/10 text-white/50",   active: "border-jcc-accent bg-jcc-accent/15 text-jcc-accent" },
   "Match Report":   { icon: <Radio className="w-3 h-3" />,       color: "border-white/10 text-white/50",   active: "border-jcc-accent bg-jcc-accent/15 text-jcc-accent" },
   "Analysis":       { icon: <TrendingUp className="w-3 h-3" />,  color: "border-white/10 text-white/50",   active: "border-jcc-green bg-jcc-green/15 text-jcc-green" },
-  "Exhibition":     { icon: <Zap className="w-3 h-3" />,         color: "border-white/10 text-white/50",   active: "border-orange-400 bg-orange-400/15 text-orange-400" },
+  "Exhibition":     { icon: <Zap className="w-3 h-3" />,         color: "border-white/10 text-white/50",   active: "border-jcc-accent-dark bg-jcc-accent-dark/15 text-jcc-accent-dark" },
   "Origin Story":   { icon: <BookOpen className="w-3 h-3" />,    color: "border-white/10 text-white/50",   active: "border-jcc-gold bg-jcc-gold/15 text-jcc-gold" },
 };
-const DEFAULT_TAG_CFG = { icon: <ChevronRight className="w-3 h-3" />, color: "border-white/10 text-white/50", active: "border-purple-400 bg-purple-400/15 text-purple-400" };
+const DEFAULT_TAG_CFG = { icon: <ChevronRight className="w-3 h-3" />, color: "border-white/10 text-white/50", active: "border-jcc-accent-dark bg-jcc-accent-dark/15 text-jcc-accent-dark" };
 
 // ── Stats bar ─────────────────────────────────────────────────────────────────
 function StatsBar({ total, filtered }: { total: number; filtered: number }) {
   return (
-    <div className="flex items-center gap-6 py-3 px-4 rounded-xl border border-white/[0.06]"
-      style={{ background: "linear-gradient(90deg, #0C1E30 0%, #07111F 100%)" }}
-    >
+    <div className="flex items-center gap-6 py-3 px-4 rounded-xl border border-jcc-border bg-jcc-navy-light">
       <div className="flex items-center gap-2">
         <span className="text-[22px] font-black text-jcc-accent tabular-nums">{filtered}</span>
-        <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest leading-tight">
+        <span className="text-[10px] font-bold text-jcc-blue/40 uppercase tracking-widest leading-tight">
           {filtered === total ? "dispatches" : `of ${total}`}
         </span>
       </div>
-      <div className="w-px h-6 bg-white/10" />
+      <div className="w-px h-6 bg-jcc-blue/10" />
       <div className="flex items-center gap-1.5">
         <span className="w-1.5 h-1.5 rounded-full bg-jcc-green" />
-        <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Archive Online</span>
+        <span className="text-[10px] font-black text-jcc-blue/40 uppercase tracking-widest">Archive Online</span>
       </div>
     </div>
   );
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-export default function ChewvanaTimesPage() {
+export default function BoundaryBanterPage() {
   const [articles, setArticles] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTag, setSelectedTag] = useState("All Stories");
@@ -217,13 +215,10 @@ export default function ChewvanaTimesPage() {
     : articles.filter(p => p.tags.includes(selectedTag));
 
   return (
-    <div
-      className="theme-static-dark min-h-screen relative overflow-hidden"
-      style={{ background: "linear-gradient(180deg, #07111F 0%, #0C1E30 60%, #07111F 100%)" }}
-    >
+    <div className="min-h-screen relative overflow-hidden section-bg-navy">
       {/* Ambient top glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[70vw] h-[40vh] pointer-events-none"
-        style={{ background: "radial-gradient(ellipse, rgba(20,184,255,0.07) 0%, transparent 70%)" }}
+        style={{ background: "radial-gradient(ellipse, rgba(212,175,55,0.07) 0%, transparent 70%)" }}
       />
 
       {/* ── Newsroom Masthead ── */}
@@ -251,8 +246,8 @@ export default function ChewvanaTimesPage() {
 
             {/* Masthead title */}
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white uppercase italic tracking-tighter leading-none mb-4">
-              Chewvana{" "}
-              <span className="text-gradient-cyan">Times</span>
+              Boundary{" "}
+              <span className="text-gradient-cyan">Banter</span>
             </h1>
 
             {/* Editorial rule */}
@@ -347,11 +342,10 @@ export default function ChewvanaTimesPage() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-center py-28 rounded-2xl border border-white/[0.06]"
-              style={{ background: "linear-gradient(160deg, #0C1E30 0%, #07111F 100%)" }}
+              className="text-center py-28 rounded-2xl border border-jcc-border bg-jcc-navy-light"
             >
-              <Radio className="w-8 h-8 text-white/10 mx-auto mb-4" />
-              <p className="text-white/25 font-black uppercase tracking-[0.2em] text-sm">
+              <Radio className="w-8 h-8 text-jcc-blue/15 mx-auto mb-4" />
+              <p className="text-jcc-blue/30 font-black uppercase tracking-[0.2em] text-sm">
                 No dispatches in this category yet.
               </p>
               <button

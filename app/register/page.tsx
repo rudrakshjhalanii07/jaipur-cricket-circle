@@ -19,6 +19,12 @@ import {
   Crown,
   Shield,
   Activity,
+  Sparkles,
+  MessageCircle,
+  ArrowRight,
+  Newspaper,
+  Swords,
+  UsersRound,
 } from "lucide-react";
 import SectionHeading from "@/components/SectionHeading";
 import { supabase } from "@/lib/supabase";
@@ -83,10 +89,10 @@ const getPlayerDetails = (player: Registration): PlayerJoinedDetails | null => {
 
 const getRoleBadgeStyle = (role: string) => {
   const r = role.toLowerCase().trim();
-  if (r === "all-rounder") return "bg-cyan-500/10 border-cyan-500/35 text-cyan-400 border-[1px]";
-  if (r === "batter") return "bg-sky-500/10 border-sky-500/35 text-sky-400 border-[1px]";
-  if (r === "bowler") return "bg-emerald-500/10 border-emerald-500/35 text-emerald-400 border-[1px]";
-  if (r === "wicketkeeper") return "bg-amber-500/10 border-amber-500/35 text-amber-400 border-[1px]";
+  if (r === "all-rounder") return "bg-jcc-accent/15 border-jcc-accent/40 text-jcc-accent border-[1px]";
+  if (r === "batter") return "bg-jcc-accent/8 border-jcc-accent/25 text-jcc-accent/90 border-[1px]";
+  if (r === "bowler") return "bg-white/5 border-white/15 text-white/70 border-[1px]";
+  if (r === "wicketkeeper") return "bg-jcc-accent-dark/15 border-jcc-accent-dark/40 text-jcc-accent-dark border-[1px]";
   return "bg-white/5 border-white/10 text-white/50 border-[1px]";
 };
 
@@ -128,7 +134,7 @@ const renderSpecialBadges = (memberTag?: string | null, groupRole?: string | nul
   
   if (isFounder) {
     badges.push(
-      <span key="founder" className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-amber-400/10 border border-amber-400/20 text-amber-400 scale-[0.9] origin-left shadow-sm">
+      <span key="founder" className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-jcc-accent-dark/15 border border-jcc-accent-dark/30 text-jcc-accent-dark scale-[0.9] origin-left shadow-sm">
         <Crown className="w-2.5 h-2.5 shrink-0" />
         Founder
       </span>
@@ -154,21 +160,21 @@ const renderSpecialBadges = (memberTag?: string | null, groupRole?: string | nul
   
   if (groupRole === "captain" || memberTag === "captain") {
     badges.push(
-      <span key="captain" className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-red-500/10 border border-red-500/20 text-red-400 scale-[0.9] origin-left shadow-sm animate-pulse">
-        <Shield className="w-2.5 h-2.5 shrink-0 text-red-400" />
+      <span key="captain" className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-jcc-accent/15 border border-jcc-accent/30 text-jcc-accent scale-[0.9] origin-left shadow-sm animate-pulse">
+        <Shield className="w-2.5 h-2.5 shrink-0 text-jcc-accent" />
         Captain
       </span>
     );
   } else if (groupRole === "vice-captain" || memberTag === "vice-captain") {
     badges.push(
-      <span key="vc" className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-blue-500/10 border border-blue-500/20 text-blue-400 scale-[0.9] origin-left shadow-sm">
-        <Shield className="w-2.5 h-2.5 shrink-0 text-blue-400" />
+      <span key="vc" className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-jcc-accent/8 border border-jcc-accent/20 text-jcc-accent/85 scale-[0.9] origin-left shadow-sm">
+        <Shield className="w-2.5 h-2.5 shrink-0 text-jcc-accent/85" />
         VC
       </span>
     );
   } else if (groupRole === "admin") {
     badges.push(
-      <span key="admin" className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-purple-500/10 border border-purple-500/20 text-purple-400 scale-[0.9] origin-left shadow-sm">
+      <span key="admin" className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-jcc-accent-dark/15 border border-jcc-accent-dark/30 text-jcc-accent-dark scale-[0.9] origin-left shadow-sm">
         Admin
       </span>
     );
@@ -184,26 +190,37 @@ const renderSpecialBadges = (memberTag?: string | null, groupRole?: string | nul
 const getTeamCardStyles = (team: string | null) => {
   const t = team ? team.replace(/\s+/g, '').toLowerCase() : "unassigned";
   
+  // Team-identity colors matching lib/teams.ts exactly (the one exception to
+  // the gold-only accent rule — real club team brand colors).
   if (t === "mavericks") {
     return {
-      borderStyle: "border-jcc-accent/10 bg-[#001f33]/15",
-      hoverStyle: "hover:border-jcc-accent/30 hover:bg-[#002e4d]/25",
-      nameColor: "text-jcc-accent font-black",
-      glowColor: "rgba(0, 194, 255, 0.15)",
-      teamBadgeStyle: "bg-cyan-500/5 text-cyan-400 border-cyan-500/20",
-      avatarRingStyle: "border-cyan-400/30 group-hover:border-cyan-400 ring-cyan-400/5 group-hover:ring-cyan-400/20",
+      borderStyle: "border-[#E8A820]/10 bg-[#1c1710]/40",
+      hoverStyle: "hover:border-[#E8A820]/30 hover:bg-[#241d10]/50",
+      nameColor: "text-[#E8A820] font-black",
+      glowColor: "rgba(232, 168, 32, 0.18)",
+      teamBadgeStyle: "bg-[#E8A820]/5 text-[#E8A820] border-[#E8A820]/20",
+      avatarRingStyle: "border-[#E8A820]/30 group-hover:border-[#E8A820] ring-[#E8A820]/5 group-hover:ring-[#E8A820]/20",
     };
   } else if (t === "neurostrikers" || t === "neuro strikers") {
     return {
-      borderStyle: "border-jcc-ball-red/10 bg-[#33000d]/15",
-      hoverStyle: "hover:border-jcc-ball-red/30 hover:bg-[#4d0014]/25",
-      nameColor: "text-jcc-ball-red font-black",
-      glowColor: "rgba(255, 77, 77, 0.12)",
-      teamBadgeStyle: "bg-red-500/5 text-red-400 border-red-500/20",
-      avatarRingStyle: "border-red-500/30 group-hover:border-red-500 ring-red-500/5 group-hover:ring-red-500/20",
+      borderStyle: "border-[#3B6FC4]/10 bg-[#0f1a2e]/40",
+      hoverStyle: "hover:border-[#3B6FC4]/30 hover:bg-[#132342]/50",
+      nameColor: "text-[#3B6FC4] font-black",
+      glowColor: "rgba(59, 111, 196, 0.18)",
+      teamBadgeStyle: "bg-[#3B6FC4]/5 text-[#3B6FC4] border-[#3B6FC4]/20",
+      avatarRingStyle: "border-[#3B6FC4]/30 group-hover:border-[#3B6FC4] ring-[#3B6FC4]/5 group-hover:ring-[#3B6FC4]/20",
+    };
+  } else if (t === "theoutliers" || t === "outliers") {
+    return {
+      borderStyle: "border-[#1A7A5E]/10 bg-[#0f1f1a]/40",
+      hoverStyle: "hover:border-[#1A7A5E]/30 hover:bg-[#13291f]/50",
+      nameColor: "text-[#1A7A5E] font-black",
+      glowColor: "rgba(26, 122, 94, 0.18)",
+      teamBadgeStyle: "bg-[#1A7A5E]/5 text-[#1A7A5E] border-[#1A7A5E]/20",
+      avatarRingStyle: "border-[#1A7A5E]/30 group-hover:border-[#1A7A5E] ring-[#1A7A5E]/5 group-hover:ring-[#1A7A5E]/20",
     };
   }
-  
+
   // Unassigned/Default
   return {
     borderStyle: "border-white/5 bg-white/[0.02]",
@@ -564,21 +581,145 @@ export default function RegisterPage() {
   }
 
   if (!match) {
+    const timelineSteps = [
+      { label: "Fixture Planning", icon: ClipboardList, active: true },
+      { label: "Registration Opens", icon: CheckCircle2, active: false },
+      { label: "Sunday Match", icon: Swords, active: false },
+    ];
+
+    const secondaryActions = [
+      { href: "https://chat.whatsapp.com/LtuFpx2EcKO4E5yZWP8aue?mode=gi_t", label: "Join WhatsApp Updates", icon: MessageCircle, external: true },
+      { href: "/rivalry", label: "Explore Rivalries", icon: Swords, external: false },
+      { href: "/members", label: "Meet the Members", icon: UsersRound, external: false },
+      { href: "/boundary-banter", label: "Read Boundary Banter", icon: Newspaper, external: false },
+    ];
+
+    const headlineWords = ["THE", "NEXT", "SUNDAY", "BATTLE", "AWAITS"];
+
     return (
-      <div className="min-h-screen pt-36 pb-20 relative overflow-hidden hero-gradient flex items-center justify-center">
-        <div className="absolute inset-0 stadium-glow opacity-30 z-0" />
-        <div className="text-center px-4 relative z-10">
-          <SectionHeading
-            title="Sunday Registration"
-            subtitle="No match is currently scheduled."
-            accentColor="blue"
-            priority
+      <div className="min-h-screen pt-36 pb-24 relative overflow-hidden hero-gradient flex items-center justify-center">
+        <div className="absolute inset-0 stadium-glow opacity-40 z-0" />
+        <div className="absolute inset-0 noise-overlay opacity-[0.08] pointer-events-none z-0" />
+
+        <div className="max-w-3xl w-full mx-auto px-4 sm:px-6 text-center relative z-10">
+          {/* Status badge */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-jcc-accent/10 border border-jcc-accent/25 mb-8 shadow-xl"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-jcc-accent opacity-50" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-jcc-accent" />
+            </span>
+            <Sparkles className="w-3 h-3 text-jcc-accent" />
+            <span className="text-[10px] font-black text-jcc-accent tracking-[0.25em] uppercase">The Fixture Is Being Prepared</span>
+          </motion.div>
+
+          {/* Line-by-line headline reveal */}
+          <h1 className="font-[var(--font-heading)] text-4xl sm:text-6xl lg:text-7xl font-black text-white uppercase tracking-tighter leading-[0.95] mb-8">
+            {headlineWords.map((word, i) => (
+              <motion.span
+                key={word}
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.15 + i * 0.12, ease: [0.16, 1, 0.3, 1] }}
+                className={`inline-block mr-4 last:mr-0 ${word === "AWAITS" ? "italic text-jcc-accent" : ""}`}
+              >
+                {word}
+              </motion.span>
+            ))}
+          </h1>
+
+          {/* Self-drawing gold divider */}
+          <motion.div
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ duration: 0.9, delay: 0.9, ease: [0.16, 1, 0.3, 1] }}
+            className="h-px w-24 bg-jcc-accent mx-auto mb-8 origin-left"
           />
-          <div className="premium-card p-12 max-w-md mx-auto mt-8">
-            <CalendarCheck className="w-12 h-12 text-white/10 mx-auto mb-4" />
-            <h2 className="text-2xl font-black text-white mb-2 uppercase">Yet to be Scheduled</h2>
-            <p className="text-white/60 text-sm font-medium">Stay tuned — registration will open once the next Sunday match is announced. Follow us on WhatsApp for updates!</p>
-          </div>
+
+          <motion.p
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 1.05 }}
+            className="text-[13px] sm:text-[15px] text-jcc-text-soft/80 font-bold uppercase tracking-widest mb-12"
+          >
+            Captains are planning the next battle. Keep your whites ready.
+          </motion.p>
+
+          {/* Invitation panel */}
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 1.2, ease: [0.16, 1, 0.3, 1] }}
+            className="premium-card px-8 py-12 sm:px-14 sm:py-16 mb-12"
+          >
+            <Crown className="w-8 h-8 text-jcc-accent mx-auto mb-6" />
+            <h2 className="font-[var(--font-heading)] text-2xl sm:text-3xl font-black text-white uppercase tracking-tight mb-4 italic">
+              An Invitation Is Coming
+            </h2>
+            <p className="text-white/60 text-[14px] sm:text-[15px] font-medium leading-relaxed max-w-lg mx-auto">
+              The next fixture is currently being finalized. Registration will open automatically the moment it&apos;s confirmed —
+              you don&apos;t need to do a thing. Simply stay ready.
+            </p>
+
+            {/* Timeline */}
+            <div className="mt-12 flex items-center justify-center gap-2 sm:gap-4">
+              {timelineSteps.map((step, i) => (
+                <div key={step.label} className="flex items-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <div
+                      className={`w-11 h-11 rounded-full flex items-center justify-center border transition-all ${
+                        step.active
+                          ? "bg-jcc-accent border-jcc-accent shadow-lg shadow-jcc-accent/30"
+                          : "bg-white/5 border-white/10"
+                      }`}
+                    >
+                      <step.icon className={`w-4.5 h-4.5 ${step.active ? "text-black" : "text-white/25"}`} />
+                    </div>
+                    <span
+                      className={`text-[9px] font-black uppercase tracking-[0.15em] max-w-[80px] leading-tight ${
+                        step.active ? "text-jcc-accent" : "text-white/25"
+                      }`}
+                    >
+                      {step.label}
+                    </span>
+                  </div>
+                  {i < timelineSteps.length - 1 && (
+                    <div className="w-8 sm:w-16 h-px bg-white/10 mx-1 sm:mx-2 mb-6" />
+                  )}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Secondary actions */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 1.4 }}
+          >
+            <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] mb-5">
+              While you wait
+            </p>
+            <div className="grid grid-cols-2 sm:flex sm:flex-nowrap sm:justify-center gap-3 max-w-3xl mx-auto">
+              {secondaryActions.map((action) => (
+                <a
+                  key={action.label}
+                  href={action.href}
+                  target={action.external ? "_blank" : undefined}
+                  rel={action.external ? "noopener noreferrer" : undefined}
+                  className="group flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white/[0.02] border border-white/10 hover:border-jcc-accent/40 hover:bg-jcc-accent/5 transition-all text-[11px] font-black uppercase tracking-wider text-white/70 hover:text-jcc-accent text-center sm:whitespace-nowrap"
+                >
+                  <action.icon className="w-3.5 h-3.5 shrink-0" />
+                  <span>{action.label}</span>
+                  <ArrowRight className="w-3 h-3 shrink-0 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+                </a>
+              ))}
+            </div>
+          </motion.div>
         </div>
       </div>
     );
@@ -601,10 +742,10 @@ export default function RegisterPage() {
   const statusConfig = {
     open: {
       label: "Registration Open",
-      color: "text-emerald-400",
-      bg: "bg-emerald-400/10",
-      border: "border-emerald-400/20",
-      dot: "bg-emerald-400",
+      color: "text-jcc-accent",
+      bg: "bg-jcc-accent/10",
+      border: "border-jcc-accent/20",
+      dot: "bg-jcc-accent",
     },
     full: {
       label: "Match Full (Waitlist)",
@@ -707,14 +848,14 @@ export default function RegisterPage() {
                 },
                 {
                   icon: Clock,
-                  color: "text-purple-400",
+                  color: "text-jcc-accent-dark",
                   label: "Reporting Time",
                   value: match.match_time,
                   subValue: "Assemble on Pitch",
                 },
                 {
                   icon: Users,
-                  color: "text-emerald-400",
+                  color: "text-jcc-accent",
                   label: "Squad Limit",
                   value: `${slotsTotal} Players`,
                   subValue: `${slotsTotal / 2} vs ${slotsTotal / 2} Matchup`,
@@ -796,8 +937,8 @@ export default function RegisterPage() {
               className="premium-card p-8 sm:p-10"
             >
               <div className="flex items-center gap-3 mb-8">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-400/10 border border-emerald-400/20 flex items-center justify-center shadow-inner">
-                  <ClipboardList className="w-6 h-6 text-emerald-400" />
+                <div className="w-12 h-12 rounded-2xl bg-jcc-accent/10 border border-jcc-accent/20 flex items-center justify-center shadow-inner">
+                  <ClipboardList className="w-6 h-6 text-jcc-accent" />
                 </div>
                 <div>
                   <h3 className="text-xl font-black text-white uppercase tracking-tight leading-tight">Claim Your Spot</h3>
@@ -806,7 +947,7 @@ export default function RegisterPage() {
               </div>
 
               {/* Tabs */}
-              <div className="flex gap-2 p-1.5 bg-black/40 border border-white/10 rounded-2xl mb-8">
+              <div className="flex gap-2 p-1.5 bg-jcc-navy-light border border-jcc-border rounded-2xl mb-8">
                 <button
                   onClick={() => { setRegistrationMode("existing"); setExistingPlayer(null); setFormStatus("idle"); }}
                   className={`flex-1 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all ${registrationMode === "existing" ? "bg-white/10 text-white shadow-xl border border-white/10" : "text-white/40 hover:text-white"}`}
@@ -856,15 +997,15 @@ export default function RegisterPage() {
                    </button>
                 </div>
               ) : formStatus === "success" ? (
-                <div className="p-8 rounded-2xl bg-emerald-400/10 border border-emerald-400/20 text-center">
-                   <div className="w-14 h-14 rounded-full bg-emerald-400 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-400/40">
+                <div className="p-8 rounded-2xl bg-jcc-accent/10 border border-jcc-accent/20 text-center">
+                   <div className="w-14 h-14 rounded-full bg-jcc-accent flex items-center justify-center mx-auto mb-6 shadow-lg shadow-jcc-accent/40">
                      <CheckCircle2 className="w-7 h-7 text-black" />
                    </div>
                    <h4 className="text-2xl font-black text-white mb-2 uppercase tracking-tight">Registration Successful!</h4>
                    <p className="text-white/60 text-[14px] mb-8 font-medium">You&apos;ve been added to the {registrations.filter(r => r.phone === formData.phone)[0]?.status || 'match'} list. See you on the pitch!</p>
                    <button 
                     onClick={() => setFormStatus("idle")}
-                    className="text-[11px] font-black text-emerald-400 hover:underline uppercase tracking-widest"
+                    className="text-[11px] font-black text-jcc-accent hover:underline uppercase tracking-widest"
                    >
                      Register another player
                    </button>
@@ -880,7 +1021,7 @@ export default function RegisterPage() {
                             required
                             type="tel"
                             placeholder="e.g. 9876543210"
-                            className="w-full px-6 py-4 rounded-2xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black placeholder:text-white/10 shadow-inner"
+                            className="w-full px-6 py-4 rounded-2xl bg-jcc-navy-light border border-jcc-border focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black placeholder:text-jcc-blue/30 shadow-inner"
                             value={formData.phone}
                             onChange={(e) => setFormData({...formData, phone: e.target.value})}
                           />
@@ -990,7 +1131,7 @@ export default function RegisterPage() {
                         required
                         type="text"
                         placeholder="e.g. Rahul Sharma"
-                        className="w-full px-6 py-4 rounded-2xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black placeholder:text-white/10 shadow-inner"
+                        className="w-full px-6 py-4 rounded-2xl bg-jcc-navy-light border border-jcc-border focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black placeholder:text-jcc-blue/30 shadow-inner"
                         value={formData.name}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
                       />
@@ -1001,7 +1142,7 @@ export default function RegisterPage() {
                         required
                         type="tel"
                         placeholder="e.g. 9876543210"
-                        className="w-full px-6 py-4 rounded-2xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black placeholder:text-white/10 shadow-inner"
+                        className="w-full px-6 py-4 rounded-2xl bg-jcc-navy-light border border-jcc-border focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black placeholder:text-jcc-blue/30 shadow-inner"
                         value={formData.phone}
                         onChange={(e) => setFormData({...formData, phone: e.target.value})}
                       />
@@ -1012,7 +1153,7 @@ export default function RegisterPage() {
                     <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Primary Role</label>
                     <div className="relative">
                       <select 
-                        className="w-full px-6 py-4 rounded-2xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black appearance-none shadow-inner"
+                        className="w-full px-6 py-4 rounded-2xl bg-jcc-navy-light border border-jcc-border focus:border-jcc-accent outline-none transition-all text-white text-[15px] font-black appearance-none shadow-inner"
                         value={formData.cricket_role}
                         onChange={(e) => setFormData({...formData, cricket_role: e.target.value})}
                       >
@@ -1031,7 +1172,7 @@ export default function RegisterPage() {
                     <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">
                       Profile Photo (Optional)
                     </label>
-                    <div className="flex flex-col sm:flex-row items-center gap-6 p-6 rounded-2xl bg-black/40 border border-white/10 hover:border-white/20 transition-all duration-300">
+                    <div className="flex flex-col sm:flex-row items-center gap-6 p-6 rounded-2xl bg-jcc-navy-light border border-jcc-border hover:border-white/20 transition-all duration-300">
                       <div className="relative group w-20 h-20 rounded-full overflow-hidden bg-white/5 border border-white/10 flex items-center justify-center shrink-0 shadow-2xl transition-all hover:border-jcc-accent">
                         {isOptimizing ? (
                           <div className="flex items-center justify-center">
@@ -1049,8 +1190,8 @@ export default function RegisterPage() {
                             )}
                             {uploadStage === "saving" && (
                               <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center">
-                                <Loader2 className="w-5 h-5 text-emerald-400 animate-spin mb-1" />
-                                <span className="text-[9px] font-black text-emerald-400">SAVING...</span>
+                                <Loader2 className="w-5 h-5 text-jcc-accent animate-spin mb-1" />
+                                <span className="text-[9px] font-black text-jcc-accent">SAVING...</span>
                               </div>
                             )}
                           </>
@@ -1156,7 +1297,7 @@ export default function RegisterPage() {
                     initial={{ width: 0 }}
                     animate={{ width: `${fillPct}%` }}
                     transition={{ duration: 1.5, delay: 0.5 }}
-                    className={`h-full rounded-full ${isMatchFull ? 'bg-jcc-gold' : 'bg-jcc-accent'} shadow-[0_0_15px_rgba(0,194,255,0.4)]`}
+                    className={`h-full rounded-full ${isMatchFull ? 'bg-jcc-gold' : 'bg-jcc-accent'} shadow-[0_0_15px_rgba(212,175,55,0.4)]`}
                   />
                 </div>
                 {isMatchFull && (
@@ -1171,7 +1312,7 @@ export default function RegisterPage() {
               <div className="space-y-6">
                 <div className="premium-card p-6">
                   <h3 className="text-[11px] font-black text-white uppercase tracking-[0.3em] mb-5 flex items-center gap-3">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <CheckCircle2 className="w-4 h-4 text-jcc-accent" />
                     SQUAD ({confirmed.length})
                   </h3>
 
@@ -1190,10 +1331,10 @@ export default function RegisterPage() {
                       
                       <div className="grid grid-cols-4 gap-2">
                         {[
-                          { label: "BAT", count: batterCount, color: "text-sky-400 border-sky-500/20 bg-sky-500/5", emoji: "🏏" },
-                          { label: "AR", count: allRounderCount, color: "text-cyan-400 border-cyan-500/20 bg-cyan-500/5", emoji: "⚡" },
-                          { label: "BWL", count: bowlerCount, color: "text-emerald-400 border-emerald-500/20 bg-emerald-500/5", emoji: "🟢" },
-                          { label: "WK", count: keeperCount, color: "text-amber-400 border-amber-500/20 bg-amber-500/5", emoji: "🧤" },
+                          { label: "BAT", count: batterCount, color: "text-jcc-accent/90 border-jcc-accent/25 bg-jcc-accent/8", emoji: "🏏" },
+                          { label: "AR", count: allRounderCount, color: "text-jcc-accent border-jcc-accent/40 bg-jcc-accent/15", emoji: "⚡" },
+                          { label: "BWL", count: bowlerCount, color: "text-white/70 border-white/15 bg-white/5", emoji: "🎯" },
+                          { label: "WK", count: keeperCount, color: "text-jcc-accent-dark border-jcc-accent-dark/40 bg-jcc-accent-dark/15", emoji: "🧤" },
                         ].map((stat) => (
                           <div key={stat.label} className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-xl border ${stat.color} transition-all duration-300 hover:scale-[1.03]`}>
                             <div className="text-sm font-black leading-none flex items-center gap-1">

@@ -48,7 +48,7 @@ export default function PlayerAvatar({
   const showRealPhoto = !!src && !photoError;
 
   return (
-    <div className={`bg-white/5 border border-white/10 flex items-center justify-center shrink-0 ${className}`}>
+    <div className={`portrait-frame bg-white/5 border border-white/10 flex items-center justify-center shrink-0 ${className}`}>
       {showRealPhoto ? (
         <Image
           src={src}
@@ -56,7 +56,7 @@ export default function PlayerAvatar({
           width={displaySize}
           height={displaySize}
           loading="lazy"
-          className={imgClassName}
+          className={`${imgClassName} portrait-photo`}
           onError={() => setPhotoError(true)}
         />
       ) : (
@@ -64,7 +64,7 @@ export default function PlayerAvatar({
         <img
           src={fallbackUrl}
           alt={displayAlt}
-          className={imgClassName}
+          className={`${imgClassName} portrait-photo`}
         />
       )}
     </div>

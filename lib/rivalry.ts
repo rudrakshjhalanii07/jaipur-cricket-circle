@@ -94,10 +94,6 @@ export function eraFirstNames(season: RivalrySeason): string[] {
   ].map(firstName);
 }
 
-export function eraTitle(season: RivalrySeason): string {
-  return `The ${eraFirstNames(season).join("-")} Era`;
-}
-
 export async function fetchRivalrySeasons(): Promise<RivalrySeason[]> {
   try {
     const { data, error } = await supabase

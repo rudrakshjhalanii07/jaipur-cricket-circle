@@ -15,10 +15,12 @@ interface Particle {
   opacity: number;
 }
 
+// Gold-only palette (matches --color-jcc-accent / --color-jcc-accent-highlight
+// / --color-jcc-accent-dark) plus a neutral white — no off-palette hues.
 const PARTICLE_COLORS = [
-  "rgba(20,184,255,0.6)",   // accent blue
-  "rgba(34,197,94,0.5)",    // turf green
-  "rgba(255,215,0,0.4)",    // gold
+  "rgba(212,175,55,0.6)",   // gold
+  "rgba(243,201,106,0.5)",  // highlight gold
+  "rgba(169,120,36,0.4)",   // dark gold
   "rgba(255,255,255,0.25)", // white
 ];
 
@@ -79,8 +81,8 @@ function StadiumSweep({ side }: { side: "left" | "right" }) {
       className={`absolute top-0 ${isLeft ? "left-0" : "right-0"} w-[45vw] h-[70vh] pointer-events-none`}
       style={{
         background: isLeft
-          ? "conic-gradient(from 250deg at 0% 0%, transparent 0deg, rgba(20,184,255,0.07) 18deg, transparent 28deg)"
-          : "conic-gradient(from 280deg at 100% 0%, transparent 0deg, rgba(20,184,255,0.06) 18deg, transparent 28deg)",
+          ? "conic-gradient(from 250deg at 0% 0%, transparent 0deg, rgba(212,175,55,0.07) 18deg, transparent 28deg)"
+          : "conic-gradient(from 280deg at 100% 0%, transparent 0deg, rgba(212,175,55,0.06) 18deg, transparent 28deg)",
         filter: "blur(18px)",
       }}
     >
@@ -88,8 +90,8 @@ function StadiumSweep({ side }: { side: "left" | "right" }) {
         className={`w-full h-full ${isLeft ? "animate-stadium-sweep-left" : "animate-stadium-sweep-right"}`}
         style={{
           background: isLeft
-            ? "linear-gradient(160deg, rgba(20,184,255,0.12) 0%, transparent 60%)"
-            : "linear-gradient(200deg, rgba(20,184,255,0.10) 0%, transparent 60%)",
+            ? "linear-gradient(160deg, rgba(212,175,55,0.12) 0%, transparent 60%)"
+            : "linear-gradient(200deg, rgba(212,175,55,0.10) 0%, transparent 60%)",
         }}
       />
     </div>
@@ -98,7 +100,7 @@ function StadiumSweep({ side }: { side: "left" | "right" }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function MotionCanvas() {
-  const particles = useParticles(18);
+  const particles = useParticles(10);
   const { smoothX, smoothY } = useMouseParallax();
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -145,14 +147,14 @@ export default function MotionCanvas() {
             left: "35%",
             width: "50vw",
             height: "40vh",
-            background: "radial-gradient(ellipse, rgba(20,184,255,0.07) 0%, transparent 70%)",
+            background: "radial-gradient(ellipse, rgba(212,175,55,0.07) 0%, transparent 70%)",
             x: smoothX,
             y: smoothY,
             translateX: "-50%",
           }}
         />
 
-        {/* Secondary green glow — bottom right */}
+        {/* Secondary glow — bottom right */}
         <motion.div
           className="absolute rounded-full pointer-events-none"
           style={{
@@ -160,7 +162,7 @@ export default function MotionCanvas() {
             right: "10%",
             width: "30vw",
             height: "30vh",
-            background: "radial-gradient(ellipse, rgba(34,197,94,0.05) 0%, transparent 70%)",
+            background: "radial-gradient(ellipse, rgba(18,35,63,0.05) 0%, transparent 70%)",
             x: smoothX,
             y: smoothY,
             scale: 0.7,
@@ -191,7 +193,7 @@ export default function MotionCanvas() {
         className="absolute left-0 right-0 h-px"
         style={{
           top: "40%",
-          background: "linear-gradient(90deg, transparent 0%, rgba(20,184,255,0.06) 30%, rgba(20,184,255,0.06) 70%, transparent 100%)",
+          background: "linear-gradient(90deg, transparent 0%, rgba(212,175,55,0.06) 30%, rgba(212,175,55,0.06) 70%, transparent 100%)",
         }}
       />
     </div>

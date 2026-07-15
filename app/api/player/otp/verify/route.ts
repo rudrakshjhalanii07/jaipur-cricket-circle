@@ -43,7 +43,9 @@ export async function POST(request: Request) {
     // 4. Fetch complete player details
     const { data: player, error } = await supabaseAdmin
       .from("players")
-      .select("id, name, phone, cricket_role, batting_style, bowling_style, short_bio, image_url, team, member_tag, approval_status, is_active")
+      // select("*") rather than an explicit column list so this keeps working
+      // whether or not supabase/add_governance_fields.sql has been run yet.
+      .select("*")
       .eq("phone", phone)
       .maybeSingle();
 
@@ -87,6 +89,10 @@ export async function POST(request: Request) {
         image_url: player.image_url || null,
         team: player.team || "Unassigned",
         member_tag: player.member_tag || "member",
+        group_role: player.group_role || "member",
+        governance_role: player.governance_role || null,
+        is_core_committee: player.is_core_committee || false,
+        is_exec_committee: player.is_exec_committee || false,
         approval_status: player.approval_status
       }
     });

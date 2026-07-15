@@ -11,7 +11,8 @@ const nextConfig = {
   },
   async redirects() {
     return [
-      { source: "/toss", destination: "/tournament", permanent: true },
+      { source: "/chewvana-times", destination: "/boundary-banter", permanent: true },
+      { source: "/chewvana-times/:slug*", destination: "/boundary-banter/:slug*", permanent: true },
     ];
   },
   images: {

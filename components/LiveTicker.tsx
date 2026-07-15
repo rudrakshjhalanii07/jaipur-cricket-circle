@@ -85,9 +85,9 @@ export default function LiveTicker({ match, isNavbarScrolled = false }: LiveTick
     return (
       <Link
         href="/register"
-        className={`theme-static-dark relative w-full bg-[#050e17]/95 border-b border-jcc-accent/15 backdrop-blur-md overflow-hidden transition-all duration-500 ease-in-out z-40 select-none cursor-pointer block hover:border-jcc-accent/35 hover:shadow-[0_0_20px_rgba(20,184,255,0.15)] hover:bg-[#071322]/95 ${visibilityClass}`}
+        className={`theme-static-dark relative w-full bg-[#0D1728]/95 border-b border-jcc-accent/15 backdrop-blur-md overflow-hidden transition-all duration-500 ease-in-out z-40 select-none cursor-pointer block hover:border-jcc-accent/35 hover:shadow-[0_0_20px_rgba(212,175,55,0.18)] hover:bg-[#12233F]/95 ${visibilityClass}`}
       >
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-jcc-accent/30 to-transparent shadow-[0_0_10px_rgba(0,194,255,0.4)] pointer-events-none" />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-jcc-accent/30 to-transparent shadow-[0_0_10px_rgba(212,175,55,0.4)] pointer-events-none" />
         <div className="h-full max-w-480 mx-auto flex items-center overflow-hidden">
           <div className="animate-marquee-scroll flex items-center gap-12">
             {renderTickerContents()}
@@ -102,7 +102,7 @@ export default function LiveTicker({ match, isNavbarScrolled = false }: LiveTick
 
   return (
     <div
-      className={`theme-static-dark relative w-full bg-[#050e17]/95 border-b border-white/5 backdrop-blur-md overflow-hidden transition-all duration-500 ease-in-out z-40 select-none ${visibilityClass}`}
+      className={`theme-static-dark relative w-full bg-[#0D1728]/95 border-b border-white/5 backdrop-blur-md overflow-hidden transition-all duration-500 ease-in-out z-40 select-none ${visibilityClass}`}
     >
       <div className="h-full max-w-480 mx-auto flex items-center overflow-hidden">
         <div className="animate-marquee-scroll flex items-center gap-12">

@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import SectionHeading from "@/components/SectionHeading";
 import { getDiceBearUrl } from "@/lib/avatar";
+import { getDisplayRole } from "@/lib/member-role";
 
 export default function MemberDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -31,21 +32,6 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
     setGlobeClicked(true);
     setTimeout(() => setGlobeClicked(false), 2000);
   };
-
-  // A helper function to build display role
-  function getDisplayRole(memberTag?: string, groupRole?: string, cricketRole?: string): string {
-    const isFounder = memberTag === "founding-member" || groupRole === "founding-member";
-    if (groupRole === "captain") return isFounder ? "Founder & Captain" : "Captain";
-    if (groupRole === "vice-captain") return isFounder ? "Founding Member & Vice Captain" : "Vice Captain";
-    if (groupRole === "admin") return isFounder ? "Founding Member & Admin" : "Admin";
-    if (isFounder) return "Founding Member";
-    if (cricketRole) {
-      if (cricketRole === "all-rounder") return "All-Rounder";
-      if (cricketRole === "wicketkeeper") return "Wicketkeeper";
-      return cricketRole.charAt(0).toUpperCase() + cricketRole.slice(1);
-    }
-    return "Member";
-  }
 
   useEffect(() => {
     async function getMember() {

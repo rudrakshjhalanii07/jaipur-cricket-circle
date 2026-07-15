@@ -1,66 +1,120 @@
 import Link from "next/link";
-import { ChevronRight, Sparkles, BookOpen } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { AnimateIn } from "@/components/AnimateIn";
-
-function StaticCricketBall({ size, className }: { size: number; className?: string }) {
-  return (
-    <div className={`pointer-events-none ${className ?? ""}`} aria-hidden="true">
-      <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className="animate-drift">
-        <circle cx="24" cy="24" r="22" fill="url(#ctaBallGrad)" stroke="rgba(200,60,60,0.15)" strokeWidth="0.5" />
-        <path d="M 8 24 C 16 14, 32 14, 40 24" stroke="rgba(180,60,60,0.25)" strokeWidth="0.8" fill="none" strokeLinecap="round" />
-        <path d="M 8 24 C 16 34, 32 34, 40 24" stroke="rgba(180,60,60,0.25)" strokeWidth="0.8" fill="none" strokeLinecap="round" />
-        {[13, 18, 23, 28, 33].map((x) => (
-          <line key={x} x1={x} y1="19" x2={x + 1} y2="21" stroke="rgba(180,60,60,0.2)" strokeWidth="0.5" strokeLinecap="round" />
-        ))}
-        <defs>
-          <radialGradient id="ctaBallGrad" cx="35%" cy="35%">
-            <stop offset="0%" stopColor="#FF4D4D" />
-            <stop offset="100%" stopColor="#800000" />
-          </radialGradient>
-        </defs>
-      </svg>
-    </div>
-  );
-}
 
 export default function FinalCTASection() {
   return (
-    <section id="final-cta" className="py-32 sm:py-48 relative overflow-hidden text-center section-bg-navy">
-      <div className="hero-overlay opacity-60" />
-      <div className="absolute inset-0 stadium-glow opacity-30 pointer-events-none" />
+    <section
+      id="final-cta"
+      className="relative py-40 sm:py-56 overflow-hidden section-bg-navy text-center"
+    >
+      {/* Environmental crest artwork — pushed well behind every foreground
+          element, oversized so it bleeds off the section edges, desaturated
+          and blurred so it reads as embossed texture rather than a logo the
+          eye is asked to parse. Nudged down so its densest detail (crown,
+          lettering, wreath) sits clear of the heading/quote block above it. */}
+      <AnimateIn
+        direction="scale"
+        className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0"
+      >
+        <img
+          src="/jcc_logo.png"
+          alt=""
+          aria-hidden="true"
+          className="w-[780px] h-[798px] sm:w-[1050px] sm:h-[1074px] lg:w-[1275px] lg:h-[1303px] object-contain opacity-[0.08] sm:opacity-[0.1] blur-[2.5px] saturate-[0.45] -translate-y-[2%]"
+        />
+      </AnimateIn>
 
-      <StaticCricketBall size={56} className="absolute top-[15%] left-[5%] opacity-10 hidden lg:block" />
-      <StaticCricketBall size={40} className="absolute bottom-[20%] right-[8%] opacity-10 hidden lg:block" />
+      {/* Edge vignette — draws the eye back toward the center of the composition */}
+      <div
+        className="absolute inset-0 pointer-events-none z-[1]"
+        style={{
+          background:
+            "radial-gradient(ellipse 80% 70% at 50% 45%, transparent 50%, color-mix(in srgb, var(--color-jcc-navy-deep) 60%, transparent) 100%)",
+        }}
+      />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 relative z-10">
-        <AnimateIn direction="scale">
-          <AnimateIn delay={200} className="mb-8">
-            <span className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.4em] text-jcc-accent font-black">
-              <Sparkles className="w-4 h-4" />
-              JOIN THE MOVEMENT
-            </span>
-          </AnimateIn>
+      {/* Warm ivory paper — grain intensity halved so it enhances rather than competes */}
+      <div className="absolute inset-0 noise-overlay opacity-[0.0075] pointer-events-none z-[1]" />
 
-          <h2 className="text-5xl sm:text-6xl lg:text-8xl font-black text-white tracking-tight leading-[0.9] mb-8">
-            Where Sunday
+      {/* Soft readability light behind the heading/quote block — a falloff,
+          not a card: no edge is ever visible, only a gentle lift in contrast */}
+      <div
+        className="absolute inset-0 pointer-events-none z-[1]"
+        style={{
+          background:
+            "radial-gradient(ellipse 62% 48% at 50% 30%, color-mix(in srgb, var(--jcc-bg) 90%, white) 0%, transparent 72%)",
+        }}
+      />
+
+      <div className="relative z-10 max-w-2xl mx-auto px-6">
+        <AnimateIn direction="up">
+          <span className="block text-[11px] font-black uppercase tracking-[0.55em] text-jcc-accent-dark mb-8">
+            The Invitation
+          </span>
+        </AnimateIn>
+
+        <AnimateIn direction="up" delay={150}>
+          <h2
+            className="font-heading text-5xl sm:text-6xl lg:text-7xl font-black uppercase leading-[0.94] mb-10 text-jcc-text-primary"
+            style={{
+              textShadow:
+                "0 1px 1px rgba(255,255,255,0.7), 0 2px 22px rgba(255,255,255,0.55)",
+            }}
+          >
+            The Circle Is
             <br />
-            Becomes <span className="text-gradient-cyan">Legacy</span>
+            Never Complete.
           </h2>
+        </AnimateIn>
 
-          <p className="text-white/60 text-lg sm:text-xl font-medium max-w-xl mx-auto mb-14 leading-relaxed">
-            Every Sunday morning, we lace up and play the game we love. No egos — just cricket, community, and the joy of showing up.
+        <AnimateIn direction="up" delay={350}>
+          <div className="w-14 h-px bg-jcc-accent/50 mx-auto mb-8 divider-draw" />
+        </AnimateIn>
+
+        <AnimateIn direction="up" delay={500}>
+          <p className="font-heading italic text-jcc-text-primary/65 text-lg sm:text-xl font-medium mb-16 leading-relaxed">
+            Some arrive for a match.
+            <br />
+            Some stay for a lifetime.
           </p>
+        </AnimateIn>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-            <Link href="/register" className="btn-vibrant-blue group text-[15px]">
-              BECOME A MEMBER
-              <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+        <AnimateIn direction="up" delay={800}>
+          <div className="flex flex-col items-center gap-8 mb-20">
+            <Link
+              href="/register"
+              className="btn-vibrant-blue btn-final-invite !px-12 !py-5 !text-[13px] !tracking-[0.18em]"
+            >
+              Become a Member
             </Link>
-            <Link href="/about" className="btn-ghost group text-[15px]">
-              <BookOpen className="w-5 h-5 text-jcc-accent" />
-              OUR STORY
+            <Link
+              href="/about"
+              className="group inline-flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.22em] text-jcc-text-muted transition-colors duration-500 hover:text-jcc-accent-dark"
+            >
+              Our Story
+              <ArrowRight className="w-3.5 h-3.5 transition-transform duration-500 ease-out group-hover:translate-x-1" />
             </Link>
           </div>
+        </AnimateIn>
+
+        <AnimateIn direction="up" delay={900}>
+          <div className="w-10 h-px bg-jcc-accent/50 mx-auto mb-6" />
+          <p className="text-[12px] font-black uppercase tracking-[0.45em] text-jcc-text-primary/80 mb-3">
+            Est. MMXXVI
+          </p>
+          <p className="font-heading text-[17px] font-black uppercase tracking-[0.3em] text-jcc-text-primary mb-3">
+            Jaipur Cricket Circle
+          </p>
+          <p className="text-[12px] font-bold uppercase tracking-[0.4em] text-jcc-text-muted mb-8">
+            Jaipur &bull; Rajasthan
+          </p>
+          <div className="w-10 h-px bg-jcc-accent/50 mx-auto mb-8" />
+          <p className="font-heading italic text-jcc-text-primary/90 text-[16px] font-semibold tracking-[0.03em] leading-relaxed">
+            The score fades.
+            <br />
+            The Circle remains.
+          </p>
         </AnimateIn>
       </div>
     </section>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 const quickLinks = [
-  { href: "/chewvana-times", label: "Chewvana Times" },
+  { href: "/boundary-banter", label: "Boundary Banter" },
   { href: "/members", label: "Members" },
   { href: "/rivalry", label: "Rivalry" },
   { href: "/register", label: "Sunday Registration" },
@@ -10,16 +10,27 @@ const quickLinks = [
 
 export default function Footer() {
   return (
-    <footer className="relative border-t border-white/10 section-bg-navy">
+    <footer className="theme-static-dark section-bg-royal-deep relative border-t border-jcc-accent/20 overflow-hidden">
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-jcc-accent/20 to-transparent" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-12 lg:gap-16">
+      {/* Jaipur palace silhouette — subtle heritage motif along the footer floor */}
+      <svg
+        className="absolute bottom-0 left-0 right-0 w-full h-16 sm:h-24 text-jcc-accent/[0.06] pointer-events-none select-none"
+        viewBox="0 0 1200 160"
+        preserveAspectRatio="none"
+        fill="currentColor"
+        aria-hidden="true"
+      >
+        <path d="M0 160V96l24-8V64l16-10V38h10V22l14-10 14 10v16h10v16l16 10v24l24 8v-42l10-8V18h8v16l10 8v54l30-10V60l12-10h6V34l16-12 16 12v16h6l12 10v26l30 10V52l10-8h6V28l18-14 18 14v16h6l10 8v38l30-10V50l12-10h6V22l18-14 18 14v18h6l12 10v26l30 10V58l10-8h6V32l16-12 16 12v18h6l10 8v28l24-8V68l16-10V44h10V28l14-10 14 10v16h10v16l16 10v20l24 8V64h8v-8l10-8v54l24 8v64H0Z" />
+      </svg>
+
+      <div className="relative z-10 max-w-7xl mx-auto px-6 sm:px-6 lg:px-8 pt-14 pb-28 sm:py-20">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10 sm:gap-12 lg:gap-16">
           {/* Brand */}
           <div className="space-y-8">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center shadow-inner group/logo transition-all hover:border-jcc-accent/40 hover:bg-white/5 overflow-hidden p-2.5">
-                <img src="/jcc-logo.webp" alt="JCC Logo" width={96} height={96} loading="lazy" className="w-full h-full object-contain group-hover/logo:scale-110 transition-transform duration-300" />
+                <img src="/jcc_logo.png" alt="JCC Logo" width={96} height={96} loading="lazy" className="w-full h-full object-contain group-hover/logo:scale-110 transition-transform duration-300" />
               </div>
               <div>
                 <div className="text-[14px] font-black text-white tracking-[0.2em] uppercase font-[var(--font-heading)] leading-tight">
@@ -78,7 +89,7 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-14 pt-10 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-6">
+        <div className="mt-12 sm:mt-14 pt-8 sm:pt-10 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6 text-center sm:text-left">
           <div className="flex items-center gap-6">
             <p className="text-[12px] text-white/60 font-bold uppercase tracking-widest">
               &copy; {new Date().getFullYear()} Jaipur Cricket Circle.

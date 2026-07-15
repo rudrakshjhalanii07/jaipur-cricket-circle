@@ -3,7 +3,7 @@
 // MemberPhoto, ScorelineCard) are downloaded by the browser.
 import RivalrySection from "./RivalrySection";
 import CommunitySection from "./CommunitySection";
-import ChewvanaTimesSection from "./ChewvanaTimesSection";
+import BoundaryBanterSection from "./BoundaryBanterSection";
 import WhyJCCSection from "./WhyJCCSection";
 import FinalCTASection from "./FinalCTASection";
 import type { CommunityMember, ArticleData, RecentMatch } from "@/app/page";
@@ -39,7 +39,7 @@ export default function HomepageBelowFold({
     <>
       <RivalrySection {...rivalry} />
       <CommunitySection {...community} />
-      <ChewvanaTimesSection {...chewvana} />
+      <BoundaryBanterSection {...chewvana} />
       <WhyJCCSection />
       <FinalCTASection />
     </>

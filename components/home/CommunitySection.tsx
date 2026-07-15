@@ -1,5 +1,5 @@
 import NextLink from "next/link";
-import { Users, ChevronRight, ShieldCheck, Heart, Trophy, Calendar } from "lucide-react";
+import { Users, ChevronRight, Heart, Trophy, Calendar } from "lucide-react";
 import { MemberPhoto } from "./MemberPhoto";
 import { AnimateIn } from "@/components/AnimateIn";
 import type { CommunityMember } from "@/app/page";
@@ -16,8 +16,8 @@ interface CommunitySectionProps {
 
 export default function CommunitySection({ members, stats }: CommunitySectionProps) {
   return (
-    <section id="community" className="py-24 sm:py-32 relative section-bg-navy overflow-hidden">
-      <div className="absolute inset-0 bg-linear-to-b from-jcc-navy/50 to-transparent" />
+    <section id="community" className="theme-static-dark py-24 sm:py-32 relative section-bg-royal overflow-hidden">
+      <div className="absolute inset-0 bg-linear-to-b from-black/10 to-transparent" />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
         <AnimateIn className="text-center mb-16">
@@ -33,60 +33,50 @@ export default function CommunitySection({ members, stats }: CommunitySectionPro
           </p>
         </AnimateIn>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-7">
           {members.map((member, i) => {
-            const isMavericks = member.team === "Mavericks";
-            const isNeuroStrikers = member.team === "NeuroStrikers";
-
-            const borderHighlight = isMavericks
-              ? "border-blue-500/20 hover:border-blue-400/60 hover:shadow-[0_0_30px_rgba(59,130,246,0.25)]"
-              : isNeuroStrikers
-              ? "border-red-500/20 hover:border-red-400/60 hover:shadow-[0_0_30px_rgba(255,77,77,0.25)]"
-              : "border-white/10 hover:border-jcc-accent/40 hover:shadow-[0_0_30px_rgba(20,184,255,0.15)]";
-
-            const teamTextColor = isMavericks
-              ? "text-blue-400 font-bold"
-              : isNeuroStrikers
-              ? "text-red-400 font-bold"
-              : "text-jcc-text-muted";
-
-            const avatarBorder = isMavericks
-              ? "border-blue-500/20 group-hover:border-blue-400/50"
-              : isNeuroStrikers
-              ? "border-red-500/20 group-hover:border-red-400/50"
-              : "border-white/10 group-hover:border-jcc-accent/50";
+            const isFounder = member.tags.includes("founding-member");
+            const isCaptain = member.tags.includes("captain") || member.tags.includes("vice-captain");
+            const cardTier = isFounder ? " id-card--founder" : isCaptain ? " id-card--captain" : "";
+            const roleColor = isFounder || isCaptain ? "text-jcc-accent-dark" : "text-jcc-blue/60";
 
             return (
               <AnimateIn key={member.id} delay={i * 50}>
-                <div className={`premium-card p-3 sm:p-5 group transition-all duration-300 ${borderHighlight}`}>
-                  <div className="relative mb-4">
-                    <div className={`aspect-square rounded-xl overflow-hidden bg-white/5 border relative flex items-center justify-center transition-all duration-300 ${avatarBorder}`}>
+                <div className="group h-full transition-transform duration-500 ease-out hover:-translate-y-1.5 will-change-transform">
+                  <div className={`id-card${cardTier} flex flex-col h-full`}>
+                    <div className="portrait-frame relative w-full aspect-4/5 overflow-hidden shrink-0">
                       {/* MemberPhoto is a client island — handles photo-error fallback state */}
                       <MemberPhoto
                         src={member.image}
                         name={member.name}
-                        team={member.team}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="object-cover group-hover:scale-[1.03] transition-transform duration-1400 ease-out"
                       />
+                      <div className="absolute inset-x-0 bottom-0 h-10 bg-linear-to-t from-white/80 to-transparent pointer-events-none" />
+                      {isFounder && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src="/jcc_logo.png"
+                          alt=""
+                          aria-hidden="true"
+                          className="id-crest top-2 left-2 sm:top-2.5 sm:left-2.5 w-4 h-4 sm:w-5 sm:h-5 rounded"
+                        />
+                      )}
                     </div>
-                    {member.tags.includes("captain") && (
-                      <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-jcc-accent flex items-center justify-center text-white shadow-lg border-2 border-jcc-navy">
-                        <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                      </div>
-                    )}
-                  </div>
 
-                  <div className="space-y-1.5">
-                    <h3 className="text-sm sm:text-base font-black text-white truncate">{member.name}</h3>
-                    <div className="flex flex-col gap-1 items-start sm:flex-row sm:items-center sm:justify-between sm:gap-0">
-                      <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-colors duration-300 ${teamTextColor}`}>
-                        {member.team || "Circle Member"}
-                      </span>
-                      <span className={`text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-md uppercase tracking-tighter ${
-                        member.tags.includes("captain") ? "bg-jcc-accent/20 text-jcc-accent" : "bg-white/5 text-jcc-text-soft"
-                      }`}>
+                    <div className="flex-1 flex flex-col items-center text-center px-2.5 sm:px-4 pt-3 sm:pt-4 pb-3 sm:pb-4">
+                      <h3 className="id-card-name text-[13px] sm:text-base font-black uppercase tracking-tight text-jcc-blue leading-tight truncate max-w-full">
+                        {member.name}
+                      </h3>
+                      <span className={`text-[8px] sm:text-[9px] font-bold uppercase tracking-[0.25em] mt-1.5 ${roleColor}`}>
                         {member.role}
                       </span>
+                      <div className="flex items-center justify-center gap-1.5 mt-1.5 sm:mt-2">
+                        <span className="h-px w-3 bg-jcc-blue/15" />
+                        <span className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-[0.18em] text-jcc-blue/40">
+                          {member.team || "Circle Member"}
+                        </span>
+                        <span className="h-px w-3 bg-jcc-blue/15" />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -99,21 +89,27 @@ export default function CommunitySection({ members, stats }: CommunitySectionPro
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-4xl mx-auto">
             {[
               { Icon: Users,    label: "Active Members",  value: stats.activePlayers, color: "from-jcc-accent/20 to-transparent",   border: "border-jcc-accent/20",   textColor: "text-jcc-accent"   },
-              { Icon: Trophy,   label: "Matches Played",  value: stats.sundayGames,   color: "from-yellow-400/20 to-transparent",  border: "border-yellow-400/20",  textColor: "text-yellow-400"  },
-              { Icon: Calendar, label: "Sundays Active",  value: stats.sundaysActive, color: "from-orange-500/20 to-transparent",  border: "border-orange-500/20",  textColor: "text-orange-400"  },
+              { Icon: Trophy,   label: "Matches Played",  value: stats.sundayGames,   color: "from-jcc-accent/20 to-transparent",  border: "border-jcc-accent/20",  textColor: "text-jcc-accent"  },
+              { Icon: Calendar, label: "Sundays Active",  value: stats.sundaysActive, color: "from-jcc-accent-dark/20 to-transparent",  border: "border-jcc-accent-dark/20",  textColor: "text-jcc-accent-dark"  },
               { Icon: Heart,    label: "Community Love",  value: stats.communityLove, color: "from-jcc-green/20 to-transparent",   border: "border-jcc-green/20",   textColor: "text-jcc-green"   },
-            ].map((stat, i) => (
-              <div
-                key={i}
-                className={`group relative overflow-hidden rounded-xl bg-linear-to-b ${stat.color} border ${stat.border} p-5 cursor-default hover:scale-[1.03] transition-all duration-300 hover:shadow-lg flex flex-col items-center sm:items-start text-center sm:text-left`}
-              >
-                <div className="p-2 rounded-lg bg-white/5 mb-3 group-hover:scale-110 transition-transform">
-                  <stat.Icon className={`w-5 h-5 ${stat.textColor}`} />
+            ].map((stat, i) => {
+              const light = i % 2 === 1;
+              return (
+                <div
+                  key={i}
+                  className={`group relative overflow-hidden rounded-xl border p-5 cursor-default hover:scale-[1.03] transition-all duration-300 hover:shadow-lg flex flex-col items-center sm:items-start text-center sm:text-left ${
+                    light ? "border-jcc-accent-dark/25" : `bg-linear-to-b ${stat.color} ${stat.border}`
+                  }`}
+                  style={light ? { background: "#F6F2E9" } : undefined}
+                >
+                  <div className={`p-2 rounded-lg mb-3 group-hover:scale-110 transition-transform ${light ? "bg-[#1A1508]/[0.04]" : "bg-white/5"}`}>
+                    <stat.Icon className={`w-5 h-5 ${light ? "text-jcc-accent-dark" : stat.textColor}`} />
+                  </div>
+                  <div className={`text-2xl font-black ${light ? "text-jcc-accent-dark" : stat.textColor}`}>{stat.value}</div>
+                  <div className={`text-[10px] font-black uppercase tracking-widest mt-1 ${light ? "text-[#1A1508]/60" : "text-white/40"}`}>{stat.label}</div>
                 </div>
-                <div className={`text-2xl font-black ${stat.textColor}`}>{stat.value}</div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-white/40 mt-1">{stat.label}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </AnimateIn>
 

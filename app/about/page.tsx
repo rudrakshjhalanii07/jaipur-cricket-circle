@@ -23,36 +23,21 @@ import SectionHeading from "@/components/SectionHeading";
 import PlayerAvatar from "@/components/PlayerAvatar";
 import { supabase } from "@/lib/supabase";
 import { fetchRivalrySeasons } from "@/lib/rivalry";
+import {
+  getGovernanceRoleLabel,
+  isCommitteeCaptain,
+  HONORARY_GOVERNANCE_MEMBERS,
+  type GovernanceFields,
+} from "@/lib/member-role";
 
-// ─── Static committee data ────────────────────────────────────────────────────
+// ─── Committee data ─────────────────────────────────────────────────────────
+// Sourced from players.is_core_committee / is_exec_committee / governance_role
+// (supabase/add_governance_fields.sql) instead of a hardcoded roster, so this
+// page can never drift from what a member's own Profile page shows. The one
+// exception is HONORARY_GOVERNANCE_MEMBERS in lib/member-role.ts — a single
+// committee member with no player record on file.
 
-const CORE_COMMITTEE = [
-  { name: "Opal Chaudhary", role: "Co-Founder", governanceRole: "Core Committee" },
-  { name: "Nitin Setia", role: "Co-Founder", governanceRole: "Core Committee" },
-  { name: "Sagar Sharma", role: "Co-Founder", governanceRole: "Core Committee" },
-  { name: "Nitesh Jhurani", role: "Co-Founder", governanceRole: "Core Committee" },
-  { name: "Abhijeet Singh Shekhawat", role: "Co-Founder", governanceRole: "Core Committee" },
-];
-
-// In the Executive Committee, co-founders carry their founding role;
-// Anil and Rudraksh are permanent members. Sagar, Anil, and Rudraksh
-// currently hold captaincy seats (provision for 3–4 captains per season).
-const EXEC_COMMITTEE_ROLES: Record<string, { role: string; captainSeat?: boolean }> = {
-  "Opal Chaudhary":          { role: "Co-Founder" },
-  "Nitin Setia":             { role: "Co-Founder" },
-  "Sagar Sharma":            { role: "Co-Founder", captainSeat: true },
-  "Nitesh Jhurani":          { role: "Co-Founder" },
-  "Abhijeet Singh Shekhawat":{ role: "Co-Founder" },
-  "Anil Rawat":              { role: "Permanent Member", captainSeat: true },
-  "Rudraksh Jhalani":        { role: "Permanent Member", captainSeat: true },
-};
-
-const EXEC_ONLY = [
-  { name: "Anil Rawat",      role: "Permanent Member", governanceRole: "Executive Committee" },
-  { name: "Rudraksh Jhalani",role: "Permanent Member", governanceRole: "Executive Committee" },
-];
-
-type PlayerPhoto = { name: string; image_url: string | null; team: string | null };
+type CommitteeMember = GovernanceFields & { id: string; image_url?: string | null };
 
 // ─── Animations ───────────────────────────────────────────────────────────────
 
@@ -148,7 +133,7 @@ function sundaysElapsed(): number {
 }
 
 export default function AboutPage() {
-  const [photos, setPhotos] = useState<PlayerPhoto[]>([]);
+  const [committee, setCommittee] = useState<CommitteeMember[]>([]);
   const [stats] = useState({
     activePlayers: "50+",
     matchesPlayed: "40+",
@@ -159,12 +144,33 @@ export default function AboutPage() {
   useEffect(() => {
     async function load() {
       try {
+        // select("*") rather than an explicit column list so this keeps
+        // rendering (just with an empty committee section, not an error)
+        // whether or not supabase/add_governance_fields.sql has run yet.
         const { data: playerRows } = await supabase
           .from("players")
-          .select("name, image_url, team")
+          .select("*")
           .eq("approval_status", "approved");
 
-        if (playerRows) setPhotos(playerRows);
+        const fromDb: CommitteeMember[] = (playerRows || [])
+          .filter((p) => p.is_core_committee || p.is_exec_committee)
+          .map((p) => ({
+            id: p.id,
+            name: p.name,
+            image_url: p.image_url,
+            team: p.team,
+            governance_role: p.governance_role,
+            is_core_committee: !!p.is_core_committee,
+            is_exec_committee: !!p.is_exec_committee,
+            group_role: p.group_role,
+            governance_order: p.governance_order,
+          }));
+
+        setCommittee(
+          [...fromDb, ...HONORARY_GOVERNANCE_MEMBERS].sort(
+            (a, b) => (a.governance_order ?? 99) - (b.governance_order ?? 99)
+          )
+        );
       } catch (err) {
         console.error("Error loading about page data:", err);
       }
@@ -172,15 +178,8 @@ export default function AboutPage() {
     load();
   }, []);
 
-  function getPhoto(name: string) {
-    const target = name.toLowerCase().replace(/[^a-z]/g, "");
-    return (
-      photos.find((p) => {
-        const dbName = p.name.toLowerCase().replace(/[^a-z]/g, "");
-        return dbName === target || dbName.includes(target) || target.includes(dbName);
-      }) ?? null
-    );
-  }
+  const coreCommittee = committee.filter((m) => m.is_core_committee);
+  const executiveCommittee = committee.filter((m) => m.is_core_committee || m.is_exec_committee);
 
   return (
     <div className="min-h-screen pt-36 pb-24 relative overflow-hidden hero-gradient">
@@ -241,10 +240,10 @@ export default function AboutPage() {
             transition={{ delay: 0.1 }}
             className="premium-card p-8 flex flex-col"
           >
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-5">
-              <Shield className="w-5 h-5 text-emerald-400" />
+            <div className="w-10 h-10 rounded-xl bg-jcc-accent/10 border border-jcc-accent/20 flex items-center justify-center mb-5">
+              <Shield className="w-5 h-5 text-jcc-accent" />
             </div>
-            <h2 className="text-xs font-black text-emerald-400 uppercase tracking-[0.25em] mb-3">Our Mission</h2>
+            <h2 className="text-xs font-black text-jcc-accent uppercase tracking-[0.25em] mb-3">Our Mission</h2>
             <ul className="space-y-2.5 flex-1">
               {[
                 "Organise fair and enjoyable cricket matches and tournaments.",
@@ -254,7 +253,7 @@ export default function AboutPage() {
                 "Continuously improve the quality and professionalism of our events.",
               ].map((item, i) => (
                 <li key={i} className="flex items-start gap-2.5">
-                  <span className="w-1 h-1 rounded-full bg-emerald-400/60 mt-2 shrink-0" />
+                  <span className="w-1 h-1 rounded-full bg-jcc-accent/60 mt-2 shrink-0" />
                   <span className="text-white/60 text-[13px] leading-relaxed font-medium">{item}</span>
                 </li>
               ))}
@@ -312,21 +311,18 @@ export default function AboutPage() {
           />
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
-            {CORE_COMMITTEE.map((member, i) => {
-              const p = getPhoto(member.name);
-              return (
-                <CommitteeMemberCard
-                  key={member.name}
-                  name={member.name}
-                  role={member.role}
-                  governanceRole={member.governanceRole}
-                  photoUrl={p?.image_url}
-                  team={p?.team}
-                  delay={i * 0.07}
-                  size="md"
-                />
-              );
-            })}
+            {coreCommittee.map((member, i) => (
+              <CommitteeMemberCard
+                key={member.id}
+                name={member.name ?? ""}
+                role={getGovernanceRoleLabel(member)}
+                governanceRole="Core Committee"
+                photoUrl={member.image_url}
+                team={member.team}
+                delay={i * 0.07}
+                size="md"
+              />
+            ))}
           </div>
 
           <motion.p
@@ -349,24 +345,19 @@ export default function AboutPage() {
           />
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {[...CORE_COMMITTEE, ...EXEC_ONLY].map((member, i) => {
-              const p = getPhoto(member.name);
-              const execCfg = EXEC_COMMITTEE_ROLES[member.name];
-              const isCoreMember = CORE_COMMITTEE.some((c) => c.name === member.name);
-              return (
-                <CommitteeMemberCard
-                  key={member.name}
-                  name={member.name}
-                  role={execCfg?.role ?? member.role}
-                  governanceRole={isCoreMember ? "Core Committee" : "Executive Committee"}
-                  photoUrl={p?.image_url}
-                  team={p?.team}
-                  isCaptain={execCfg?.captainSeat ?? false}
-                  delay={i * 0.06}
-                  size="sm"
-                />
-              );
-            })}
+            {executiveCommittee.map((member, i) => (
+              <CommitteeMemberCard
+                key={member.id}
+                name={member.name ?? ""}
+                role={getGovernanceRoleLabel(member)}
+                governanceRole={member.is_core_committee ? "Core Committee" : "Executive Committee"}
+                photoUrl={member.image_url}
+                team={member.team}
+                isCaptain={isCommitteeCaptain(member)}
+                delay={i * 0.06}
+                size="sm"
+              />
+            ))}
           </div>
         </div>
 
@@ -374,8 +365,8 @@ export default function AboutPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-24">
           {[
             { icon: Users, value: stats.activePlayers, label: "Active Members", color: "text-jcc-accent" },
-            { icon: Trophy, value: stats.matchesPlayed, label: "Matches Played", color: "text-emerald-400" },
-            { icon: Calendar, value: stats.sundaysActive, label: "Sundays Active", color: "text-purple-400" },
+            { icon: Trophy, value: stats.matchesPlayed, label: "Matches Played", color: "text-jcc-accent" },
+            { icon: Calendar, value: stats.sundaysActive, label: "Sundays Active", color: "text-jcc-accent-dark" },
             { icon: Heart, value: stats.communityLove, label: "Community Love", color: "text-jcc-ball-red" },
           ].map((stat, i) => (
             <motion.div
@@ -402,11 +393,11 @@ export default function AboutPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-24">
           {[
             { icon: Shield, title: "Sportsmanship", desc: "Respect match outcomes, accept decisions, and treat every participant with dignity — on and off the field.", color: "text-jcc-accent" },
-            { icon: Target, title: "Integrity", desc: "We compete with honesty. No manipulation of results, no unsportsmanlike conduct — ever.", color: "text-emerald-400" },
-            { icon: Users, title: "Inclusivity", desc: "Membership is open to all who share our values. Participation matters as much as performance.", color: "text-purple-400" },
+            { icon: Target, title: "Integrity", desc: "We compete with honesty. No manipulation of results, no unsportsmanlike conduct — ever.", color: "text-jcc-accent" },
+            { icon: Users, title: "Inclusivity", desc: "Membership is open to all who share our values. Participation matters as much as performance.", color: "text-jcc-accent-dark" },
             { icon: Zap, title: "Accountability", desc: "Every member is responsible for their actions. Commitment to the circle means showing up — for the game and each other.", color: "text-jcc-gold" },
             { icon: Heart, title: "Community First", desc: "Healthy rivalries are encouraged. But community spirit always takes precedence over team loyalty.", color: "text-jcc-ball-red" },
-            { icon: Newspaper, title: "Storytelling", desc: "Every match has a story worth telling. Chewvana Times ensures the history of this community is never forgotten.", color: "text-purple-400" },
+            { icon: Newspaper, title: "Storytelling", desc: "Every match has a story worth telling. Boundary Banter ensures the history of this community is never forgotten.", color: "text-jcc-accent-dark" },
           ].map((value, i) => (
             <motion.div
               key={value.title}
@@ -431,16 +422,16 @@ export default function AboutPage() {
             initial={{ opacity: 0, x: -20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, amount: 0.2 }}
-            className="premium-card p-8 flex flex-col hover:border-purple-400/30 transition-all duration-300"
+            className="premium-card p-8 flex flex-col hover:border-jcc-accent-dark/30 transition-all duration-300"
           >
-            <div className="w-11 h-11 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-5">
-              <Newspaper className="w-5 h-5 text-purple-400" />
+            <div className="w-11 h-11 rounded-2xl bg-jcc-accent-dark/10 border border-jcc-accent-dark/20 flex items-center justify-center mb-5">
+              <Newspaper className="w-5 h-5 text-jcc-accent-dark" />
             </div>
-            <h3 className="text-xl font-black text-white font-[var(--font-heading)] uppercase mb-3">Chewvana Times</h3>
+            <h3 className="text-xl font-black text-white font-[var(--font-heading)] uppercase mb-3">Boundary Banter</h3>
             <p className="text-white/50 text-sm leading-relaxed flex-1 mb-7 font-medium">
-              Our weekly match reports and community chronicle — part journalism, part banter, all heart. Every Sunday&apos;s drama gets captured in the pages of the Chewvana Times.
+              Our weekly match reports and community chronicle — part journalism, part banter, all heart. Every Sunday&apos;s drama gets captured in the pages of Boundary Banter.
             </p>
-            <Link href="/chewvana-times" className="inline-flex items-center gap-2 text-[11px] text-purple-400 font-black uppercase tracking-widest group/link">
+            <Link href="/boundary-banter" className="inline-flex items-center gap-2 text-[11px] text-jcc-accent-dark font-black uppercase tracking-widest group/link">
               Enter the Newsroom <ChevronRight className="w-3.5 h-3.5 group-hover/link:translate-x-1 transition-transform" />
             </Link>
           </motion.div>

@@ -38,17 +38,18 @@ export async function fetchTournamentMatches(
   }
 }
 
-export async function fetchCompletedTournaments(): Promise<Tournament[]> {
+export async function fetchTournamentByCode(code: string): Promise<Tournament | null> {
   try {
     const { data, error } = await supabase
       .from("tournaments")
       .select("*")
-      .eq("status", "completed")
-      .order("created_at", { ascending: false });
+      .eq("code", code.trim().toUpperCase())
+      .in("status", ["scheduled", "in_progress", "final_pending"])
+      .single();
 
-    if (error || !data) return [];
-    return data as Tournament[];
+    if (error || !data) return null;
+    return data as Tournament;
   } catch {
-    return [];
+    return null;
   }
 }

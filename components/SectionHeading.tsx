@@ -20,7 +20,7 @@ interface SectionHeadingProps {
 const accentGradients = {
   blue: "from-jcc-accent via-jcc-accent/50 to-transparent",
   turf: "from-jcc-green via-jcc-green/50 to-transparent",
-  purple: "from-purple-400 via-purple-400/50 to-transparent",
+  purple: "from-jcc-accent-highlight via-jcc-accent-highlight/50 to-transparent",
   gold: "from-jcc-gold via-jcc-gold/50 to-transparent",
   red: "from-jcc-ball-red via-jcc-ball-red/50 to-transparent"
 };

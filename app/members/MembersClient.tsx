@@ -85,7 +85,7 @@ function PlayerStatsModal({
         exit={{ y: 60, opacity: 0 }}
         transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
         onClick={(e) => e.stopPropagation()}
-        className="theme-static-dark relative w-full sm:max-w-xl max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl border border-white/10 bg-[#12101a] shadow-2xl"
+        className="theme-static-dark relative w-full sm:max-w-xl max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl border border-white/10 bg-jcc-blue-deep shadow-2xl"
         style={{ borderColor: `${accentColor}22` }}
       >
         <div className="sm:hidden flex justify-center pt-3 pb-1">
@@ -101,7 +101,7 @@ function PlayerStatsModal({
 
         <div className="flex items-start gap-4 px-5 pt-4 pb-5" style={{ background: `linear-gradient(to bottom, ${accentColor}0d, transparent)` }}>
           <div
-            className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl border-2 overflow-hidden flex-shrink-0"
+            className="portrait-frame w-16 h-16 sm:w-20 sm:h-20 rounded-2xl border-2 overflow-hidden flex-shrink-0"
             style={{ borderColor: `${accentColor}44`, background: `${accentColor}12` }}
           >
             {member.image && !photoError ? (
@@ -111,7 +111,7 @@ function PlayerStatsModal({
                 width={80}
                 height={80}
                 loading="lazy"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover portrait-photo"
                 onError={() => setPhotoError(true)}
               />
             ) : (
@@ -120,7 +120,7 @@ function PlayerStatsModal({
                 src={getDiceBearUrl(member.name, member.team)}
                 alt={member.name}
                 loading="lazy"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover portrait-photo"
               />
             )}
           </div>
@@ -427,7 +427,7 @@ export default function MembersClient({ members }: { members: Member[] }) {
               onClick={() => setActive(f.key)}
               className={`px-3 py-1.5 sm:px-6 sm:py-2.5 rounded-lg sm:rounded-xl text-[8px] sm:text-[10px] font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] transition-all duration-300 border ${
                 active === f.key
-                  ? "bg-jcc-accent text-black border-jcc-accent shadow-[0_0_20px_rgba(232,83,126,0.25)]"
+                  ? "bg-jcc-accent text-black border-jcc-accent shadow-[0_0_20px_rgba(212,175,55,0.25)]"
                   : "bg-white/[0.03] text-white/40 border-white/10 hover:border-jcc-accent/40 hover:text-white"
               }`}
             >
@@ -444,7 +444,7 @@ export default function MembersClient({ members }: { members: Member[] }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7 sm:gap-8"
           >
             {filtered.map((member, i) => (
               <MemberCard

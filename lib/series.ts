@@ -517,3 +517,82 @@ export function computeOverallStandings(series: FullSeries[]): SeriesStandingRow
   for (const r of rows) r.nrr = nrrMap.get(r.team_id) ?? 0;
   return rows;
 }
+
+export interface PlayerPoolRow {
+  name: string;
+  matches: number;
+  teams: SeriesTeamId[];
+}
+
+// Every player who has ever appeared in a recorded scorecard — squad list is
+// the authoritative source (credits an appearance even for did-not-bat
+// players), unioned with batting/bowling rows as a defensive fallback for any
+// match missing a squad entry. Sorted alphabetically by name.
+export function computePlayersPool(series: FullSeries[]): PlayerPoolRow[] {
+  const matchSet = new Map<string, Set<string>>();
+  const teamSet = new Map<string, Set<SeriesTeamId>>();
+
+  const touch = (name: string | null | undefined, matchId: string, team?: SeriesTeamId) => {
+    const key = name?.trim();
+    if (!key) return;
+    if (!matchSet.has(key)) matchSet.set(key, new Set());
+    matchSet.get(key)!.add(matchId);
+    if (team) {
+      if (!teamSet.has(key)) teamSet.set(key, new Set());
+      teamSet.get(key)!.add(team);
+    }
+  };
+
+  for (const s of series) {
+    for (const m of s.matches) {
+      const sq = (m as SeriesMatch).squad;
+      if (sq) {
+        for (const name of sq.team1 ?? []) touch(name, m.id, m.team1_id);
+        for (const name of sq.team2 ?? []) touch(name, m.id, m.team2_id);
+      }
+      for (const inn of m.innings) {
+        for (const b of inn.batting) touch(b.player_name, m.id, b.team_id);
+        for (const bw of inn.bowling) touch(bw.player_name, m.id, bw.team_id);
+      }
+    }
+  }
+
+  return Array.from(matchSet.keys())
+    .map((name) => ({
+      name,
+      matches: matchSet.get(name)!.size,
+      teams: Array.from(teamSet.get(name) ?? []).sort(),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Club founding date — every Sunday from here on is a "club Sunday", whether or
+// not a tri-series was recorded that week.
+const CLUB_FOUNDING_SUNDAY = new Date("2026-03-01T00:00:00Z");
+
+function countSundaysBetween(startInclusive: Date, endExclusive: Date): number {
+  let count = 0;
+  const d = new Date(startInclusive);
+  while (d.getUTCDay() !== 0) d.setUTCDate(d.getUTCDate() + 1);
+  while (d < endExclusive) {
+    count++;
+    d.setUTCDate(d.getUTCDate() + 7);
+  }
+  return count;
+}
+
+// Total Sundays played by the club: Sundays elapsed between the founding date
+// and the first tracked tri-series (untracked baseline, assumed played weekly)
+// plus one Sunday for every tri-series recorded since (each new series upload
+// IS that week's Sunday — no separate date math needed going forward).
+export function computeSundaysPlayed(series: { started_at: string | null }[]): number {
+  if (series.length === 0) {
+    return countSundaysBetween(CLUB_FOUNDING_SUNDAY, new Date());
+  }
+  const firstSeriesDate = series
+    .map((s) => (s.started_at ? new Date(s.started_at) : null))
+    .filter((d): d is Date => d !== null)
+    .reduce((a, b) => (b < a ? b : a));
+  const baseline = countSundaysBetween(CLUB_FOUNDING_SUNDAY, firstSeriesDate);
+  return baseline + series.length;
+}

@@ -10,6 +10,8 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import ConfirmDialog from "./ConfirmDialog";
 import PastVenuesModal from "./PastVenuesModal";
+import AdminPageHeader from "@/components/admin/AdminPageHeader";
+import AdminSkeleton from "@/components/admin/AdminSkeleton";
 
 interface Match {
   id?: string;
@@ -319,17 +321,18 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
     setConfirmConfig({ ...config, isOpen: true });
   };
 
-  if (loading) return <div className="p-20 text-center"><Loader2 className="w-10 h-10 animate-spin mx-auto text-jcc-accent opacity-20" /></div>;
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <AdminPageHeader title="Match Control" subtitle="Logistics & Registration Lifecycle" />
+        <AdminSkeleton rows={1} rowHeight="420px" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
-      {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-black text-white font-[var(--font-heading)] uppercase tracking-tight">Match Control</h2>
-          <p className="text-[13px] text-white/50 font-medium uppercase tracking-widest mt-1">Logistics & Registration Lifecycle</p>
-        </div>
-      </div>
+      <AdminPageHeader title="Match Control" subtitle="Logistics & Registration Lifecycle" />
 
       <AnimatePresence>
         {expiredCount > 0 && (
@@ -337,7 +340,7 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="flex items-center gap-3 px-5 py-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[12px] font-black uppercase tracking-widest"
+            className="flex items-center gap-3 px-5 py-4 rounded-2xl bg-jcc-accent-dark/10 border border-jcc-accent-dark/20 text-jcc-accent-dark text-[12px] font-black uppercase tracking-widest"
           >
             <AlertCircle className="w-4 h-4 shrink-0" />
             {expiredCount} past match{expiredCount > 1 ? "es" : ""} auto-cancelled &amp; wiped — all registrations cleared.
@@ -366,7 +369,7 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
             {!isCreating ? (
               <button
                 onClick={startCreating}
-                className="px-12 py-5 rounded-2xl btn-vibrant-blue text-black font-black text-sm transition-all flex items-center justify-center gap-2 mx-auto uppercase tracking-widest"
+                className="px-12 py-5 rounded-2xl btn-vibrant-blue font-black text-sm transition-all flex items-center justify-center gap-2 mx-auto uppercase tracking-widest"
               >
                 <PlusCircle className="w-5 h-5" />
                 Schedule New Match
@@ -374,44 +377,44 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
             ) : (
               <form onSubmit={handleCreate} className="text-left max-w-2xl mx-auto premium-card p-8 sm:p-10 space-y-8">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xl font-black text-white uppercase tracking-tight">New Match Details</h4>
-                  <button type="button" onClick={() => setIsCreating(false)} className="p-2 rounded-xl hover:bg-white/5 transition-colors">
-                    <X className="w-5 h-5 text-white/30" />
+                  <h4 className="text-xl font-black text-jcc-blue uppercase tracking-tight">New Match Details</h4>
+                  <button type="button" onClick={() => setIsCreating(false)} className="p-2 rounded-xl hover:bg-jcc-navy-light transition-colors">
+                    <X className="w-5 h-5 text-jcc-text-muted" />
                   </button>
                 </div>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Match Date</label>
-                      <input required type="date" className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none text-white text-[15px] font-black shadow-inner" 
+                    <div>
+                      <label className="admin-label">Match Date</label>
+                      <input required type="date" className="admin-input"
                         value={editData?.match_date || ""} onChange={e => setEditData(prev => prev ? {...prev, match_date: e.target.value} : null)} />
                     </div>
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Match Time</label>
-                      <input required type="text" className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none text-white text-[15px] font-black shadow-inner" 
+                    <div>
+                      <label className="admin-label">Match Time</label>
+                      <input required type="text" className="admin-input"
                         value={editData?.match_time || ""} onChange={e => setEditData(prev => prev ? {...prev, match_time: e.target.value} : null)} />
                     </div>
                 </div>
 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Venue Details</label>
-                    <button type="button" onClick={() => setShowVenues(true)} className="text-[10px] font-black text-jcc-accent hover:underline flex items-center gap-1 uppercase tracking-widest">
+                    <label className="admin-label mb-0">Venue Details</label>
+                    <button type="button" onClick={() => setShowVenues(true)} className="text-[10px] font-black text-jcc-accent-dark hover:underline flex items-center gap-1 uppercase tracking-widest">
                       <History className="w-3.5 h-3.5" /> Past Venues
                     </button>
                   </div>
-                  <input required type="text" placeholder="Venue Name" className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none text-white text-[15px] font-black shadow-inner placeholder:text-white/10" 
+                  <input required type="text" placeholder="Venue Name" className="admin-input"
                     value={editData?.location_name || ""} onChange={e => setEditData(prev => prev ? {...prev, location_name: e.target.value} : null)} />
-                  <input type="text" placeholder="Google Maps URL" className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none text-white text-[15px] font-black shadow-inner placeholder:text-white/10" 
+                  <input type="text" placeholder="Google Maps URL" className="admin-input"
                     value={editData?.location_map_url || ""} onChange={e => setEditData(prev => prev ? {...prev, location_map_url: e.target.value} : null)} />
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-center gap-4 pt-6">
-                  <button disabled={saving} type="submit" className="w-full sm:flex-1 py-5 rounded-2xl btn-vibrant-turf text-black font-black text-sm flex items-center justify-center gap-2 uppercase tracking-widest">
+                  <button disabled={saving} type="submit" className="w-full sm:flex-1 py-5 rounded-2xl btn-vibrant-blue font-black text-sm flex items-center justify-center gap-2 uppercase tracking-widest">
                     {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
                     Confirm & Schedule
                   </button>
-                  <button type="button" onClick={() => setIsCreating(false)} className="w-full sm:w-auto px-10 py-5 rounded-2xl bg-white/5 border border-white/10 text-white/40 font-black text-sm hover:text-white transition-all uppercase tracking-widest">
+                  <button type="button" onClick={() => setIsCreating(false)} className="admin-btn-secondary w-full sm:w-auto">
                     Cancel
                   </button>
                 </div>
@@ -445,7 +448,7 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
                   onConfirm: () => handleStatusChange("open")
                 })}
                 disabled={saving}
-                className="w-full sm:w-auto px-12 py-5 rounded-2xl btn-vibrant-turf text-black font-black text-sm flex items-center justify-center gap-2 uppercase tracking-widest"
+                className="w-full sm:w-auto px-12 py-5 rounded-2xl btn-vibrant-blue font-black text-sm flex items-center justify-center gap-2 uppercase tracking-widest"
               >
                 <Unlock className="w-5 h-5" />
                 Resume Match
@@ -459,7 +462,7 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
                   onConfirm: handleDelete
                 })}
                 disabled={saving}
-                className="w-full sm:w-auto px-12 py-5 rounded-2xl bg-white/5 border border-jcc-ball-red/20 text-jcc-ball-red font-black text-sm hover:bg-jcc-ball-red/10 transition-all flex items-center justify-center gap-2 uppercase tracking-widest"
+                className="admin-btn-destructive w-full sm:w-auto"
               >
                 <Trash2 className="w-5 h-5" />
                 Delete Permanently
@@ -477,44 +480,44 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
               <div className="premium-card p-8 sm:p-10">
                  <form onSubmit={handleUpdate} className="space-y-8">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-2xl font-black text-white uppercase tracking-tight">Edit Match Details</h3>
-                      <button type="button" onClick={() => setIsEditing(false)} className="p-2 rounded-xl hover:bg-white/5">
-                        <X className="w-6 h-6 text-white/20" />
+                      <h3 className="text-2xl font-black text-jcc-blue uppercase tracking-tight">Edit Match Details</h3>
+                      <button type="button" onClick={() => setIsEditing(false)} className="p-2 rounded-xl hover:bg-jcc-navy-light">
+                        <X className="w-6 h-6 text-jcc-text-muted" />
                       </button>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                      <div className="space-y-3">
-                        <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Match Date</label>
-                        <input type="date" className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none text-white text-[15px] font-black shadow-inner" 
+                      <div>
+                        <label className="admin-label">Match Date</label>
+                        <input type="date" className="admin-input"
                           value={editData?.match_date || ""} onChange={e => setEditData(prev => prev ? {...prev, match_date: e.target.value} : null)} />
                       </div>
-                      <div className="space-y-3">
-                        <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Match Time</label>
-                        <input type="text" className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none text-white text-[15px] font-black shadow-inner" 
+                      <div>
+                        <label className="admin-label">Match Time</label>
+                        <input type="text" className="admin-input"
                           value={editData?.match_time || ""} onChange={e => setEditData(prev => prev ? {...prev, match_time: e.target.value} : null)} />
                       </div>
-                      <div className="space-y-3">
-                        <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Venue Name</label>
-                        <input type="text" className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none text-white text-[15px] font-black shadow-inner" 
+                      <div>
+                        <label className="admin-label">Venue Name</label>
+                        <input type="text" className="admin-input"
                           value={editData?.location_name || ""} onChange={e => setEditData(prev => prev ? {...prev, location_name: e.target.value} : null)} />
                       </div>
-                      <div className="space-y-3">
-                        <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Player Limit</label>
-                        <input type="number" className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none text-white text-[15px] font-black shadow-inner" 
+                      <div>
+                        <label className="admin-label">Player Limit</label>
+                        <input type="number" className="admin-input"
                           value={editData?.player_limit || 18} onChange={e => setEditData(prev => prev ? {...prev, player_limit: parseInt(e.target.value)} : null)} />
                       </div>
                     </div>
-                     <div className="space-y-3">
-                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-1">Maps URL</label>
-                      <input type="text" className="w-full px-5 py-4 rounded-xl bg-black/40 border border-white/10 focus:border-jcc-accent outline-none text-white text-[15px] font-black shadow-inner" 
+                     <div>
+                      <label className="admin-label">Maps URL</label>
+                      <input type="text" className="admin-input"
                         value={editData?.location_map_url || ""} onChange={e => setEditData(prev => prev ? {...prev, location_map_url: e.target.value} : null)} />
                     </div>
                     <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                      <button disabled={saving} type="submit" className="w-full sm:flex-1 py-5 rounded-2xl btn-vibrant-blue text-black font-black text-sm transition-all flex items-center justify-center gap-2 uppercase tracking-widest">
+                      <button disabled={saving} type="submit" className="w-full sm:flex-1 py-5 rounded-2xl btn-vibrant-blue font-black text-sm transition-all flex items-center justify-center gap-2 uppercase tracking-widest">
                         {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
                         Save Changes
                       </button>
-                      <button type="button" onClick={() => setIsEditing(false)} className="w-full sm:w-auto px-10 py-5 rounded-2xl bg-white/5 border border-white/10 text-white/40 font-black text-sm hover:text-white transition-all uppercase tracking-widest">
+                      <button type="button" onClick={() => setIsEditing(false)} className="admin-btn-secondary w-full sm:w-auto">
                         Cancel Edit
                       </button>
                     </div>
@@ -555,7 +558,7 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
 
                       {/* Venue */}
                       <div className="flex items-start gap-5 p-6 rounded-3xl bg-white/[0.03] border border-white/5 backdrop-blur-xl max-w-md group-hover:border-jcc-accent/20 transition-all shadow-inner">
-                        <div className="w-14 h-14 rounded-2xl bg-black/40 flex items-center justify-center text-jcc-accent shadow-xl border border-white/5">
+                        <div className="w-14 h-14 rounded-2xl bg-jcc-blue flex items-center justify-center text-jcc-accent shadow-xl border border-white/5">
                           <MapPin className="w-7 h-7" />
                         </div>
                         <div className="flex-1">
@@ -574,7 +577,7 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
                     <div className="absolute top-10 right-10">
                        <span className={`px-5 py-2 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl border ${
                           match.status === "open" 
-                            ? "bg-emerald-400 text-black border-emerald-500" 
+                            ? "bg-jcc-accent text-black border-jcc-accent" 
                             : "bg-jcc-gold text-black border-jcc-gold/50"
                         }`}>
                           {match.status}
@@ -599,14 +602,14 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
                         )}
                       </div>
                       
-                      <div className="h-5 w-full bg-black/40 rounded-full overflow-hidden border border-white/10 p-1.5 shadow-inner">
+                      <div className="h-5 w-full bg-jcc-navy-light rounded-full overflow-hidden border border-jcc-border-bright p-1.5 shadow-inner">
                         <motion.div 
                           initial={{ width: 0 }}
                           animate={{ width: `${Math.min((regCounts.confirmed / (match!.player_limit || 1)) * 100, 100)}%` }}
                           transition={{ duration: 1.5, ease: "easeOut" }}
                           className={`h-full rounded-full ${
                             regCounts.confirmed >= (match!.player_limit || 1) ? 'bg-jcc-gold' : 'bg-jcc-accent'
-                          } shadow-[0_0_20px_rgba(0,194,255,0.4)]`}
+                          } shadow-[0_0_20px_rgba(212,175,55,0.4)]`}
                         />
                       </div>
                       <p className="text-[11px] text-white/40 font-black px-1 italic uppercase tracking-widest">
@@ -639,10 +642,10 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
 
                     <button
                       onClick={() => handleStatusChange(match.status === 'open' ? 'closed' : 'open')}
-                      className="w-full flex items-center gap-5 p-5 rounded-3xl premium-card hover:border-emerald-400/30 transition-all group"
+                      className="w-full flex items-center gap-5 p-5 rounded-3xl premium-card hover:border-jcc-accent/30 transition-all group"
                     >
                       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-inner border border-white/5 ${
-                        match.status === 'open' ? 'bg-jcc-gold/10 text-jcc-gold group-hover:bg-jcc-gold group-hover:text-black' : 'bg-emerald-400/10 text-emerald-400 group-hover:bg-emerald-400 group-hover:text-black'
+                        match.status === 'open' ? 'bg-jcc-gold/10 text-jcc-gold group-hover:bg-jcc-gold group-hover:text-black' : 'bg-jcc-accent/10 text-jcc-accent group-hover:bg-jcc-accent group-hover:text-black'
                       }`}>
                         {match.status === 'open' ? <Lock className="w-6 h-6" /> : <Unlock className="w-6 h-6" />}
                       </div>
@@ -650,7 +653,7 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
                         <p className="text-[15px] font-black text-white uppercase tracking-tight">{match.status === 'open' ? 'Close Reg' : 'Open Reg'}</p>
                         <p className="text-[10px] text-white/40 font-medium uppercase tracking-widest mt-1">Lifecycle State</p>
                       </div>
-                      <ChevronRight className="w-5 h-5 ml-auto text-white/10 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all" />
+                      <ChevronRight className="w-5 h-5 ml-auto text-white/10 group-hover:text-jcc-accent group-hover:translate-x-1 transition-all" />
                     </button>
 
                     <button
@@ -699,8 +702,15 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
             {/* Status Feedback */}
             <AnimatePresence>
               {status === "success" && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex items-center justify-center gap-3 text-emerald-400 text-sm font-black uppercase tracking-widest bg-emerald-400/5 p-4 rounded-2xl border border-emerald-400/10">
-                  <CheckCircle2 className="w-5 h-5" /> Operation Confirmed
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex items-center justify-center gap-3 text-jcc-accent text-sm font-black uppercase tracking-widest bg-jcc-accent/5 p-4 rounded-2xl border border-jcc-accent/10">
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                  >
+                    <CheckCircle2 className="w-5 h-5" />
+                  </motion.span>
+                  Operation Confirmed
                 </motion.div>
               )}
               {status === "error" && (

@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 
 export const NAV_ROUTES = [
   { href: "/", label: "Home" },
-  { href: "/chewvana-times", label: "Chewvana Times" },
+  { href: "/boundary-banter", label: "Boundary Banter" },
   { href: "/members", label: "Members" },
   { href: "/rivalry", label: "Rivalry" },
   { href: "/tournament", label: "Tournament" },
@@ -20,6 +20,7 @@ const POST_NAV_IGNORE_MS = 800;
 const TOUCH_MULTIPLIER = 2.5;
 const BOTTOM_DWELL_MS = 200; // must sit at the bottom this long before charge starts filling
 const MAX_DELTA_PER_EVENT = 150; // px — caps how much a single wheel/touch tick can contribute
+const NAV_FALLBACK_MS = 5000; // safety unlock if the pathname never actually changes (e.g. a client redirect)
 
 interface ScrollContextValue {
   charge: number;       // 0–1
@@ -83,19 +84,28 @@ export default function ScrollSystem({ children }: { children: React.ReactNode }
       setTransitioning(true);
       ignoreUntilRef.current = Date.now() + 9999;
       setTimeout(() => {
+        // Don't reset the lock here — router.push() is fire-and-forget and
+        // the destination route (uncompiled in dev, or fetching data) can
+        // take well over a second to actually land. Unlocking on a fixed
+        // timer let pathnameRef go stale mid-navigation, so a scroll during
+        // that gap was attributed to the page we just left, breaking every
+        // hop after the first. The [pathname] reset effect below is the
+        // real unlock — it only fires once usePathname() genuinely changes.
         router.push(NAV_ROUTES[nextIdx].href);
-        // Clear the lock unconditionally — don't rely on the [pathname]
-        // reset effect firing, since a destination that redirects
-        // client-side (or otherwise doesn't yield a new pathname) would
-        // leave transitioningRef stuck true forever, freezing scroll
-        // input on every page for the rest of the session.
+      }, 600);
+      // Fallback safety unlock: if the pathname never actually changes (a
+      // client-side redirect back to the same route, or a navigation that
+      // otherwise never resolves), don't leave scroll input frozen for the
+      // rest of the session.
+      setTimeout(() => {
+        if (!transitioningRef.current) return;
         chargeRef.current = 0;
         setCharge(0);
         transitioningRef.current = false;
         setTransitioning(false);
         ignoreUntilRef.current = Date.now() + POST_NAV_IGNORE_MS;
         atBottomSinceRef.current = 0;
-      }, 600);
+      }, 600 + NAV_FALLBACK_MS);
     };
   }, [router]);
 
@@ -107,9 +117,25 @@ export default function ScrollSystem({ children }: { children: React.ReactNode }
       if (!NAV_ROUTES.some((r) => r.href === pathnameRef.current)) return;
 
       if (delta > 0) {
-        const atBottom =
+        const cachedAtBottom =
           window.scrollY + window.innerHeight >=
           scrollHeightRef.current - BOTTOM_THRESHOLD;
+        if (!cachedAtBottom) {
+          atBottomSinceRef.current = 0;
+          return;
+        }
+        // The ResizeObserver cache can lag behind the real document height —
+        // most visible on tall, section-heavy pages like the homepage, where
+        // it briefly reads short right after mount/route-change and reads
+        // every scroll near that stale bottom as "reached it". Once the cheap
+        // cached check says we *might* be at the bottom, pay for one fresh
+        // (reflow-inducing) read to confirm before starting the dwell timer —
+        // this keeps the reflow off the hot path since it only runs in the
+        // rare near-bottom branch, not on every wheel tick.
+        const freshHeight = document.documentElement.scrollHeight;
+        scrollHeightRef.current = freshHeight;
+        const atBottom =
+          window.scrollY + window.innerHeight >= freshHeight - BOTTOM_THRESHOLD;
         if (!atBottom) {
           atBottomSinceRef.current = 0;
           return;

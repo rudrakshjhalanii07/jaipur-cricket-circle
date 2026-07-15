@@ -10,8 +10,8 @@ const CAT: Record<string, { border: string; text: string; dot: string }> = {
   "Match Report":  { border: "border-jcc-accent/40",    text: "text-jcc-accent",   dot: "bg-jcc-accent" },
   "Analysis":      { border: "border-jcc-green/40",     text: "text-jcc-green",    dot: "bg-jcc-green" },
   "Origin Story":  { border: "border-jcc-gold/40",      text: "text-jcc-gold",     dot: "bg-jcc-gold" },
-  "Culture":       { border: "border-purple-400/40",    text: "text-purple-400",   dot: "bg-purple-400" },
-  "Exhibition":    { border: "border-orange-400/40",    text: "text-orange-400",   dot: "bg-orange-400" },
+  "Culture":       { border: "border-jcc-accent/25",    text: "text-jcc-accent/75",   dot: "bg-jcc-accent/75" },
+  "Exhibition":    { border: "border-jcc-accent-dark/40",    text: "text-jcc-accent-dark/85",   dot: "bg-jcc-accent-dark/85" },
   "default":       { border: "border-white/10",         text: "text-white/50",     dot: "bg-white/30" },
 };
 
@@ -19,10 +19,10 @@ const CAT: Record<string, { border: string; text: string; dot: string }> = {
 const ACCENTS = [
   "from-jcc-accent/20 via-transparent to-jcc-green/10",
   "from-jcc-gold/20 via-transparent to-jcc-ball-red/10",
-  "from-purple-400/20 via-transparent to-jcc-accent/10",
+  "from-jcc-accent-highlight/20 via-transparent to-jcc-accent/10",
   "from-jcc-green/20 via-transparent to-jcc-gold/10",
-  "from-jcc-ball-red/15 via-transparent to-purple-400/10",
-  "from-jcc-accent/15 via-transparent to-orange-400/10",
+  "from-jcc-ball-red/15 via-transparent to-jcc-accent-highlight/10",
+  "from-jcc-accent/15 via-transparent to-jcc-accent-dark/10",
 ];
 
 export default function BlogPreviewCard({ post, index }: { post: BlogPost; index: number }) {
@@ -38,10 +38,9 @@ export default function BlogPreviewCard({ post, index }: { post: BlogPost; index
       transition={{ duration: 0.55, delay: index * 0.07, ease: [0.16, 1, 0.3, 1] }}
       className="h-full"
     >
-      <Link href={`/chewvana-times/${post.slug}`} className="block h-full group">
+      <Link href={`/boundary-banter/${post.slug}`} className="block h-full group">
         <article
-          className={`theme-static-dark relative h-full flex flex-col rounded-2xl overflow-hidden border transition-all duration-400 ${cat.border} hover:border-opacity-80`}
-          style={{ background: "linear-gradient(160deg, #0C1E30 0%, #07111F 100%)" }}
+          className={`premium-card relative h-full flex flex-col overflow-hidden transition-all duration-400 ${cat.border} hover:border-opacity-80`}
         >
 
           {/* ── Cover image / gradient ── */}
@@ -56,17 +55,17 @@ export default function BlogPreviewCard({ post, index }: { post: BlogPost; index
               <div className={`absolute inset-0 bg-gradient-to-br ${accent}`} />
             )}
             {/* Vignette overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#07111F] via-[#07111F]/30 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-jcc-blue-deep via-jcc-blue-deep/30 to-transparent" />
 
             {/* Category badge — top left */}
             <div className="absolute top-3 left-3 flex items-center gap-1.5">
               {isFirst && (
-                <span className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-jcc-ball-red text-white text-[8px] font-black uppercase tracking-widest shadow-md">
+                <span className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-jcc-ball-red text-[#FFFFFF] text-[8px] font-black uppercase tracking-widest shadow-md">
                   <Radio className="w-2.5 h-2.5" />
                   Feature
                 </span>
               )}
-              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[8px] font-black uppercase tracking-widest bg-black/60 backdrop-blur-sm ${cat.border} ${cat.text}`}>
+              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[8px] font-black uppercase tracking-widest bg-white/90 backdrop-blur-sm ${cat.border} ${cat.text}`}>
                 <span className={`w-1 h-1 rounded-full ${cat.dot}`} />
                 {post.category}
               </span>
@@ -74,8 +73,8 @@ export default function BlogPreviewCard({ post, index }: { post: BlogPost; index
 
             {/* Read arrow — top right on hover */}
             <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-1 group-hover:translate-y-0">
-              <div className="w-7 h-7 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/15">
-                <ArrowUpRight className="w-3.5 h-3.5 text-white" />
+              <div className="w-7 h-7 rounded-full bg-white/90 backdrop-blur-md flex items-center justify-center border border-jcc-border">
+                <ArrowUpRight className="w-3.5 h-3.5 text-jcc-blue" />
               </div>
             </div>
           </div>
@@ -85,11 +84,11 @@ export default function BlogPreviewCard({ post, index }: { post: BlogPost; index
 
             {/* Dateline */}
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-[8px] font-black uppercase tracking-[0.3em] text-jcc-ball-red">
-                CHEWVANA TIMES
+              <span className="text-[8px] font-black uppercase tracking-[0.3em] text-jcc-accent-dark">
+                BOUNDARY BANTER
               </span>
-              <span className="w-px h-2.5 bg-white/15" />
-              <span className="flex items-center gap-1 text-[8px] text-white/25 font-bold uppercase tracking-wider">
+              <span className="w-px h-2.5 bg-jcc-border" />
+              <span className="flex items-center gap-1 text-[8px] text-jcc-text-muted font-bold uppercase tracking-wider">
                 <Clock className="w-2.5 h-2.5" />
                 {new Date(post.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
               </span>
@@ -97,20 +96,20 @@ export default function BlogPreviewCard({ post, index }: { post: BlogPost; index
 
             {/* Headline */}
             <h3
-              className={`font-black text-white group-hover:text-jcc-accent transition-colors duration-300 uppercase tracking-tight leading-tight mb-3 ${isFirst ? "text-2xl line-clamp-2" : "text-lg line-clamp-2"}`}
-              style={{ fontFamily: "var(--font-fraunces, var(--font-heading))" }}
+              className={`font-black text-jcc-blue group-hover:text-jcc-accent-dark transition-colors duration-300 uppercase tracking-tight leading-tight mb-3 ${isFirst ? "text-2xl line-clamp-2" : "text-lg line-clamp-2"}`}
+              style={{ fontFamily: "var(--font-heading)" }}
             >
               {post.title}
             </h3>
 
             {/* Excerpt */}
-            <p className="text-white/40 text-[13px] leading-relaxed line-clamp-2 flex-1 italic font-medium mb-4">
+            <p className="text-jcc-text-muted text-[13px] leading-relaxed line-clamp-2 flex-1 italic font-medium mb-4">
               {post.excerpt}
             </p>
 
             {/* Footer row */}
-            <div className="flex items-center justify-between pt-3.5 border-t border-white/[0.06] mt-auto">
-              <span className="text-[9px] font-black text-white/25 uppercase tracking-widest truncate max-w-[130px]">
+            <div className="flex items-center justify-between pt-3.5 border-t border-jcc-border mt-auto">
+              <span className="text-[9px] font-black text-jcc-text-muted uppercase tracking-widest truncate max-w-[130px]">
                 {post.author}
               </span>
               <span

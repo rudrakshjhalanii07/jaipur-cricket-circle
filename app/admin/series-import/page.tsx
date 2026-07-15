@@ -141,13 +141,14 @@ function defaultMatch(): MatchForm {
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function Label({ children }: { children: React.ReactNode }) {
-  return <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1">{children}</label>;
+  return <label className="admin-label">{children}</label>;
 }
 
 function Input({ className = "", compact, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { compact?: boolean }) {
   return (
     <input
-      className={`w-full bg-white/[0.04] border border-white/10 rounded-lg text-sm text-white placeholder-white/20 focus:outline-none focus:border-jcc-accent/50 ${compact ? "px-1 py-1" : "px-3 py-2"} ${className}`}
+      className={`admin-input ${className}`}
+      style={compact ? { padding: "6px 8px", borderRadius: 10 } : undefined}
       {...props}
     />
   );
@@ -156,7 +157,7 @@ function Input({ className = "", compact, ...props }: React.InputHTMLAttributes<
 function Select({ className = "", children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
-      className={`w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-jcc-accent/50 ${className}`}
+      className={`admin-select ${className}`}
       {...props}
     >
       {children}
@@ -167,14 +168,14 @@ function Select({ className = "", children, ...props }: React.SelectHTMLAttribut
 function CollapsibleSection({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border border-white/[0.08] rounded-xl overflow-hidden">
+    <div className="premium-card overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-white/[0.03] hover:bg-white/[0.05] transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 bg-jcc-navy-light hover:bg-jcc-border/20 transition-colors"
       >
-        <span className="text-xs font-black uppercase tracking-widest text-white/60">{title}</span>
-        {open ? <ChevronUp className="w-4 h-4 text-white/30" /> : <ChevronDown className="w-4 h-4 text-white/30" />}
+        <span className="text-xs font-black uppercase tracking-widest text-jcc-blue/70">{title}</span>
+        {open ? <ChevronUp className="w-4 h-4 text-jcc-text-muted" /> : <ChevronDown className="w-4 h-4 text-jcc-text-muted" />}
       </button>
       <AnimatePresence>
         {open && (
@@ -206,9 +207,9 @@ function BattingTable({ rows, onChange }: {
   return (
     <div className="space-y-2">
       <div className="overflow-x-auto">
-        <table className="w-full text-xs text-white/70 min-w-[700px]">
+        <table className="w-full text-xs text-jcc-blue/80 min-w-[700px]">
           <thead>
-            <tr className="text-[10px] text-white/30 uppercase tracking-wider">
+            <tr className="text-[10px] text-jcc-text-muted uppercase tracking-wider">
               <th className="text-left pb-2 w-6">#</th>
               <th className="text-left pb-2">Player</th>
               <th className="text-center pb-2 w-12">R</th>
@@ -228,7 +229,7 @@ function BattingTable({ rows, onChange }: {
               const noCatch = r.dismissal_type !== "caught";
               return (
               <tr key={i} className="group">
-                <td className="py-0.5 pr-2 text-white/20">{i + 1}</td>
+                <td className="py-0.5 pr-2 text-jcc-text-muted/70">{i + 1}</td>
                 <td className="py-0.5 pr-1"><Input value={r.player_name} onChange={(e) => update(i, "player_name", e.target.value)} placeholder="Name" /></td>
                 <td className="py-0.5 px-1"><Input compact type="number" value={r.runs} onChange={(e) => update(i, "runs", +e.target.value)} className="text-center" /></td>
                 <td className="py-0.5 px-1"><Input compact type="number" value={r.balls_faced ?? ""} onChange={(e) => update(i, "balls_faced", e.target.value ? +e.target.value : null)} className="text-center" placeholder="—" /></td>
@@ -243,7 +244,7 @@ function BattingTable({ rows, onChange }: {
                 <td className="py-0.5 px-1"><Input value={r.dismissed_by} onChange={(e) => update(i, "dismissed_by", e.target.value)} placeholder="Bowler" disabled={noWkt} className={noWkt ? "opacity-20 cursor-not-allowed" : ""} /></td>
                 <td className="py-0.5 px-1"><Input value={r.caught_by} onChange={(e) => update(i, "caught_by", e.target.value)} placeholder="Fielder" disabled={noCatch} className={noCatch ? "opacity-20 cursor-not-allowed" : ""} /></td>
                 <td className="py-0.5 pl-1">
-                  <button type="button" onClick={() => remove(i)} className="text-white/20 hover:text-red-400 transition-colors">
+                  <button type="button" onClick={() => remove(i)} className="text-jcc-text-muted/70 hover:text-jcc-danger transition-colors">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </td>
@@ -272,9 +273,9 @@ function BowlingTable({ rows, onChange }: { rows: BowlerRow[]; onChange: (rows: 
   return (
     <div className="space-y-2">
       <div className="overflow-x-auto">
-        <table className="w-full text-xs text-white/70 min-w-[500px]">
+        <table className="w-full text-xs text-jcc-blue/80 min-w-[500px]">
           <thead>
-            <tr className="text-[10px] text-white/30 uppercase tracking-wider">
+            <tr className="text-[10px] text-jcc-text-muted uppercase tracking-wider">
               <th className="text-left pb-2">Bowler</th>
               <th className="text-center pb-2 w-14">Ov</th>
               <th className="text-center pb-2 w-10">M</th>
@@ -294,7 +295,7 @@ function BowlingTable({ rows, onChange }: { rows: BowlerRow[]; onChange: (rows: 
                 <td className="py-0.5 px-1"><Input compact type="number" value={r.wickets} onChange={(e) => update(i, "wickets", +e.target.value)} className="text-center" /></td>
                 <td className="py-0.5 px-1 text-center text-jcc-accent/80 font-black tabular-nums">{r.overs && r.overs > 0 ? (r.runs_conceded / r.overs).toFixed(1) : "—"}</td>
                 <td className="py-0.5 pl-1">
-                  <button type="button" onClick={() => remove(i)} className="text-white/20 hover:text-red-400 transition-colors">
+                  <button type="button" onClick={() => remove(i)} className="text-jcc-text-muted/70 hover:text-jcc-danger transition-colors">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </td>
@@ -322,7 +323,7 @@ function FoWEditor({ rows, onChange }: { rows: FoW[]; onChange: (rows: FoW[]) =>
   return (
     <div className="space-y-2">
       {rows.length > 0 && (
-        <div className="flex items-center gap-2 text-[9px] text-white/20 uppercase tracking-widest mb-0.5 ml-10">
+        <div className="flex items-center gap-2 text-[9px] text-jcc-text-muted/70 uppercase tracking-widest mb-0.5 ml-10">
           <span className="w-20">Score</span>
           <span className="w-16">Over (4.6)</span>
           <span className="flex-1">Dismissed player</span>
@@ -330,11 +331,11 @@ function FoWEditor({ rows, onChange }: { rows: FoW[]; onChange: (rows: FoW[]) =>
       )}
       {rows.map((r, i) => (
         <div key={i} className="flex items-center gap-2 text-xs">
-          <span className="text-white/30 w-8 shrink-0">{r.wkt}wkt</span>
+          <span className="text-jcc-text-muted w-8 shrink-0">{r.wkt}wkt</span>
           <div className="w-20 shrink-0"><Input compact type="number" value={r.score} onChange={(e) => update(i, "score", +e.target.value)} placeholder="0" /></div>
           <div className="w-16 shrink-0"><Input compact value={r.overs} onChange={(e) => update(i, "overs", e.target.value)} placeholder="0.0" /></div>
           <div className="flex-1 min-w-0"><Input value={r.player} onChange={(e) => update(i, "player", e.target.value)} placeholder="Player name" /></div>
-          <button type="button" onClick={() => remove(i)} className="text-white/20 hover:text-red-400 transition-colors">
+          <button type="button" onClick={() => remove(i)} className="text-jcc-text-muted/70 hover:text-jcc-danger transition-colors">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -665,18 +666,18 @@ export default function SeriesImportPage() {
   // ── Auth gate ──────────────────────────────────────────────────────────────
 
   if (isAuthed === null) {
-    return <div className="min-h-screen flex items-center justify-center bg-[var(--jcc-bg)]"><Loader2 className="w-8 h-8 text-white/30 animate-spin" /></div>;
+    return <div className="min-h-screen flex items-center justify-center bg-[var(--jcc-bg)]"><Loader2 className="w-8 h-8 text-jcc-accent animate-spin" /></div>;
   }
 
   if (!isAuthed) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--jcc-bg)] px-4">
-        <div className="w-full max-w-sm">
-          <h1 className="text-2xl font-black text-white uppercase tracking-tight mb-6 text-center">Admin Access</h1>
+        <div className="w-full max-w-sm premium-card p-8">
+          <h1 className="text-2xl font-black text-jcc-blue uppercase tracking-tight mb-6 text-center">Admin Access</h1>
           <form onSubmit={handleLogin} className="space-y-4">
             <Input type="password" placeholder="Admin password" value={pwInput} onChange={(e) => setPwInput(e.target.value)} />
-            {pwError && <p className="text-red-400 text-xs">Incorrect password</p>}
-            <button type="submit" className="w-full py-3 rounded-xl font-black text-sm uppercase tracking-widest text-[#fff]" style={{ background: "linear-gradient(135deg,var(--jcc-accent),color-mix(in srgb, var(--jcc-accent) 70%, #000))" }}>
+            {pwError && <p className="text-jcc-danger text-xs">Incorrect password</p>}
+            <button type="submit" className="w-full py-3 rounded-xl btn-vibrant-blue font-black text-sm uppercase tracking-widest">
               Unlock
             </button>
           </form>
@@ -692,29 +693,29 @@ export default function SeriesImportPage() {
       <div className="min-h-screen bg-[var(--jcc-bg)] px-4 pt-32 pb-16">
         <div className="max-w-2xl mx-auto space-y-6">
           <div className="flex items-center gap-3">
-            <CheckCircle className="w-8 h-8 text-emerald-400" />
-            <h1 className="text-2xl font-black text-white uppercase tracking-tight">Match Saved</h1>
+            <CheckCircle className="w-8 h-8 text-jcc-accent" />
+            <h1 className="text-2xl font-black text-jcc-blue uppercase tracking-tight">Match Saved</h1>
           </div>
 
           {analyzing && (
-            <div className="flex items-center gap-2 text-sm text-white/50">
+            <div className="flex items-center gap-2 text-sm text-jcc-text-muted">
               <Loader2 className="w-4 h-4 animate-spin text-jcc-accent" />
               Generating AI match analysis…
             </div>
           )}
 
           {analysisText && (
-            <div className="bg-white/[0.03] border border-jcc-accent/20 rounded-xl p-5">
-              <p className="text-[10px] font-black uppercase tracking-widest text-jcc-accent/70 mb-3">AI Match Analysis</p>
-              <p className="text-sm text-white/70 leading-relaxed whitespace-pre-wrap">{analysisText}</p>
+            <div className="premium-card border-jcc-accent/20 p-5">
+              <p className="text-[10px] font-black uppercase tracking-widest text-jcc-accent-dark mb-3">AI Match Analysis</p>
+              <p className="text-sm text-jcc-blue/70 leading-relaxed whitespace-pre-wrap">{analysisText}</p>
             </div>
           )}
 
           <div className="flex gap-3 flex-wrap">
-            <button onClick={resetForNext} className="px-5 py-3 rounded-xl font-black text-sm uppercase tracking-widest text-[#fff]" style={{ background: "linear-gradient(135deg,var(--jcc-accent),color-mix(in srgb, var(--jcc-accent) 70%, #000))" }}>
+            <button onClick={resetForNext} className="px-5 py-3 rounded-xl btn-vibrant-blue font-black text-sm uppercase tracking-widest">
               Import Next Match
             </button>
-            <a href="/rivalry" className="px-5 py-3 rounded-xl font-black text-sm uppercase tracking-widest text-white/60 border border-white/10 hover:border-white/20 transition-colors flex items-center gap-2">
+            <a href="/rivalry" className="btn-ghost px-5 py-3 rounded-xl font-black text-sm uppercase tracking-widest flex items-center gap-2">
               View Rivalry Page <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>
@@ -727,17 +728,17 @@ export default function SeriesImportPage() {
   // ── Main UI ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[var(--jcc-bg)] text-white">
+    <div className="min-h-screen bg-[var(--jcc-bg)] text-jcc-blue">
       <div className="max-w-4xl mx-auto px-4 pt-36 pb-12 space-y-6">
 
         {/* Header */}
         <div className="flex items-center gap-4">
-          <a href="/admin" className="text-white/30 hover:text-white/60 transition-colors">
+          <a href="/admin" className="text-jcc-text-muted hover:text-jcc-blue transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </a>
           <div>
-            <h1 className="text-[26px] font-black uppercase tracking-tight" style={{ color: "var(--jcc-accent)" }}>Series Import</h1>
-            <p className="text-xs text-white/30 font-medium mt-0.5">Paste match JSON → Review → Save to database</p>
+            <h1 className="text-[26px] font-black uppercase tracking-tight text-jcc-accent-dark">Series Import</h1>
+            <p className="text-xs text-jcc-text-muted font-medium mt-0.5">Paste match JSON → Review → Save to database</p>
           </div>
         </div>
 
@@ -775,11 +776,11 @@ export default function SeriesImportPage() {
               onChange={(e) => setJsonText(e.target.value)}
               placeholder='{ "match_info": { ... }, "innings": [ ... ] }'
               rows={8}
-              className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-xs text-white/70 placeholder-white/20 font-mono focus:outline-none focus:border-jcc-accent/50 resize-y"
+              className="admin-textarea text-xs font-mono"
             />
 
             {jsonError && (
-              <div className="flex items-start gap-2 text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">
+              <div className="flex items-start gap-2 text-xs text-jcc-danger bg-jcc-danger/10 rounded-lg px-3 py-2">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span className="break-all">{jsonError}</span>
               </div>
@@ -789,22 +790,21 @@ export default function SeriesImportPage() {
               <button
                 onClick={handleJsonLoad}
                 disabled={!jsonText.trim()}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-sm uppercase tracking-widest text-[#fff] disabled:opacity-40"
-                style={{ background: "linear-gradient(135deg,var(--jcc-accent),color-mix(in srgb, var(--jcc-accent) 70%, #000))" }}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl btn-vibrant-blue font-black text-sm uppercase tracking-widest disabled:opacity-40"
               >
                 <FileJson className="w-4 h-4" /> Load JSON
               </button>
               <button
                 onClick={() => { setShowForm(true); setMatchForm(defaultMatch()); }}
-                className="px-4 py-2.5 rounded-xl font-black text-sm uppercase tracking-widest text-white/40 border border-white/10 hover:border-white/20 transition-colors"
+                className="btn-ghost px-4 py-2.5 rounded-xl font-black text-sm uppercase tracking-widest"
               >
                 Fill Manually
               </button>
             </div>
 
             <details className="group">
-              <summary className="text-[10px] font-black uppercase tracking-widest text-white/20 hover:text-white/40 cursor-pointer select-none">JSON format reference</summary>
-              <pre className="mt-2 p-3 bg-black/30 rounded-lg text-[10px] text-white/40 overflow-x-auto leading-relaxed">{JSON.stringify({
+              <summary className="text-[10px] font-black uppercase tracking-widest text-jcc-text-muted hover:text-jcc-blue cursor-pointer select-none">JSON format reference</summary>
+              <pre className="mt-2 p-3 bg-jcc-navy-light rounded-lg text-[10px] text-jcc-text-muted overflow-x-auto leading-relaxed">{JSON.stringify({
                 match_info: {
                   match_no: 1,
                   stage: "league | final",
@@ -860,7 +860,7 @@ export default function SeriesImportPage() {
                   {(["new", "existing"] as const).map((mode) => (
                     <button key={mode} type="button"
                       onClick={() => setSeriesForm((p) => ({ ...p, mode }))}
-                      className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-colors ${seriesForm.mode === mode ? "bg-jcc-accent/20 text-jcc-accent border border-jcc-accent/40" : "bg-white/[0.04] text-white/40 border border-white/10"}`}
+                      className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-colors ${seriesForm.mode === mode ? "bg-jcc-accent/20 text-jcc-accent border border-jcc-accent/40" : "bg-jcc-navy-light text-jcc-text-muted border border-jcc-border"}`}
                     >
                       {mode === "new" ? "New Series" : "Existing Series"}
                     </button>
@@ -909,9 +909,9 @@ export default function SeriesImportPage() {
                       <Input value={seriesForm.notes} onChange={(e) => setSeriesForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Any series-level notes" />
                     </div>
 
-                    {/* Chewvana Times Articles */}
+                    {/* Boundary Banter Articles */}
                     <div className="sm:col-span-2">
-                      <Label>Chewvana Times Articles</Label>
+                      <Label>Boundary Banter Articles</Label>
                       <div className="space-y-2">
                         {seriesForm.articles.map((a, i) => (
                           <div key={i} className="flex gap-2">
@@ -925,7 +925,7 @@ export default function SeriesImportPage() {
                               next[i] = { ...next[i], url: e.target.value };
                               setSeriesForm((p) => ({ ...p, articles: next }));
                             }} placeholder="https://…" className="flex-1" />
-                            <button type="button" onClick={() => setSeriesForm((p) => ({ ...p, articles: p.articles.filter((_, j) => j !== i) }))} className="text-white/20 hover:text-red-400 transition-colors">
+                            <button type="button" onClick={() => setSeriesForm((p) => ({ ...p, articles: p.articles.filter((_, j) => j !== i) }))} className="text-jcc-text-muted/70 hover:text-jcc-danger transition-colors">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
@@ -950,7 +950,7 @@ export default function SeriesImportPage() {
                       ))}
                     </Select>
                     {existingSeries.length === 0 && (
-                      <p className="text-[10px] text-white/30 mt-1">No existing series found.</p>
+                      <p className="text-[10px] text-jcc-text-muted mt-1">No existing series found.</p>
                     )}
                   </div>
                 )}
@@ -1025,7 +1025,7 @@ export default function SeriesImportPage() {
                   <div className="flex items-end pb-1">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={matchForm.is_tie} onChange={(e) => setMatchForm((p) => ({ ...p, is_tie: e.target.checked }))} className="accent-jcc-accent" />
-                      <span className="text-xs text-white/60 font-bold">Tie?</span>
+                      <span className="text-xs text-jcc-blue/70 font-bold">Tie?</span>
                     </label>
                   </div>
                   <div>
@@ -1078,7 +1078,7 @@ export default function SeriesImportPage() {
                           const next = [...matchForm.innings]; next[innIdx] = { ...next[innIdx], total_runs: +e.target.value };
                           setMatchForm((p) => ({ ...p, innings: next }));
                         }} placeholder="Runs" />
-                        <span className="text-white/30 self-center">/</span>
+                        <span className="text-jcc-text-muted self-center">/</span>
                         <Input type="number" value={inn.total_wickets} onChange={(e) => {
                           const next = [...matchForm.innings]; next[innIdx] = { ...next[innIdx], total_wickets: +e.target.value };
                           setMatchForm((p) => ({ ...p, innings: next }));
@@ -1098,7 +1098,7 @@ export default function SeriesImportPage() {
                           const next = [...matchForm.innings]; next[innIdx] = { ...next[innIdx], all_out: e.target.checked };
                           setMatchForm((p) => ({ ...p, innings: next }));
                         }} className="accent-jcc-accent" />
-                        <span className="text-xs text-white/60 font-bold">All out</span>
+                        <span className="text-xs text-jcc-blue/70 font-bold">All out</span>
                       </label>
                     </div>
                     {(["extras_wides", "extras_no_balls", "extras_byes", "extras_leg_byes"] as const).map((field) => (
@@ -1114,7 +1114,7 @@ export default function SeriesImportPage() {
 
                   <div className="space-y-4">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Batting</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-jcc-text-muted mb-2">Batting</p>
                       <BattingTable
                         rows={inn.batting}
                         onChange={(rows) => {
@@ -1124,7 +1124,7 @@ export default function SeriesImportPage() {
                       />
                     </div>
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Bowling</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-jcc-text-muted mb-2">Bowling</p>
                       <BowlingTable
                         rows={inn.bowling}
                         onChange={(rows) => {
@@ -1134,7 +1134,7 @@ export default function SeriesImportPage() {
                       />
                     </div>
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Fall of Wickets</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-jcc-text-muted mb-2">Fall of Wickets</p>
                       <FoWEditor
                         rows={inn.fall_of_wickets}
                         onChange={(rows) => {
@@ -1152,13 +1152,12 @@ export default function SeriesImportPage() {
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex items-center gap-2 px-6 py-3 rounded-xl font-black text-sm uppercase tracking-widest text-[#fff] disabled:opacity-50"
-                  style={{ background: "linear-gradient(135deg,var(--jcc-accent),color-mix(in srgb, var(--jcc-accent) 70%, #000))" }}
+                  className="flex items-center gap-2 px-6 py-3 rounded-xl btn-vibrant-blue font-black text-sm uppercase tracking-widest disabled:opacity-50"
                 >
                   {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <><Save className="w-4 h-4" /> Save Match</>}
                 </button>
                 {error && (
-                  <div className="flex items-center gap-2 text-xs text-red-400">
+                  <div className="flex items-center gap-2 text-xs text-jcc-danger">
                     <AlertCircle className="w-4 h-4" /> {error}
                   </div>
                 )}
@@ -1168,26 +1167,26 @@ export default function SeriesImportPage() {
         </AnimatePresence>
 
         {/* ── Admin Tools ───────────────────────────────────────────────── */}
-        <div className="mt-8 pt-8 border-t border-white/[0.06] space-y-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/20">Admin Tools</p>
+        <div className="mt-8 pt-8 border-t border-jcc-border space-y-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.4em] text-jcc-text-muted/70">Admin Tools</p>
 
           {/* Update Series Articles */}
           <CollapsibleSection title="Update Series Articles" defaultOpen={false}>
-            <p className="text-xs text-white/30 mb-3">Load an existing series by its UUID and update its Chewvana Times article links.</p>
+            <p className="text-xs text-jcc-text-muted mb-3">Load an existing series by its UUID and update its Boundary Banter article links.</p>
             <div className="flex gap-2 items-end mb-3">
               <div className="flex-1">
                 <Label>Series UUID</Label>
                 <Input value={artSeriesId} onChange={(e) => setArtSeriesId(e.target.value)} placeholder="Paste series UUID from Supabase" />
               </div>
               <button onClick={handleLoadArticles} disabled={artBusy || !artSeriesId.trim()}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest text-white/60 border border-white/10 hover:border-white/20 disabled:opacity-40 transition-colors whitespace-nowrap mb-0.5">
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest text-jcc-blue/70 border border-jcc-border hover:border-jcc-accent/40 disabled:opacity-40 transition-colors whitespace-nowrap mb-0.5">
                 {artBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5" />}
                 Load
               </button>
             </div>
 
             {artMsg && (
-              <p className={`text-xs mb-3 ${artMsg.startsWith("Error") || artMsg.startsWith("Fetch") ? "text-red-400" : artMsg === "Articles saved!" ? "text-emerald-400" : "text-white/50"}`}>
+              <p className={`text-xs mb-3 ${artMsg.startsWith("Error") || artMsg.startsWith("Fetch") ? "text-jcc-danger" : artMsg === "Articles saved!" ? "text-jcc-accent" : "text-jcc-text-muted"}`}>
                 {artMsg}
               </p>
             )}
@@ -1206,7 +1205,7 @@ export default function SeriesImportPage() {
                       setArtItems(next);
                     }} placeholder="https://…" className="flex-1" />
                     <button type="button" onClick={() => setArtItems(artItems.filter((_, j) => j !== i))}
-                      className="text-white/20 hover:text-red-400 transition-colors">
+                      className="text-jcc-text-muted hover:text-jcc-danger transition-colors">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -1214,12 +1213,11 @@ export default function SeriesImportPage() {
                 <div className="flex items-center gap-3 pt-1">
                   <button type="button"
                     onClick={() => setArtItems([...artItems, { title: "", url: "" }])}
-                    className="text-xs text-jcc-accent/70 hover:text-jcc-accent flex items-center gap-1 transition-colors">
+                    className="text-xs text-jcc-accent-dark hover:text-jcc-accent flex items-center gap-1 transition-colors">
                     <Plus className="w-3.5 h-3.5" /> Add article
                   </button>
                   <button onClick={handleSaveArticles} disabled={artBusy || !artSeriesId.trim()}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest text-[#fff] disabled:opacity-40"
-                    style={{ background: "linear-gradient(135deg,var(--jcc-accent),color-mix(in srgb, var(--jcc-accent) 70%, #000))" }}>
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg btn-vibrant-blue text-xs font-black uppercase tracking-widest disabled:opacity-40">
                     {artBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                     Save Articles
                   </button>

@@ -1,48 +1,56 @@
 @import "tailwindcss";
 
 /* ============================================================
-   Jaipur Cricket Circle — "Day/Night Seam" Theme
+   Jaipur Cricket Circle — Royal White & Blue Theme
    ------------------------------------------------------------
-   Colours are pulled from the physical objects of cricket:
-   the leather ball, the waxed seam, the pitch, the willow,
-   flannel whites. The site flips with the device colour scheme:
-     ☀️  light  → red-ball day  (Cherry Red on Flannel)
-     🌙  dark   → pink-ball night (City Pink on Ink)
-   Two constants carry across both modes: the Seam (stitch
-   cream) and the Pitch (live/success green).
+   White dominates (~55%), Royal Blue defines identity (~30%),
+   Gold signifies prestige (~10%). One fixed light identity —
+   no dark/light switching. Saturated colours are reserved for
+   genuine team-identity swatches (MemberCard, RivalryPageClient,
+   register team badges) and destructive/danger actions.
+   Royal Blue "bands" (Footer, tickers, alternating home sections)
+   opt out of the light default via .theme-static-dark.
    ============================================================ */
 
 @theme {
-  /* --- Surfaces (DARK / pink-night defaults) --- */
-  --color-jcc-navy-deep: #100B14;   /* deepest ground */
-  --color-jcc-navy: #1E1820;        /* card surface */
-  --color-jcc-navy-light: #2A2230;  /* elevated surface */
+  /* --- Surfaces --- */
+  --color-jcc-navy-deep: #FCFBF8;   /* Background — Warm Championship White */
+  --color-jcc-navy: #FFFFFF;        /* Surface (card) */
+  --color-jcc-navy-light: #F7F5EF;  /* Secondary/elevated surface */
 
-  /* --- Hero / accent (City Pink at night) --- */
-  --color-jcc-accent: #E8537E;
-  --color-jcc-accent-glow: rgba(232, 83, 126, 0.4);
+  /* --- Royal Blue identity system --- */
+  --color-jcc-blue: #12233F;            /* Primary Royal Blue */
+  --color-jcc-blue-deep: #0D1728;       /* Dark Blue — footer/deep bands */
 
-  /* --- Constants that hold across modes --- */
-  --color-jcc-green: #2E7D52;       /* Pitch green — live / success */
-  --color-jcc-seam: #EDE3CE;        /* Seam cream — the stitching motif */
+  /* --- Gold accent system (prestige, ~10%) --- */
+  --color-jcc-accent: #D4AF37;          /* Primary Gold */
+  --color-jcc-accent-glow: rgba(212, 175, 55, 0.4);
+  --color-jcc-accent-highlight: #F3C96A; /* Highlight Gold */
+  --color-jcc-accent-dark: #A97824;      /* Dark Gold */
 
-  /* --- Secondary accents --- */
-  --color-jcc-ball-red: #E0556E;    /* warm ball-leather red */
-  --color-jcc-gold: #C2703A;        /* Sandstone — highlights / awards */
+  /* --- Legacy semantic tokens, kept within the gold family so the
+     ~430 existing jcc-green/jcc-ball-red/jcc-gold usages (live dots,
+     tags, NRR, awards) stay gold with no component edits --- */
+  --color-jcc-green: #F3C96A;       /* was Pitch green (live/success) → Highlight Gold */
+  --color-jcc-ball-red: #A97824;    /* was ball-leather red (WK tag) → Dark Gold */
+  --color-jcc-gold: #A97824;        /* Sandstone/founder highlight → Dark Gold */
 
-  --color-jcc-ice: #F6F2E9;
-  --color-jcc-blue-light: #2A2230;
+  --color-jcc-seam: #12233F;        /* dark navy label on filled-gold surfaces */
+  --color-jcc-blue-light: #F7F5EF;
 
-  /* --- Foreground / text (Flannel at night) --- */
-  --color-jcc-text-primary: #F6F2E9;
-  --color-jcc-text-soft: #F6F2E9;
-  --color-jcc-text-muted: rgba(246, 242, 233, 0.6);
+  /* --- Foreground / text --- */
+  --color-jcc-text-primary: #12233F;   /* Primary Text */
+  --color-jcc-text-soft: #12233F;
+  --color-jcc-text-muted: #667085;     /* Secondary Text */
 
-  /* --- Borders tinted with seam cream --- */
-  --color-jcc-border: rgba(237, 227, 206, 0.12);
-  --color-jcc-border-bright: rgba(237, 227, 206, 0.24);
+  /* --- Gold-tinted luxury dividers / hairline borders --- */
+  --color-jcc-border: rgba(18, 35, 63, 0.08);
+  --color-jcc-border-bright: rgba(212, 175, 55, 0.25);
 
-  --font-heading: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  /* --- Restrained danger red (destructive actions only, not a brand accent) --- */
+  --color-jcc-danger: #B0473F;
+
+  --font-heading: var(--font-display), Georgia, "Times New Roman", serif;
   --font-body: var(--font-inter), system-ui, sans-serif;
 
   --radius-xl: 1rem;
@@ -52,86 +60,59 @@
 
 /* ------------------------------------------------------------
    Foreground remap: the codebase uses `white` as its primary
-   on-dark foreground (text-white, bg-white/5, border-white/10).
-   We make `white` mean "the active foreground ink", so a single
-   token flips ~1400 utility usages between modes.
-   Genuinely-light surfaces opt out via .theme-static-light.
+   foreground token (text-white, bg-white/5, border-white/10).
+   Fixed to Royal Blue ink on the new light surfaces — single
+   light theme, no overrides. Royal Blue "bands" opt back into
+   a dark foreground via .theme-static-dark.
    ------------------------------------------------------------ */
 :root {
-  --color-white: #F6F2E9;           /* night foreground = Flannel */
+  --color-white: #12233F;
 
-  --jcc-bg: #17121A;                /* Ink Night — page ground */
-  --jcc-navy: #1E1820;
-  --jcc-navy-light: #2A2230;
-  --jcc-accent: #E8537E;
-  --jcc-green: #2E7D52;
-  --jcc-seam: #EDE3CE;
-  --jcc-gold: #C2703A;
-  --jcc-border: rgba(237, 227, 206, 0.12);
-  --jcc-text-soft: #F6F2E9;
-  --jcc-text-muted: rgba(246, 242, 233, 0.6);
+  --jcc-bg: #FCFBF8;
+  --jcc-navy: #FFFFFF;
+  --jcc-navy-light: #F7F5EF;
+  --jcc-accent: #D4AF37;
+  --jcc-green: #F3C96A;
+  --jcc-seam: #12233F;
+  --jcc-gold: #A97824;
+  --jcc-border: rgba(18, 35, 63, 0.08);
+  --jcc-text-soft: #12233F;
+  --jcc-text-muted: #667085;
 }
 
-/* ☀️ Day — red-ball heritage (Cherry Red on Flannel) */
-@media (prefers-color-scheme: light) {
-  :root {
-    --color-white: #15110E;         /* day foreground = Leather Black */
-
-    --color-jcc-navy-deep: #ECE5D6;
-    --color-jcc-navy: #FFFFFF;
-    --color-jcc-navy-light: #FBF7EE;
-    --color-jcc-accent: #9E1C2E;          /* Cherry Red */
-    --color-jcc-accent-glow: rgba(158, 28, 46, 0.28);
-    --color-jcc-green: #1C5B3B;           /* deep Pitch */
-    --color-jcc-ball-red: #9E1C2E;
-    --color-jcc-gold: #C9A86A;            /* Willow tan */
-    --color-jcc-ice: #15110E;
-    --color-jcc-blue-light: #FBF7EE;
-    --color-jcc-text-primary: #15110E;
-    --color-jcc-text-soft: #15110E;
-    --color-jcc-text-muted: rgba(21, 17, 14, 0.6);
-    --color-jcc-border: rgba(21, 17, 14, 0.1);
-    --color-jcc-border-bright: rgba(21, 17, 14, 0.2);
-
-    --jcc-bg: #F6F2E9;              /* Flannel ground */
-    --jcc-navy: #FFFFFF;
-    --jcc-navy-light: #FBF7EE;
-    --jcc-accent: #9E1C2E;
-    --jcc-green: #1C5B3B;
-    --jcc-gold: #C9A86A;
-    --jcc-border: rgba(21, 17, 14, 0.1);
-    --jcc-text-soft: #15110E;
-    --jcc-text-muted: rgba(21, 17, 14, 0.6);
-  }
-}
-
-/* Opt-out for genuinely-light UI (admin modals built against the old
-   token semantics where `jcc-navy` meant dark text). Pins a stable warm
-   light context in BOTH colour schemes so these popovers never invert. */
+/* Opt-out for genuinely-light UI that was hand-built against dark-ink
+   conventions (admin popovers). Nearly a no-op now that light is the
+   ambient default — kept for the components that explicitly rely on it. */
 .theme-static-light {
-  color: #15110E;
-  --color-white: #FFFFFF;
-  --color-jcc-navy: #15110E;          /* used as dark text/overlay here */
-  --color-jcc-navy-deep: #0B0A08;
-  --color-jcc-navy-light: #FBF7EE;
-  --color-jcc-accent: #9E1C2E;        /* cherry actions */
-  --color-jcc-green: #1C5B3B;
-  --color-jcc-gold: #C9A86A;
-  --color-jcc-text-primary: #15110E;
-  --color-jcc-text-soft: #15110E;
-  --color-jcc-text-muted: rgba(21, 17, 14, 0.55);
-  --color-jcc-border: rgba(21, 17, 14, 0.12);
+  color: #1A1508;
+  --color-white: #FFFDF7;
+  --color-jcc-navy: #1A1508;          /* used as dark text/overlay here */
+  --color-jcc-navy-deep: #FFFDF7;
+  --color-jcc-navy-light: #FBF3DE;
+  --color-jcc-accent: #A97824;        /* Dark Gold actions on light surface */
+  --color-jcc-green: #A97824;
+  --color-jcc-gold: #A97824;
+  --color-jcc-text-primary: #1A1508;
+  --color-jcc-text-soft: #1A1508;
+  --color-jcc-text-muted: rgba(26, 21, 8, 0.6);
+  --color-jcc-border: rgba(169, 120, 36, 0.25);
+  --color-jcc-danger: #A23A32;
 }
 
-/* Always-dark surfaces (scoreboard tickers, LED strips). Keeps a
-   flannel foreground in BOTH schemes so light text stays legible
-   on the dark strip in day mode. */
+/* Royal Blue "bands" — the opt-out from the new light default.
+   Scoreboard tickers, the Footer, and alternating home sections use
+   this to stay Royal Blue with white foreground text/gold accents.
+   Deliberately does NOT remap --color-jcc-navy (the card-surface
+   token) — .premium-card must stay WHITE even when nested inside a
+   Royal Blue band, so cards keep reading as "white cards floating on
+   a blue section" instead of turning invisible blue-on-blue. */
 .theme-static-dark {
-  color: #F6F2E9;
-  --color-white: #F6F2E9;
-  --color-jcc-text-primary: #F6F2E9;
-  --color-jcc-text-soft: #F6F2E9;
-  --color-jcc-text-muted: rgba(246, 242, 233, 0.6);
+  color: #FFFFFF;
+  --color-white: #FFFFFF;
+  --color-jcc-text-primary: #FFFFFF;
+  --color-jcc-text-soft: #FFFFFF;
+  --color-jcc-text-muted: rgba(255, 255, 255, 0.65);
+  --color-jcc-border: rgba(212, 175, 55, 0.22);
 }
 
 /* Remove browser spin buttons from number inputs — they eat all the
@@ -153,106 +134,336 @@ html {
 
 body {
   background-color: var(--jcc-bg);
+  background-image:
+    radial-gradient(ellipse 120% 60% at 50% -10%, color-mix(in srgb, var(--color-jcc-navy-light) 70%, transparent) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 50% at 100% 100%, color-mix(in srgb, var(--color-jcc-accent) 3%, transparent) 0%, transparent 70%);
+  background-attachment: fixed;
   color: var(--jcc-text-soft);
   font-family: var(--font-body), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
   line-height: 1.6;
+  position: relative;
+}
+
+/* Barely-there warm-white ambience, sits under all content on every page. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(ellipse 140% 90% at 50% 0%, transparent 0%, transparent 55%, color-mix(in srgb, var(--color-jcc-navy-light) 55%, transparent) 100%);
 }
 
 /* ---- Section Rhythms ---- */
+/* .section-bg-navy is used site-wide as "match the page background" — it
+   must track the light default, not become a Royal Blue accent, since
+   most pages use it as their base wrapper. Royal Blue bands (footer,
+   tickers, alternating home sections) opt out via .theme-static-dark
+   instead, same mechanism as the June rebrand. */
 .section-bg-navy { background-color: var(--jcc-bg); }
-.section-bg-ice { background-color: var(--jcc-navy); }
+.section-bg-ice { background-color: var(--jcc-navy-light); }
 .section-bg-deep { background-color: var(--color-jcc-navy-deep); } /* Deepest ground for depth */
 
+/* Explicit Royal Blue band — for deliberate dark accents (footer, some
+   alternating home sections) that want the band without the tinted
+   foreground remap .theme-static-dark also does. */
+.section-bg-royal { background-color: var(--color-jcc-blue); }
+.section-bg-royal-deep { background-color: var(--color-jcc-blue-deep); }
+
 /* ---- Typography ---- */
-h1, h2, h3, h4 {
-  color: var(--color-jcc-text-primary);
-  font-family: var(--font-heading);
-  font-weight: 900;
-  letter-spacing: -0.03em;
-  text-transform: uppercase;
+/* Layered so Tailwind text-* utilities (also layered, but later in the
+   cascade) can override this default heading color — as plain unlayered
+   CSS it would otherwise beat utility classes regardless of specificity. */
+@layer base {
+  h1, h2, h3, h4 {
+    color: var(--color-jcc-text-primary);
+    font-family: var(--font-heading);
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    text-transform: uppercase;
+  }
 }
 
-/* Hero → Pitch (the signature gradient) */
+/* Signature gold gradient */
 .text-gradient-cyan {
-  background: linear-gradient(135deg, var(--color-jcc-accent) 0%, var(--color-jcc-green) 100%);
+  background: linear-gradient(135deg, var(--color-jcc-accent) 0%, var(--color-jcc-accent-highlight) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* Willow / Sandstone highlight gradient */
+/* Gold highlight gradient */
 .text-gradient-gold {
-  background: linear-gradient(135deg, var(--color-jcc-gold) 0%, var(--color-jcc-ball-red) 100%);
+  background: linear-gradient(135deg, var(--color-jcc-accent-highlight) 0%, var(--color-jcc-accent-dark) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* Ball-leather red gradient */
+/* Deep gold gradient */
 .text-gradient-red {
-  background: linear-gradient(135deg, var(--color-jcc-ball-red) 0%, var(--color-jcc-gold) 100%);
+  background: linear-gradient(135deg, var(--color-jcc-accent-dark) 0%, var(--color-jcc-accent) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* ---- Premium Card System ---- */
+/* ---- Premium Card System (white, restrained luxury) ---- */
 .premium-card {
-  background: color-mix(in srgb, var(--color-jcc-navy) 55%, transparent);
-  backdrop-filter: blur(24px);
+  position: relative;
+  background: var(--color-jcc-navy);
   border: 1px solid var(--jcc-border);
-  border-radius: 1.5rem;
+  border-radius: 1rem;
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 15px 40px -10px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 2px 12px -4px rgba(18, 35, 63, 0.08);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.premium-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 30%, color-mix(in srgb, var(--color-jcc-accent-highlight) 10%, transparent) 48%, transparent 66%);
+  transform: translateX(-120%);
+  transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---- Editorial Portrait System ----
+   Unifies real member photographs — taken on different cameras, in
+   different light — into one consistent "annual report" look: rich
+   blacks, bright highlights, a restrained warm tone instead of cold
+   grayscale. Never applied to the DiceBear illustration fallback,
+   which relies on flat team color to read as an identity, not a photo. */
+.portrait-frame {
+  position: relative;
+  isolation: isolate;
+}
+
+.portrait-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(165deg, color-mix(in srgb, var(--color-jcc-blue) 10%, transparent), transparent 55%, color-mix(in srgb, var(--color-jcc-blue) 14%, transparent));
+  mix-blend-mode: multiply;
+}
+
+.portrait-photo {
+  object-position: center 20%;
+  filter: grayscale(0.88) contrast(1.14) brightness(1.05) sepia(0.13) saturate(1.03);
+  transition: transform 1.1s cubic-bezier(0.16, 1, 0.3, 1), filter 0.6s ease;
+}
+
+.group:hover .portrait-photo {
+  filter: grayscale(0.82) contrast(1.17) brightness(1.07) sepia(0.13) saturate(1.06);
+}
+
+/* ---- Editorial Identity Card (Member Directory) ----
+   Shared "membership certificate" surface for components/MemberCard.tsx
+   and components/home/CommunitySection.tsx. Ivory paper stock with an
+   engraved edge (brighter top inset, darker bottom inset) and a single
+   restrained gold sheen that glides across the top edge on hover — never
+   a full diagonal sweep, so it reads as light catching foil-stamped
+   stock rather than a UI shimmer effect. Founder/captain modifiers shift
+   tone and edge colour only; no louder colours, no badges. */
+.id-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 1rem;
+  background: var(--color-jcc-navy-deep);
+  border: 1px solid rgba(18, 35, 63, 0.07);
+  box-shadow:
+    0 14px 30px -20px rgba(18, 35, 63, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(18, 35, 63, 0.08);
+  transition:
+    box-shadow 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.id-card:hover {
+  border-color: rgba(212, 175, 55, 0.32);
+  box-shadow:
+    0 26px 50px -22px rgba(18, 35, 63, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(18, 35, 63, 0.1);
+}
+
+/* Founder — faint warm gold cast to the stock itself, gold edge at rest */
+.id-card--founder {
+  background: linear-gradient(170deg, #ffffff 0%, #fbf6e9 100%);
+  border-color: rgba(212, 175, 55, 0.22);
+}
+.id-card--founder:hover {
+  border-color: rgba(212, 175, 55, 0.48);
+}
+
+/* Captain — faint navy edge at rest; gold sheen on hover matches the rest */
+.id-card--captain {
+  border-color: rgba(18, 35, 63, 0.17);
+}
+
+.id-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--color-jcc-accent-highlight) 65%, transparent),
+    transparent
+  );
+  opacity: 0;
+  transform: translateX(-40%);
+  transition: opacity 0.6s ease, transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 3;
+  pointer-events: none;
+}
+.id-card:hover::before {
+  opacity: 1;
+  transform: translateX(40%);
+}
+
+.id-card-name {
+  transition: color 0.6s ease;
+}
+.id-card:hover .id-card-name {
+  color: var(--color-jcc-accent-dark);
+}
+
+/* Embossed founder crest — the site wordmark, desaturated to a faint
+   watermark rather than a colour logo stamped on the portrait. */
+.id-crest {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  filter: grayscale(1) contrast(1.05) brightness(1.4);
+  opacity: 0.55;
+  mix-blend-mode: multiply;
+}
+@media (prefers-reduced-motion: reduce) {
+  .id-card, .id-card::before, .id-card-name { transition: none; }
+}
+
+/* Ceremonial seal — the closing-invitation hero object. The shield crest
+   sits on its own transparent silhouette (no plate/ring forced around
+   it), lifted off the page with a soft ambient drop-shadow that follows
+   its outline and a faint gold glow bleeding behind it. */
+.crest-seal-glow {
+  position: absolute;
+  inset: -30%;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-jcc-accent) 20%, transparent) 0%, transparent 68%);
+  filter: blur(8px);
+  pointer-events: none;
+}
+
+.crest-seal {
+  position: relative;
+  width: clamp(140px, 17vw, 208px);
+  aspect-ratio: 1932 / 1976;
+}
+
+.crest-seal img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  filter:
+    drop-shadow(0 20px 36px rgba(18, 35, 63, 0.32))
+    drop-shadow(0 3px 8px rgba(18, 35, 63, 0.18));
+}
+
+/* Thin gold tether binding the seal to its CTA — the button reads as
+   suspended from the medallion rather than floating on its own. */
+.crest-tether {
+  width: 1px;
+  height: 2.75rem;
+  margin: 0 auto;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--color-jcc-accent) 55%, transparent), transparent);
 }
 
 .premium-card:hover {
-  border-color: color-mix(in srgb, var(--color-jcc-accent) 40%, transparent);
-  background: color-mix(in srgb, var(--color-jcc-navy) 75%, transparent);
-  transform: translateY(-4px) scale(1.01);
-  box-shadow: 0 25px 50px -15px rgba(0, 0, 0, 0.7), 0 0 30px color-mix(in srgb, var(--color-jcc-accent) 12%, transparent);
+  border-color: var(--color-jcc-border-bright);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -6px rgba(18, 35, 63, 0.12), 0 0 0 1px color-mix(in srgb, var(--color-jcc-accent) 15%, transparent);
+}
+
+.premium-card:hover::after {
+  transform: translateX(120%);
 }
 
 .glass-card-dark {
-  background: color-mix(in srgb, var(--color-white) 3%, transparent);
-  backdrop-filter: blur(16px);
-  border: 1px solid color-mix(in srgb, var(--color-white) 6%, transparent);
+  background: var(--color-jcc-navy-light);
+  border: 1px solid var(--jcc-border);
   border-radius: 1.25rem;
 }
 
-/* ---- Button System (Ultra High Contrast) ---- */
-/* Hero CTA — ball-leather fill, seam-cream label (reads on Pink and Cherry) */
+/* ---- Button System ---- */
+/* Primary CTA — Royal Blue fill, white label, thin gold border */
 .btn-vibrant-blue {
-  background: var(--color-jcc-accent);
-  color: var(--color-jcc-seam) !important;
+  position: relative;
+  background: var(--color-jcc-blue);
+  color: #FFFFFF !important;
   font-weight: 900;
   border-radius: 1rem;
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-jcc-accent) 30%, transparent);
+  box-shadow: 0 4px 16px rgba(18, 35, 63, 0.18);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.625rem;
   padding: 1rem 2.5rem;
-  border: none;
+  border: 1.5px solid var(--color-jcc-accent);
   cursor: pointer;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-size: 0.875rem;
+  overflow: hidden;
+}
+
+.btn-vibrant-blue::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 35%, color-mix(in srgb, var(--color-jcc-accent-highlight) 55%, transparent) 50%, transparent 65%);
+  transform: translateX(-130%);
+  transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .btn-vibrant-blue:hover {
-  background: color-mix(in srgb, var(--color-jcc-accent) 82%, white);
-  box-shadow: 0 12px 40px color-mix(in srgb, var(--color-jcc-accent) 45%, transparent);
-  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 24px rgba(18, 35, 63, 0.25);
+  transform: translateY(-2px);
+  border-color: var(--color-jcc-accent-highlight);
 }
 
+.btn-vibrant-blue:hover::after {
+  transform: translateX(130%);
+}
+
+/* Homepage closing-invitation CTA — quicker, quieter hover than the
+   site-default button: a faint gold edge catching light instead of a
+   pronounced lift, tuned for a signature moment rather than a click target. */
+.btn-final-invite {
+  transition-duration: 0.2s;
+}
+.btn-final-invite:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(18, 35, 63, 0.2), inset 0 1px 0 rgba(243, 201, 106, 0.5);
+}
+
+/* Secondary — white fill, gold outline, Royal Blue label; hover fills gold */
 .btn-ghost {
-  border: 1.5px solid color-mix(in srgb, var(--color-white) 14%, transparent);
-  background: color-mix(in srgb, var(--color-white) 4%, transparent);
-  color: var(--color-jcc-text-primary) !important;
+  border: 1.5px solid color-mix(in srgb, var(--color-jcc-accent) 60%, transparent);
+  background: var(--color-jcc-navy);
+  color: var(--color-jcc-blue) !important;
   font-weight: 900;
   border-radius: 1rem;
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
@@ -268,10 +479,11 @@ h1, h2, h3, h4 {
 }
 
 .btn-ghost:hover {
-  background: color-mix(in srgb, var(--color-white) 8%, transparent);
+  background: var(--color-jcc-accent);
   border-color: var(--color-jcc-accent);
-  color: var(--color-jcc-accent) !important;
+  color: var(--color-jcc-blue) !important;
   transform: translateY(-2px);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-jcc-accent) 30%, transparent);
 }
 
 /* ---- Utility Classes ---- */
@@ -295,14 +507,14 @@ h1, h2, h3, h4 {
   @apply inline-flex items-center gap-2.5 px-5 py-2.5 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-2xl text-white font-black uppercase tracking-widest text-[10px] transition-all;
 }
 
-/* ---- Member Tags (High Contrast) ---- */
-.tag-captain { @apply bg-jcc-accent/15 text-jcc-accent border border-jcc-accent/20; }
-.tag-founding-member { @apply bg-jcc-gold/15 text-jcc-gold border border-jcc-gold/20; }
-.tag-vice-captain { @apply bg-jcc-green/15 text-jcc-green border border-jcc-green/20; }
+/* ---- Member Tags (gold monochrome — emphasis varies by weight, not hue) ---- */
+.tag-captain { @apply bg-jcc-accent/20 text-jcc-accent border border-jcc-accent/35; }
+.tag-founding-member { @apply bg-jcc-accent/15 text-jcc-accent border border-jcc-accent/25; }
+.tag-vice-captain { @apply bg-jcc-accent/10 text-jcc-accent border border-jcc-accent/20; }
 .tag-batter { @apply bg-white/5 text-white/80 border border-white/10; }
 .tag-bowler { @apply bg-white/5 text-white/80 border border-white/10; }
-.tag-all-rounder { @apply bg-purple-400/15 text-purple-400 border border-purple-400/20; }
-.tag-wicketkeeper { @apply bg-jcc-ball-red/15 text-jcc-ball-red border border-jcc-ball-red/20; }
+.tag-all-rounder { @apply bg-white/5 text-white/80 border border-white/10; }
+.tag-wicketkeeper { @apply bg-white/5 text-white/80 border border-white/10; }
 
 /* ---- Scoreboard Numbers ---- */
 .score-number {
@@ -324,6 +536,342 @@ h1, h2, h3, h4 {
 .dot-pattern {
   background-image: radial-gradient(color-mix(in srgb, var(--color-white) 10%, transparent) 1px, transparent 1px);
   background-size: 32px 32px;
+}
+
+/* ---- Member Portal — ceremonial invitation card ----
+   Warm-gold edge and deeper, softer shadow than the standard premium-card,
+   so the auth card reads as a printed invitation rather than a SaaS form.
+   Declared after .premium-card:hover so these overrides win on source order
+   (both are unlayered, same specificity). */
+.portal-invite-card {
+  border-color: color-mix(in srgb, var(--color-jcc-accent) 30%, transparent);
+  box-shadow:
+    0 30px 70px -32px rgba(18, 35, 63, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.portal-invite-card:hover {
+  border-color: color-mix(in srgb, var(--color-jcc-accent) 46%, transparent);
+  transform: none;
+}
+
+/* ---- Portal Invitation Fields ----
+   Warm-ivory inputs for the Pavilion auth card — replaces the dark
+   glassmorphic input convention used elsewhere with paper-toned fields
+   that read as part of an invitation, not a dashboard form. */
+.portal-input {
+  background: var(--color-jcc-navy-light);
+  border: 1px solid color-mix(in srgb, var(--color-jcc-accent) 25%, transparent);
+  color: var(--color-jcc-text-primary) !important;
+  box-shadow: 0 1px 2px rgba(18, 35, 63, 0.05);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+}
+.portal-input::placeholder {
+  color: rgba(18, 35, 63, 0.3);
+}
+.portal-input:focus {
+  outline: none;
+  border-color: var(--color-jcc-accent);
+  background: #FFFFFF;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-jcc-accent) 15%, transparent);
+}
+
+/* ============================================================
+   Admin Form System — Executive Operations Dashboard
+   ------------------------------------------------------------
+   Every editable control in /admin (text field, search bar,
+   select, textarea) shares this system: warm ivory surface,
+   translucent gold border, navy text, muted-slate placeholders.
+   Grey is reserved exclusively for :disabled — never for an
+   editable surface. Buttons follow the same primary/secondary/
+   destructive triad used across every admin modal.
+   ============================================================ */
+.admin-label {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-jcc-accent-dark);
+  margin-bottom: 8px;
+}
+
+.admin-input,
+.admin-select,
+.admin-textarea {
+  width: 100%;
+  background: #FAF8F4;
+  border: 1px solid color-mix(in srgb, var(--color-jcc-accent) 30%, transparent);
+  border-radius: 14px;
+  color: var(--color-jcc-blue);
+  padding: 13px 18px;
+  font-weight: 600;
+  box-shadow: inset 0 1px 2px rgba(18, 35, 63, 0.04);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  outline: none;
+}
+.admin-input::placeholder,
+.admin-select::placeholder,
+.admin-textarea::placeholder {
+  color: #8A94A6;
+  font-weight: 500;
+}
+.admin-input:hover,
+.admin-select:hover,
+.admin-textarea:hover {
+  border-color: color-mix(in srgb, var(--color-jcc-accent) 45%, transparent);
+}
+.admin-input:focus,
+.admin-select:focus,
+.admin-textarea:focus {
+  background: #FFFFFF;
+  border-color: var(--color-jcc-accent);
+  box-shadow: 0 0 0 5px rgba(201, 155, 46, 0.10), inset 0 1px 2px rgba(18, 35, 63, 0.03);
+}
+.admin-input:disabled,
+.admin-select:disabled,
+.admin-textarea:disabled {
+  background: #F1F2F4;
+  border-color: #E1E4E9;
+  color: #9AA1AE;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.admin-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23A97824' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  padding-right: 42px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+}
+.admin-select:focus {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23D4AF37' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+.admin-select:disabled {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%239AA1AE' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.admin-textarea {
+  resize: vertical;
+  min-height: 120px;
+  line-height: 1.7;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 27px,
+    color-mix(in srgb, var(--color-jcc-accent) 10%, transparent) 28px
+  );
+  background-attachment: local;
+}
+
+/* Search bar — 56–60px premium field, icon inset on the left */
+.admin-search-wrap {
+  position: relative;
+}
+.admin-search-wrap .admin-search-icon {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-jcc-blue);
+  opacity: 0.35;
+  pointer-events: none;
+  transition: opacity 0.2s ease, color 0.2s ease;
+}
+.admin-search-wrap:focus-within .admin-search-icon {
+  opacity: 1;
+  color: var(--color-jcc-accent);
+}
+.admin-search {
+  width: 100%;
+  height: 58px;
+  background: #FAF8F4;
+  border: 1px solid color-mix(in srgb, var(--color-jcc-accent) 30%, transparent);
+  border-radius: 16px;
+  color: var(--color-jcc-blue);
+  padding: 0 20px 0 52px;
+  font-weight: 700;
+  font-size: 15px;
+  box-shadow: 0 1px 2px rgba(18, 35, 63, 0.04), inset 0 1px 2px rgba(18, 35, 63, 0.03);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  outline: none;
+}
+.admin-search::placeholder {
+  color: #8A94A6;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.admin-search:focus {
+  background: #FFFFFF;
+  border-color: var(--color-jcc-accent);
+  box-shadow: 0 0 0 5px rgba(201, 155, 46, 0.10), inset 0 1px 2px rgba(18, 35, 63, 0.03);
+}
+
+/* Buttons — primary actions reuse the site's .btn-vibrant-blue (navy fill /
+   gold border); secondary (transparent / gold outline) and destructive
+   (white fill / muted red text) are admin-specific, defined here. */
+.admin-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: transparent;
+  border: 1.5px solid color-mix(in srgb, var(--color-jcc-accent) 55%, transparent);
+  color: var(--color-jcc-blue);
+  border-radius: 14px;
+  font-weight: 900;
+  padding: 1rem 2.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+.admin-btn-secondary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-jcc-accent) 8%, transparent);
+  border-color: var(--color-jcc-accent);
+}
+.admin-btn-secondary:disabled {
+  border-color: #E1E4E9;
+  color: #9AA1AE;
+  cursor: not-allowed;
+}
+
+.admin-btn-destructive {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #FFFFFF;
+  border: 1.5px solid color-mix(in srgb, var(--color-jcc-danger) 35%, transparent);
+  color: var(--color-jcc-danger);
+  border-radius: 14px;
+  font-weight: 900;
+  padding: 1rem 2.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+.admin-btn-destructive:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-jcc-danger) 6%, transparent);
+  border-color: var(--color-jcc-danger);
+}
+.admin-btn-destructive:disabled {
+  border-color: #E1E4E9;
+  color: #C1C6CE;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   Admin Executive Primitives
+   ------------------------------------------------------------
+   Supporting styles for the shared components/admin primitives
+   (AdminPageHeader, AdminStatCard, AdminEmptyState, AdminSkeleton,
+   AdminModal): capsule nav pill, shimmer loading, and the
+   portrait/badge dossier header used inside record-editing modals.
+   ============================================================ */
+
+/* Sidebar — active nav item becomes a filled gold capsule instead
+   of a rounded-xl block; inactive items get a soft gold hover glow. */
+.admin-nav-capsule {
+  border-radius: 999px;
+}
+.admin-nav-item {
+  border-radius: 999px;
+  transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s ease, box-shadow 0.3s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.admin-nav-item:hover:not(.admin-nav-item--active) {
+  background: color-mix(in srgb, var(--color-jcc-accent) 8%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-jcc-accent) 18%, transparent);
+}
+
+/* Shimmer skeleton — replaces the bare Loader2-spinner block used
+   identically across every admin list/table while data loads. */
+@keyframes admin-shimmer-sweep {
+  from { background-position: -300px 0; }
+  to   { background-position: 300px 0; }
+}
+.admin-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-jcc-navy-light) 0%,
+    color-mix(in srgb, var(--color-jcc-accent) 14%, var(--color-jcc-navy-light)) 50%,
+    var(--color-jcc-navy-light) 100%
+  );
+  background-size: 300px 100%;
+  animation: admin-shimmer-sweep 1.4s ease-in-out infinite;
+  border-radius: 0.75rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .admin-shimmer { animation: none; }
+}
+
+/* Dossier header — portrait + role/team badges + gold divider,
+   used at the top of record-editing modals (e.g. MemberControl's
+   edit-member modal) so the record reads as a profile, not a form. */
+.admin-modal-dossier {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--color-jcc-border-bright);
+  position: relative;
+}
+.admin-modal-dossier::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--color-jcc-accent) 0%, transparent 70%);
+}
+.admin-modal-dossier-portrait {
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  border: 2px solid var(--color-jcc-accent);
+  box-shadow: 0 4px 14px -4px rgba(18, 35, 63, 0.25);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* Executive stat card — gold-tinted metric with optional trend chip. */
+.admin-stat-card {
+  position: relative;
+  overflow: hidden;
+}
+.admin-stat-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-jcc-accent-dark);
+  background: color-mix(in srgb, var(--color-jcc-accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-jcc-accent) 30%, transparent);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+/* Archival scorebook-grid watermark — a faint ledger grid behind the portal
+   entrance. Kept under 3% opacity so it enriches the paper without ever
+   reading as a UI grid. */
+.archival-ledger-grid {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--color-jcc-blue) 100%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-jcc-blue) 100%, transparent) 1px, transparent 1px);
+  background-size: 44px 44px;
+  opacity: 0.025;
 }
 
 /* Hero above-the-fold entrance — pure CSS so the LCP heading paints at first
@@ -369,4 +917,22 @@ h1, h2, h3, h4 {
 }
 @media (prefers-reduced-motion: reduce) {
   .anim-fade-up { opacity: 1; transform: none; transition: none; }
+}
+
+/* Editorial divider that "draws" itself left-to-right once its
+   AnimateIn ancestor enters the viewport (used by manifesto-style
+   sections, e.g. WhyJCCSection's chapter dividers). */
+.divider-draw {
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.divider-draw-right {
+  transform-origin: right;
+}
+.anim-visible .divider-draw {
+  transform: scaleX(1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .divider-draw { transform: scaleX(1); transition: none; }
 }
