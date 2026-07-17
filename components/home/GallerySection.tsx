@@ -106,15 +106,15 @@ export default function GallerySection() {
         </AnimateIn>
 
         <AnimateIn delay={200} direction="scale">
-          <div className="relative overflow-hidden rounded-[48px] border border-jcc-accent/30 shadow-[inset_0_0_60px_rgba(212,175,55,0.12),0_20px_60px_rgba(0,0,0,0.25)] p-4 sm:p-8 lg:p-10">
+          <div className="relative overflow-hidden rounded-none sm:rounded-[48px] border-0 sm:border sm:border-jcc-accent/30 shadow-none sm:shadow-[inset_0_0_60px_rgba(212,175,55,0.12),0_20px_60px_rgba(0,0,0,0.25)] p-0 sm:p-8 lg:p-10">
             <div
-              className="noise-overlay pointer-events-none absolute inset-0 z-0"
+              className="noise-overlay pointer-events-none absolute inset-0 z-0 hidden sm:block"
               style={{ opacity: 0.02 }}
             />
-            <div className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.22)_0%,rgba(212,175,55,0.08)_35%,transparent_65%)]" />
-            <div className="pointer-events-none absolute inset-0 z-40 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(0,0,0,0.55)_100%)]" />
+            <div className="pointer-events-none absolute inset-0 z-0 hidden sm:block bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.22)_0%,rgba(212,175,55,0.08)_35%,transparent_65%)]" />
+            <div className="pointer-events-none absolute inset-0 z-40 hidden sm:block bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(0,0,0,0.55)_100%)]" />
             <div
-              className="relative h-70 sm:h-100 lg:h-125 touch-pan-y cursor-grab active:cursor-grabbing select-none"
+              className="relative h-90 sm:h-100 lg:h-125 touch-pan-y cursor-grab active:cursor-grabbing select-none"
               onMouseEnter={() => setPaused(true)}
               onMouseLeave={() => {
                 setPaused(false);
@@ -138,7 +138,7 @@ export default function GallerySection() {
                 return (
                   <div
                     key={img.src}
-                    className="absolute top-0 left-1/2 h-full w-[80%] sm:w-[62%] lg:w-[54%] rounded-[40px] overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                    className="absolute top-0 left-1/2 h-full w-[94%] sm:w-[62%] lg:w-[54%] rounded-[24px] sm:rounded-[40px] overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
                     style={{
                       transform: `translateX(calc(-50% + ${translate}%)) translateY(${translateY}px) scale(${scale})`,
                       opacity,

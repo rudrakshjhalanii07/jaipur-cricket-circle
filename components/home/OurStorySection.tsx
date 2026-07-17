@@ -8,28 +8,73 @@ type Block =
   | { type: "names" };
 
 const STORY: Block[] = [
-  { type: "p", text: "Not every community begins with a grand vision. Some begin with five friends, one cricket ball, and an ordinary Sunday." },
+  {
+    type: "p",
+    text: "Not every community begins with a grand vision. Some begin with five friends, one cricket ball, and an ordinary Sunday.",
+  },
   { type: "names" },
-  { type: "p", text: "We had careers, responsibilities, deadlines, and the usual busyness that comes with adult life. Like many people, we believed those carefree days of school and college cricket were behind us." },
-  { type: "quote", text: "But something unexpected happened that morning. For a few hours, we forgot everything else." },
-  { type: "p", text: "We laughed without hesitation. We celebrated every wicket as if it were a World Cup final. We sledged each other like school friends. We argued, smiled, competed, and walked off the ground feeling lighter than we had in years." },
-  { type: "quote", text: "It wasn't just cricket. It was the feeling we thought adulthood had taken away." },
-  { type: "p", text: "We decided to do it again the following week. Then again. And again. Without realizing it, a weekly game became a ritual." },
-  { type: "p", text: "As more friends joined, something beautiful started happening. People from different professions, age groups, and backgrounds began finding the same joy we had experienced on that very first Sunday." },
-  { type: "quote", text: "Some came looking for cricket. Many stayed because they found friendship." },
-  { type: "p", text: "As the community grew, we also noticed the challenges that often prevent amateur sports communities from thriving—finding players, booking grounds, balancing teams, organizing tournaments, resolving conflicts, and creating a welcoming environment for everyone." },
-  { type: "p", text: "Having been part of other communities ourselves, we knew these problems could be solved with thoughtful systems and transparent leadership." },
-  { type: "p", text: "So we built Jaipur Cricket Circle differently. We created a community where people could simply show up, play, and enjoy the game, while a dedicated Core Committee and Executive Committee handled everything behind the scenes—from governance and logistics to tournaments and community building." },
-  { type: "p", text: "This is only the beginning. Our dream is to build India's most loved box cricket community, connecting thousands of passionate cricketers across cities, creating world-class tournaments, embracing technology and analytics, collaborating with academies and institutions, and building an ecosystem where anyone who loves cricket feels they belong." },
+  {
+    type: "p",
+    text: "We had careers, responsibilities, deadlines, and the usual busyness that comes with adult life. Like many people, we believed those carefree days of school and college cricket were behind us.",
+  },
+  {
+    type: "quote",
+    text: "But something unexpected happened that morning. For a few hours, we forgot everything else.",
+  },
+  {
+    type: "p",
+    text: "We laughed without hesitation. We celebrated every wicket as if it were a World Cup final. We sledged each other like school friends. We argued, smiled, competed, and walked off the ground feeling lighter than we had in years.",
+  },
+  {
+    type: "quote",
+    text: "It wasn't just cricket. It was the feeling we thought adulthood had taken away.",
+  },
+  {
+    type: "p",
+    text: "We decided to do it again the following week. Then again. And again. Without realizing it, a weekly game became a ritual.",
+  },
+  {
+    type: "p",
+    text: "As more friends joined, something beautiful started happening. People from different professions, age groups, and backgrounds began finding the same joy we had experienced on that very first Sunday.",
+  },
+  {
+    type: "quote",
+    text: "Some came looking for cricket. Many stayed because they found friendship.",
+  },
+  {
+    type: "p",
+    text: "As the community grew, we also noticed the challenges that often prevent amateur sports communities from thriving—finding players, booking grounds, balancing teams, organizing tournaments, resolving conflicts, and creating a welcoming environment for everyone.",
+  },
+  {
+    type: "p",
+    text: "Having been part of other communities ourselves, we knew these problems could be solved with thoughtful systems and transparent leadership.",
+  },
+  {
+    type: "p",
+    text: "So we built Jaipur Cricket Circle differently. We created a community where people could simply show up, play, and enjoy the game, while a dedicated Core Committee and Executive Committee handled everything behind the scenes—from governance and logistics to tournaments and community building.",
+  },
+  {
+    type: "p",
+    text: "This is only the beginning. Our dream is to build India's most loved box cricket community, connecting thousands of passionate cricketers across cities, creating world-class tournaments, embracing technology and analytics, collaborating with academies and institutions, and building an ecosystem where anyone who loves cricket feels they belong.",
+  },
 ];
 
-const PILLARS = ["Belonging", "Equality", "Healthy Competition", "Friendship Beyond the Rope", "Rediscovered Joy"];
+const PILLARS = [
+  "Belonging",
+  "Equality",
+  "Healthy Competition",
+  "Friendship Beyond the Rope",
+  "Rediscovered Joy",
+];
 
-const FOUNDERS = ["Opal", "Sagar", "Nitin Setia", "Nitesh", "Abhijeet"];
+const FOUNDERS = ["Nitin", "Abhijeet", "Sagar", "Opal", "Nitesh"];
 
 export default function OurStorySection() {
   return (
-    <section id="our-story" className="py-24 sm:py-32 relative overflow-hidden section-bg-navy">
+    <section
+      id="our-story"
+      className="py-24 sm:py-32 relative overflow-hidden section-bg-navy"
+    >
       <div className="absolute top-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-jcc-accent/20 to-transparent" />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-32 bg-jcc-accent/10 blur-[100px] pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 w-80 h-40 bg-jcc-accent/[0.06] blur-[120px] pointer-events-none" />
@@ -96,10 +141,14 @@ export default function OurStorySection() {
                           >
                             {name}
                           </span>
-                          {idx < FOUNDERS.length - 2 ? ", " : idx === FOUNDERS.length - 2 ? ", and " : ""}
+                          {idx < FOUNDERS.length - 2
+                            ? ", "
+                            : idx === FOUNDERS.length - 2
+                              ? ", and "
+                              : ""}
                         </span>
-                      ))}
-                      {" "}— met for a game of box cricket in Jaipur.
+                      ))}{" "}
+                      — met for a game of box cricket in Jaipur.
                     </p>
                   </AnimateIn>
                 );
@@ -159,7 +208,11 @@ export default function OurStorySection() {
                   Community keeps them together.
                 </p>
                 <p className="mt-6 text-lg sm:text-xl font-black uppercase italic text-white tracking-tight">
-                  Welcome to <span className="text-gradient-cyan">Jaipur Cricket Circle.</span> 🏏❤️
+                  Welcome to{" "}
+                  <span className="text-gradient-cyan">
+                    Jaipur Cricket Circle.
+                  </span>{" "}
+                  🏏❤️
                 </p>
               </div>
             </AnimateIn>
