@@ -86,7 +86,7 @@ export default function StatsSection({ stats }: StatsSectionProps) {
             The Circle, <span className="text-gradient-cyan">By the Numbers</span>
           </h2>
           <p className="mt-6 text-jcc-blue/60 text-xl max-w-2xl mx-auto font-medium leading-relaxed">
-            Started with five friends and a Sunday ball. Here&apos;s what it&apos;s grown into.
+            From five friends and a Sunday game to a Circle that keeps growing.
           </p>
         </AnimateIn>
 

@@ -82,11 +82,11 @@ const plexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Jaipur Cricket Circle — Where Sundays Hit Different",
+    default: "Jaipur Cricket Circle - India's Most Loved Box Cricket Community",
     template: "%s | Jaipur Cricket Circle",
   },
   description:
-    "Jaipur Cricket Circle is a premium community cricket club. Every Sunday, we play hard, compete fiercely, and build bonds that go beyond the boundary.",
+    "At Jaipur Cricket Circle, cricket is the beginning—not the destination. We are building a modern community where friendships flourish, leaders emerge, and every weekend creates memories that last far beyond the final ball.",
 };
 
 export default async function RootLayout({

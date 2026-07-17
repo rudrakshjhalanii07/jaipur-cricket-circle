@@ -17,7 +17,6 @@ const navLinks = [
 ];
 
 const menuLinks = [
-  { href: "/tournament", label: "Tournament" },
   { href: "/toss", label: "Toss" },
   { href: "/register", label: "Register" },
   { href: "/profile", label: "Profile" },

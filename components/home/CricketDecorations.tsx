@@ -8,7 +8,7 @@
 // ---- Pitch Divider ----
 export function PitchDivider({ className = "" }: { className?: string }) {
   return (
-    <div className={`pitch-divider ${className}`} aria-hidden="true">
+    <div className={`pitch-divider pointer-events-none ${className}`} aria-hidden="true">
       <svg
         className="absolute inset-0 w-full h-full"
         preserveAspectRatio="none"

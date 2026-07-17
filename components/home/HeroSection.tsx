@@ -80,7 +80,7 @@ export default function HeroSection({ stats }: { stats: HeroStats }) {
           {/* CTA Button */}
           <div className="mt-10 sm:mt-12 flex items-center justify-center hero-enter hero-enter-d3">
             <Link
-              href="/register"
+              href="/profile"
               className="w-full sm:w-auto btn-vibrant-blue group text-sm font-black relative overflow-hidden"
             >
               <span className="relative z-10 flex items-center justify-center gap-2">

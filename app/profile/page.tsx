@@ -778,7 +778,7 @@ export default function ProfilePage() {
                       className="relative pb-3 group"
                     >
                       <span className={`text-[12px] font-black uppercase tracking-[0.15em] transition-colors duration-150 ${portalMode === "signup" ? "text-white" : "text-white/35 group-hover:text-white/55"}`}>
-                        Request Membership
+                        New Member
                       </span>
                       {portalMode === "signup" && (
                         <motion.span
@@ -861,7 +861,7 @@ export default function ProfilePage() {
                                   onClick={() => { setPortalMode("signup"); setErrorMsg(""); setSuccessMsg(""); }}
                                   className="text-[11px] font-black uppercase tracking-[0.15em] text-jcc-accent-dark hover:text-jcc-accent transition-colors duration-150"
                                 >
-                                  Request Membership →
+                                  New Member →
                                 </button>
                               </div>
                             </motion.form>
@@ -1007,8 +1007,8 @@ export default function ProfilePage() {
                         className="space-y-6"
                       >
                         <div className="text-center space-y-2.5 mb-1">
-                          <h3 className="text-2xl font-black text-white tracking-tight normal-case font-[var(--font-heading)]">Request Your Invitation</h3>
-                          <p className="text-xs text-white/45">Submit your details for admin review. You&apos;ll be approved before your first Sunday match.</p>
+                          <h3 className="text-2xl font-black text-white tracking-tight normal-case font-[var(--font-heading)]">Become Member</h3>
+                          <p className="text-xs text-white/45">Submit your details for admin review.</p>
                         </div>
 
                         {/* Full Name */}
