@@ -242,7 +242,7 @@ export default function TossPage() {
 
   return (
     <section
-      className="theme-static-dark relative min-h-screen overflow-hidden px-5 pt-28 pb-16 text-white sm:px-8"
+      className="theme-static-dark relative min-h-screen overflow-hidden px-5 page-top pb-16 text-white sm:px-8"
       style={{
         isolation: "isolate",
         background: "linear-gradient(178deg, #1B3663 0%, #12233F 46%, #0F1D36 100%)",

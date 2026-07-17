@@ -358,7 +358,7 @@ export default function MembersClient({ members }: { members: Member[] }) {
   });
 
   return (
-    <div className="min-h-screen pt-36 pb-20 relative overflow-hidden hero-gradient">
+    <div className="min-h-screen page-top pb-20 relative overflow-hidden hero-gradient">
       <div className="absolute inset-0 stadium-glow opacity-50 z-0" />
       <div className="absolute inset-0 noise-overlay opacity-20 pointer-events-none z-0" />
 

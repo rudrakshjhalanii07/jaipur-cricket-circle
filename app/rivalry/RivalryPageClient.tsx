@@ -1202,7 +1202,7 @@ export default function RivalryPageClient({
 }: RivalryPageClientProps) {
   const [poolOpen, setPoolOpen] = useState(false);
   return (
-    <div className="min-h-screen pt-36 pb-20 relative overflow-hidden hero-gradient">
+    <div className="min-h-screen page-top pb-20 relative overflow-hidden hero-gradient">
       <div className="absolute inset-0 stadium-glow opacity-40 z-0" />
       <div className="absolute inset-0 noise-overlay opacity-15 pointer-events-none z-0" />
       <div className="absolute inset-0 dot-pattern opacity-[0.05] pointer-events-none z-0" />

@@ -3,13 +3,10 @@
 export const revalidate = 300;
 
 import HeroSection from "@/components/home/HeroSection";
-import SundayMatchSection from "@/components/home/SundayMatchSection";
 import HomepageBelowFold from "@/components/home/HomepageBelowFold";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { fallbackRivalrySeasons, type RivalrySeason } from "@/lib/rivalry";
 import { getTeam, type TeamId } from "@/lib/teams";
-import { getClubStatistics } from "@/lib/statistics";
-import { getDisplayRole } from "@/lib/member-role";
 
 // ─── Type aliases used only server-side ──────────────────────────────────────
 
@@ -20,17 +17,6 @@ type SundayMatchRow = {
   location_name: string;
   player_limit: number;
   status: string;
-};
-
-type Registration = { id: string; name: string; status: string };
-
-export type CommunityMember = {
-  id: string;
-  name: string;
-  team: "Mavericks" | "NeuroStrikers" | "Unassigned";
-  role: string;
-  tags: string[];
-  image: string | null;
 };
 
 export type ArticleData = {
@@ -47,10 +33,6 @@ export type ArticleData = {
 export type RecentMatch = { id: string; winner: string; date: string; result: string };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-// getDisplayRole now lives in lib/member-role.ts — shared with /members,
-// /members/[id], and the Profile portal so a player's role reads the same
-// everywhere.
 
 function buildTickerItems(
   nextMatch: SundayMatchRow | null,
@@ -101,18 +83,11 @@ async function getHomepageData() {
   try {
     // Phase 1: all independent queries in parallel
     const [
-      playersRes,
       seasonsRes,
       seriesMatchesRes,
       articlesRes,
       nextMatchRes,
-      clubStats,
     ] = await Promise.all([
-      supabaseAdmin
-        .from("players")
-        .select("*")
-        .eq("approval_status", "approved")
-        .eq("is_active", true),
       supabaseAdmin
         .from("rivalry_seasons")
         .select("*")
@@ -141,25 +116,9 @@ async function getHomepageData() {
         .order("match_date", { ascending: true })
         .limit(1)
         .maybeSingle(),
-      getClubStatistics(),
     ]);
 
-    // Phase 2: registrations depend on the match id
-    let confirmedRegistrations: Registration[] = [];
-    if (nextMatchRes.data) {
-      const { data: regData } = await supabaseAdmin
-        .from("registrations")
-        .select("id, name, status")
-        .eq("match_id", nextMatchRes.data.id)
-        .order("created_at", { ascending: true });
-      confirmedRegistrations = ((regData ?? []) as Registration[]).filter(
-        (r) => r.status === "registered"
-      );
-    }
-
     // ── Unwrap results ────────────────────────────────────────────────────────
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const players: any[] = playersRes.data ?? [];
     const seasons: RivalrySeason[] =
       ((seasonsRes.data as RivalrySeason[]) ?? []).length > 0
         ? (seasonsRes.data as RivalrySeason[])
@@ -172,15 +131,16 @@ async function getHomepageData() {
       (nextMatchRes.data as SundayMatchRow) ?? null;
 
     // ── Derived stats ─────────────────────────────────────────────────────────
-    // Sourced from the centralized statistics service (lib/statistics.ts) so
-    // homepage, rivalry, members, and future pages never compute these
-    // independently.
-    const activePlayerCount = clubStats.activeMembers;
-    const totalMatchesPlayed = clubStats.matchesPlayed;
+    // Fixed marketing figures matching the "Our Journey So Far" flyer, kept
+    // in lockstep with StatsSection's tiles — not derived from live club
+    // statistics (see lib/statistics.ts for the computed equivalents).
+    const activePlayerCount = 58;
+    const totalMatchesPlayed = 50;
+    const activeSundaysCount = 19;
     const stats = {
       activePlayers: `${activePlayerCount}+`,
       sundayGames: `${totalMatchesPlayed}+`,
-      sundaysActive: `${clubStats.activeSundays}+`,
+      sundaysActive: `${activeSundaysCount}+`,
       communityLove: "∞",
     };
 
@@ -200,59 +160,6 @@ async function getHomepageData() {
         ? `Won by ${m.margin_value} ${m.margin_type}`
         : "Latest result",
     }));
-
-    // ── Community members (sort + map on the server) ───────────────────────
-    const sorted = [...players].sort((a, b) => {
-      const aCap = a.group_role === "captain" ? 1 : 0;
-      const bCap = b.group_role === "captain" ? 1 : 0;
-      if (aCap !== bCap) return bCap - aCap;
-
-      const aVC = a.group_role === "vice-captain" ? 1 : 0;
-      const bVC = b.group_role === "vice-captain" ? 1 : 0;
-      if (aVC !== bVC) return bVC - aVC;
-
-      const aF =
-        a.member_tag === "founding-member" ||
-        a.group_role === "founding-member"
-          ? 1
-          : 0;
-      const bF =
-        b.member_tag === "founding-member" ||
-        b.group_role === "founding-member"
-          ? 1
-          : 0;
-      if (aF !== bF) return bF - aF;
-
-      const aR = a.name.toLowerCase().includes("rudraksh") ? 1 : 0;
-      const bR = b.name.toLowerCase().includes("rudraksh") ? 1 : 0;
-      if (aR !== bR) return bR - aR;
-
-      const aN = a.name.toLowerCase().includes("naman") ? -1 : 0;
-      const bN = b.name.toLowerCase().includes("naman") ? -1 : 0;
-      if (aN !== bN) return bN - aN;
-
-      return a.name.localeCompare(b.name);
-    });
-
-    const communityMembers: CommunityMember[] = sorted.slice(0, 8).map((p) => {
-      const tags: string[] = [];
-      if (p.member_tag && p.member_tag !== "member") tags.push(p.member_tag);
-      if (p.cricket_role) tags.push(p.cricket_role);
-      if (
-        p.group_role === "captain" ||
-        p.group_role === "vice-captain"
-      ) {
-        if (!tags.includes(p.group_role)) tags.push(p.group_role);
-      }
-      return {
-        id: p.id,
-        name: p.name,
-        team: (p.team || "Unassigned") as CommunityMember["team"],
-        role: getDisplayRole(p.member_tag, p.group_role, p.cricket_role),
-        tags,
-        image: p.image_url || p.image || null,
-      };
-    });
 
     // ── Articles ──────────────────────────────────────────────────────────────
     const articles: ArticleData[] = rawArticles.map((art) => ({
@@ -281,20 +188,10 @@ async function getHomepageData() {
 
     return {
       hero: stats,
-      sundayMatch: {
-        match: nextMatch,
-        confirmedCount: confirmedRegistrations.length,
-        registeredPlayers: confirmedRegistrations,
-        stats: { totalMembers: activePlayerCount, matchesPlayed: totalMatchesPlayed },
-      },
       rivalry: {
         activeSeason,
         recentMatches,
         latestMatch: recentMatches[0] ?? null,
-      },
-      community: {
-        members: communityMembers,
-        stats,
       },
       chewvana: {
         articles,
@@ -314,20 +211,10 @@ async function getHomepageData() {
 
     return {
       hero: fallbackStats,
-      sundayMatch: {
-        match: null,
-        confirmedCount: 0,
-        registeredPlayers: [],
-        stats: { totalMembers: 0, matchesPlayed: 0 },
-      },
       rivalry: {
         activeSeason: fallback,
         recentMatches: [],
         latestMatch: null,
-      },
-      community: {
-        members: [],
-        stats: fallbackStats,
       },
       chewvana: {
         articles: [],
@@ -348,12 +235,7 @@ export default async function Home() {
   return (
     <>
       <HeroSection stats={data.hero} />
-      <SundayMatchSection {...data.sundayMatch} />
-      <HomepageBelowFold
-        rivalry={data.rivalry}
-        community={data.community}
-        chewvana={data.chewvana}
-      />
+      <HomepageBelowFold stats={data.hero} chewvana={data.chewvana} />
     </>
   );
 }

@@ -1426,7 +1426,7 @@ export default function TournamentPageClient({
 
   if (view === "landing") {
     return (
-      <div className="theme-static-dark min-h-screen bg-jcc-blue-deep flex flex-col items-center justify-center relative overflow-hidden pt-22 pb-16">
+      <div className="theme-static-dark min-h-screen bg-jcc-blue-deep flex flex-col items-center justify-center relative overflow-hidden page-top pb-16">
         <SeamDots />
         <TournamentCrest />
 
@@ -1685,7 +1685,7 @@ export default function TournamentPageClient({
           style={{ background: "#D4AF37" }}
         />
 
-        <div className="max-w-2xl mx-auto px-4 pt-36 pb-24">
+        <div className="max-w-2xl mx-auto px-4 page-top pb-24">
           <div className="flex items-center gap-3 mb-4">
             <Link
               href="/"

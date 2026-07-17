@@ -139,13 +139,13 @@ function NewsTicker() {
 
 // ── Category config ───────────────────────────────────────────────────────────
 const TAG_CONFIG: Record<string, { icon: React.ReactNode; color: string; active: string }> = {
-  "All Stories":    { icon: <Newspaper className="w-3 h-3" />,   color: "border-white/10 text-white/50",   active: "border-jcc-accent bg-jcc-accent/15 text-jcc-accent" },
-  "Match Report":   { icon: <Radio className="w-3 h-3" />,       color: "border-white/10 text-white/50",   active: "border-jcc-accent bg-jcc-accent/15 text-jcc-accent" },
-  "Analysis":       { icon: <TrendingUp className="w-3 h-3" />,  color: "border-white/10 text-white/50",   active: "border-jcc-green bg-jcc-green/15 text-jcc-green" },
-  "Exhibition":     { icon: <Zap className="w-3 h-3" />,         color: "border-white/10 text-white/50",   active: "border-jcc-accent-dark bg-jcc-accent-dark/15 text-jcc-accent-dark" },
-  "Origin Story":   { icon: <BookOpen className="w-3 h-3" />,    color: "border-white/10 text-white/50",   active: "border-jcc-gold bg-jcc-gold/15 text-jcc-gold" },
+  "All Stories":    { icon: <Newspaper className="w-3 h-3" />,   color: "border-blue-400/25 text-blue-200/70",   active: "border-jcc-accent bg-jcc-accent/15 text-jcc-accent" },
+  "Match Report":   { icon: <Radio className="w-3 h-3" />,       color: "border-blue-400/25 text-blue-200/70",   active: "border-jcc-accent bg-jcc-accent/15 text-jcc-accent" },
+  "Analysis":       { icon: <TrendingUp className="w-3 h-3" />,  color: "border-blue-400/25 text-blue-200/70",   active: "border-jcc-green bg-jcc-green/15 text-jcc-green" },
+  "Exhibition":     { icon: <Zap className="w-3 h-3" />,         color: "border-blue-400/25 text-blue-200/70",   active: "border-jcc-accent-dark bg-jcc-accent-dark/15 text-jcc-accent-dark" },
+  "Origin Story":   { icon: <BookOpen className="w-3 h-3" />,    color: "border-blue-400/25 text-blue-200/70",   active: "border-jcc-gold bg-jcc-gold/15 text-jcc-gold" },
 };
-const DEFAULT_TAG_CFG = { icon: <ChevronRight className="w-3 h-3" />, color: "border-white/10 text-white/50", active: "border-jcc-accent-dark bg-jcc-accent-dark/15 text-jcc-accent-dark" };
+const DEFAULT_TAG_CFG = { icon: <ChevronRight className="w-3 h-3" />, color: "border-blue-400/25 text-blue-200/70", active: "border-jcc-accent-dark bg-jcc-accent-dark/15 text-jcc-accent-dark" };
 
 // ── Stats bar ─────────────────────────────────────────────────────────────────
 function StatsBar({ total, filtered }: { total: number; filtered: number }) {
@@ -209,7 +209,7 @@ export default function BoundaryBanterPage() {
     return () => clearTimeout(timer);
   }, []);
 
-  const allTags = ["All Stories", ...Array.from(new Set(articles.flatMap(p => p.tags)))];
+  const allTags = ["All Stories", ...Array.from(new Set(articles.flatMap(p => p.tags)))].filter(tag => tag !== "Match Report");
   const filtered = selectedTag === "All Stories"
     ? articles
     : articles.filter(p => p.tags.includes(selectedTag));
@@ -222,7 +222,7 @@ export default function BoundaryBanterPage() {
       />
 
       {/* ── Newsroom Masthead ── */}
-      <div className="relative z-10 pt-36 pb-0">
+      <div className="relative z-10 page-top pb-0">
         {/* Live ticker */}
         <NewsTicker />
 
@@ -254,21 +254,21 @@ export default function BoundaryBanterPage() {
             <div className="editorial-rule my-5 max-w-xs" />
 
             {/* Sub-headline */}
-            <p className="text-white/40 text-base font-medium max-w-xl leading-relaxed">
-              Match dispatches, tactical analysis, origin stories and everything that happens inside the circle — published every Monday.
+            <p className="text-white/40 text-base font-medium max-w-xl leading-relaxed italic">
+              Where Legends Are Roasted.
             </p>
           </div>
         </div>
       </div>
 
       {/* ── Filters + Stats bar ── */}
-      <div className="relative z-10 border-t border-white/[0.06]"
-        style={{ background: "rgba(7,17,31,0.8)", backdropFilter: "blur(16px)" }}
+      <div className="theme-static-dark relative z-10 border-t border-white/[0.06]"
+        style={{ background: "var(--color-jcc-blue)", backdropFilter: "blur(16px)" }}
       >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4">
           <div className="flex flex-wrap items-center gap-3">
             {/* Filter icon */}
-            <Filter className="w-3.5 h-3.5 text-white/20 flex-shrink-0" />
+            <Filter className="w-3.5 h-3.5 text-blue-300/40 flex-shrink-0" />
 
             {/* Tag buttons */}
             {allTags.map((tag) => {

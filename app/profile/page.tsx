@@ -108,7 +108,7 @@ export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sign-Up Mode States
-  const [portalMode, setPortalMode] = useState<"login" | "signup">("login");
+  const [portalMode, setPortalMode] = useState<"login" | "signup">("signup");
   const [signupFormData, setSignupFormData] = useState({ name: "", phone: "", cricket_role: "all-rounder" });
   const [signupStatus, setSignupStatus] = useState<"idle" | "pending_approval" | "error">("idle");
   const [signupError, setSignupError] = useState("");
@@ -277,6 +277,12 @@ export default function ProfilePage() {
     e.preventDefault();
     setSignupError("");
     setSignupStatus("idle");
+
+    if (!signupAvatarFile) {
+      setSignupAvatarError("Profile photo is required.");
+      setSignupStatus("error");
+      return;
+    }
 
     try {
       setIsSubmittingSignup(true);
@@ -585,7 +591,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen pt-36 pb-20 relative overflow-hidden hero-gradient">
+    <div className="min-h-screen page-top pb-20 relative overflow-hidden hero-gradient">
       {/* Visual background layers */}
       <div className="absolute inset-0 stadium-glow opacity-50 z-0 pointer-events-none" />
       <div className="absolute inset-0 noise-overlay opacity-20 pointer-events-none z-0" />
@@ -668,7 +674,7 @@ export default function ProfilePage() {
                 className="w-full grid grid-cols-1 lg:grid-cols-12 gap-14 lg:gap-10 items-center"
               >
                 {/* LEFT COLUMN — institutional story: what membership is, what it unlocks */}
-                <div className="lg:col-span-7 lg:pr-4">
+                <div className="order-2 lg:order-1 lg:col-span-7 lg:pr-4">
                   <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/[0.04] border border-white/10 mb-7">
                     <ShieldCheck className="w-3.5 h-3.5 text-jcc-accent" />
                     <span className="text-[10px] font-black text-white/50 tracking-[0.25em] uppercase">
@@ -732,7 +738,7 @@ export default function ProfilePage() {
                 </div>
 
                 {/* RIGHT COLUMN — the invitation card */}
-                <div className="lg:col-span-5">
+                <div className="order-1 lg:order-2 lg:col-span-5">
                 <div className="premium-card portal-invite-card p-10 sm:p-12 md:p-14 relative overflow-hidden">
 
                   {/* Glassmorphic stadium details */}
@@ -833,13 +839,13 @@ export default function ProfilePage() {
                               >
                                 {isLoading ? (
                                   <>
-                                    <Loader2 className="w-4 h-4 animate-spin text-black" />
+                                    <Loader2 className="w-4 h-4 animate-spin text-[#FFFFFF]" />
                                     <span>Searching Registry...</span>
                                   </>
                                 ) : (
                                   <>
                                     <span>Continue</span>
-                                    <ArrowRight className="w-4 h-4 text-black" />
+                                    <ArrowRight className="w-4 h-4 text-[#FFFFFF]" />
                                   </>
                                 )}
                               </button>
@@ -903,12 +909,12 @@ export default function ProfilePage() {
                                 >
                                   {isLoading ? (
                                     <>
-                                      <Loader2 className="w-4 h-4 animate-spin text-black" />
+                                      <Loader2 className="w-4 h-4 animate-spin text-[#FFFFFF]" />
                                       <span>Securing Credentials...</span>
                                     </>
                                   ) : (
                                     <>
-                                      <ShieldCheck className="w-4 h-4 text-black" />
+                                      <ShieldCheck className="w-4 h-4 text-[#FFFFFF]" />
                                       <span>Verify Identity</span>
                                     </>
                                   )}
@@ -1069,7 +1075,7 @@ export default function ProfilePage() {
 
                         {/* Profile Photo */}
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase text-white/40 tracking-wider">Profile Photo (Optional)</label>
+                          <label className="text-[10px] font-black uppercase text-white/40 tracking-wider">Profile Photo <span className="text-jcc-ball-red">*</span></label>
                           <div className="flex items-center gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/10 hover:border-white/20 transition-all duration-300">
                             <div className="relative w-14 h-14 rounded-full overflow-hidden bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
                               {isSignupOptimizing ? (
@@ -1128,7 +1134,7 @@ export default function ProfilePage() {
                         >
                           {isSubmittingSignup ? (
                             <>
-                              <Loader2 className="w-4 h-4 animate-spin text-black" />
+                              <Loader2 className="w-4 h-4 animate-spin text-[#FFFFFF]" />
                               <span>
                                 {signupUploadStage === "optimizing" && "Optimizing Photo..."}
                                 {signupUploadStage === "uploading" && `Uploading... ${signupUploadProgress}%`}
@@ -1138,7 +1144,7 @@ export default function ProfilePage() {
                             </>
                           ) : (
                             <>
-                              <Send className="w-4 h-4 text-black" />
+                              <Send className="w-4 h-4 text-[#FFFFFF]" />
                               <span>Submit Membership Request</span>
                             </>
                           )}
@@ -1436,12 +1442,12 @@ export default function ProfilePage() {
                         >
                           {isSaving ? (
                             <>
-                              <Loader2 className="w-4 h-4 animate-spin text-black" />
+                              <Loader2 className="w-4 h-4 animate-spin text-[#FFFFFF]" />
                               <span>Saving Dossier...</span>
                             </>
                           ) : (
                             <>
-                              <Save className="w-4 h-4 text-black" />
+                              <Save className="w-4 h-4 text-[#FFFFFF]" />
                               <span>Save Profile</span>
                             </>
                           )}

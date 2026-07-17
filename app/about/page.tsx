@@ -182,7 +182,7 @@ export default function AboutPage() {
   const executiveCommittee = committee.filter((m) => m.is_core_committee || m.is_exec_committee);
 
   return (
-    <div className="min-h-screen pt-36 pb-24 relative overflow-hidden hero-gradient">
+    <div className="min-h-screen page-top pb-24 relative overflow-hidden hero-gradient">
       <div className="absolute inset-0 stadium-glow opacity-50 z-0" />
       <div className="absolute inset-0 noise-overlay opacity-20 pointer-events-none z-0" />
 

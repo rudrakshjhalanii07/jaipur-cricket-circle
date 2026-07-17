@@ -11,19 +11,19 @@ function LiveTicker({ items }: { items: string[] }) {
   const doubled = [...items, ...items];
   return (
     <div
-      className="theme-static-dark relative overflow-hidden border-y border-jcc-accent/15"
-      style={{ background: "var(--color-jcc-blue)" }}
+      className="relative overflow-hidden border-y border-jcc-accent/15"
+      style={{ background: "var(--color-jcc-navy-light)" }}
     >
       <div className="flex items-center" style={{ minHeight: "36px" }}>
-        <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-white/[0.05] border-r border-white/10 z-10">
-          <span className="text-[9px] font-black uppercase tracking-[0.25em] text-jcc-accent">LATEST ISSUE</span>
+        <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-jcc-blue/5 border-r border-jcc-blue/10 z-10">
+          <span className="text-[9px] font-black uppercase tracking-[0.25em] text-jcc-accent-dark">LATEST ISSUE</span>
         </div>
         <div className="flex-1 overflow-hidden relative">
           <div className="animate-ticker-scroll whitespace-nowrap">
             {doubled.map((item, i) => (
-              <span key={i} className="inline-flex items-center gap-2 px-8 text-[11px] font-black text-white/60 uppercase tracking-wide">
+              <span key={i} className="inline-flex items-center gap-2 px-8 text-[11px] font-black text-jcc-blue/60 uppercase tracking-wide">
                 {item}
-                <span className="inline-block w-px h-3 bg-white/15 mx-2" />
+                <span className="inline-block w-px h-3 bg-jcc-blue/15 mx-2" />
               </span>
             ))}
           </div>
@@ -131,34 +131,19 @@ function EditorialCard({ article, index }: { article: Article; index: number }) 
           }`}
           style={{ background: royal ? "linear-gradient(160deg, var(--color-jcc-blue) 0%, var(--color-jcc-blue-deep) 100%)" : "#FFFFFF" }}
         >
-          <div className="relative aspect-[16/9] overflow-hidden flex-shrink-0">
-            <Image
-              src={article.image_url || "https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=600&q=65&fm=webp"}
-              alt={article.title}
-              fill
-              sizes="(max-width: 768px) 100vw, 50vw"
-              className="object-cover group-hover:scale-105 transition-transform duration-700"
-            />
-            <div className={`absolute inset-0 bg-linear-to-t via-transparent to-transparent ${royal ? "from-jcc-blue-deep" : "from-white"}`} />
-            <div className="absolute top-3 left-3">
+          <div className="p-3.5 flex flex-col flex-1">
+            <div className="flex items-center gap-2 mb-1.5">
               <CategoryBadge category={article.category} />
-            </div>
-          </div>
-          <div className="p-6 flex flex-col flex-1">
-            <div className="flex items-center gap-2 mb-3">
               <span className={`text-[8px] font-black uppercase tracking-[0.3em] ${royal ? "text-white/40" : "text-jcc-blue/40"}`}>
                 {new Date(article.published_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
               </span>
             </div>
-            <h3 className={`text-xl font-black uppercase tracking-tight leading-tight mb-3 line-clamp-2 transition-colors duration-300 ${
+            <h3 className={`text-base font-black uppercase tracking-tight leading-tight mb-1.5 line-clamp-1 transition-colors duration-300 ${
               royal ? "text-white group-hover:text-jcc-accent" : "text-jcc-blue group-hover:text-jcc-accent-dark"
             }`}>
               {article.title}
             </h3>
-            <p className={`text-[13px] font-medium leading-relaxed line-clamp-2 flex-1 italic mb-5 ${royal ? "text-white/55" : "text-jcc-blue/55"}`}>
-              {article.excerpt}
-            </p>
-            <div className={`flex items-center justify-between pt-4 border-t ${royal ? "border-white/10" : "border-jcc-blue/10"}`}>
+            <div className={`flex items-center justify-between pt-2 border-t ${royal ? "border-white/10" : "border-jcc-blue/10"}`}>
               <span className={`text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 ${royal ? "text-jcc-accent" : "text-jcc-accent-dark"}`}>
                 Read More <ChevronRight className="w-3 h-3" />
               </span>
@@ -184,7 +169,7 @@ export default function BoundaryBanterSection({ articles, tickerItems }: Boundar
   return (
     <section
       id="boundary-banter"
-      className="relative overflow-hidden section-bg-navy"
+      className="theme-static-dark relative overflow-hidden section-bg-royal"
     >
       <div className="absolute top-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-jcc-accent/20 to-transparent" />
 
@@ -196,13 +181,13 @@ export default function BoundaryBanterSection({ articles, tickerItems }: Boundar
                 <Newspaper className="w-4 h-4 text-jcc-accent" />
                 <span className="text-[10px] font-black uppercase tracking-[0.5em] text-jcc-accent">The Circle Journal</span>
               </div>
-              <span className="w-px h-4 bg-jcc-blue/15" />
-              <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-jcc-blue/40">UPDATED MONDAYS</span>
+              <span className="w-px h-4 bg-white/15" />
+              <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-white/40">UPDATED MONDAYS</span>
             </div>
-            <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black text-jcc-blue tracking-tighter uppercase italic leading-none mb-4">
+            <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white tracking-tighter uppercase italic leading-none mb-4">
               Boundary <span className="text-gradient-cyan">Banter</span>
             </h2>
-            <p className="text-jcc-blue/50 text-base font-medium max-w-2xl leading-relaxed">
+            <p className="text-white/50 text-base font-medium max-w-2xl leading-relaxed">
               Unfiltered match reports, tactical dispatches, and editorial investigations from inside the circle.
             </p>
           </AnimateIn>

@@ -132,6 +132,29 @@ html {
   scroll-padding-top: 5.5rem; /* Offsets sticky navbar (h-16 or h-20) perfectly on all viewports */
 }
 
+/* ---- Page-top clearance (site-wide) ----
+   Navbar.tsx is `position: fixed`, so it takes zero space in normal flow —
+   every page's root element is responsible for its own top clearance, or
+   its first heading renders underneath the nav. Height is the nav row
+   (h-16/h-20 = 64px/80px) plus LiveTicker.tsx's bar (h-9 = 36px) in its
+   unscrolled state: 100px mobile, 116px sm+. This is the ONE place that
+   number is decided — every page should use `.page-top` instead of a
+   hand-picked pt-* value, so a future navbar height change is a single-line
+   fix instead of a repo-wide hunt. 9rem (144px) covers the tallest
+   (unscrolled, sm+) navbar state plus a small deliberate gap, matching the
+   pt-36 convention most pages had already independently converged on. */
+.page-top {
+  padding-top: 9rem;
+}
+
+/* Views that hide the navbar entirely (immersive full-screen phases, e.g.
+   the tournament captains/toss phases and the auction hall) have nothing to
+   clear and should use this instead — a small breathing-room gap, not a
+   full navbar-height offset. */
+.page-top-none {
+  padding-top: 2.5rem;
+}
+
 body {
   background-color: var(--jcc-bg);
   background-image:
@@ -290,7 +313,7 @@ body::before {
 .id-card:hover {
   border-color: rgba(212, 175, 55, 0.32);
   box-shadow:
-    0 26px 50px -22px rgba(18, 35, 63, 0.3),
+    0 18px 34px -24px rgba(18, 35, 63, 0.22),
     inset 0 1px 0 rgba(255, 255, 255, 0.9),
     inset 0 -1px 0 rgba(18, 35, 63, 0.1);
 }
@@ -525,6 +548,174 @@ body::before {
 /* ---- Hero Utilities ---- */
 .hero-gradient {
   background: radial-gradient(ellipse at 50% 30%, var(--color-jcc-navy-light) 0%, var(--jcc-bg) 70%);
+}
+
+.jcc-luxury-hero {
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse at 50% 34%, rgba(255, 255, 255, 0.92) 0%, rgba(252, 248, 238, 0.78) 42%, rgba(245, 239, 225, 0.56) 100%),
+    radial-gradient(ellipse at 50% 115%, rgba(214, 170, 67, 0.08) 0%, transparent 58%),
+    linear-gradient(180deg, #fffdf7 0%, #fcfbf8 50%, #f6f1e6 100%);
+}
+
+.jcc-luxury-hero::before,
+.jcc-luxury-hero::after,
+.luxury-hero-rays,
+.luxury-hero-rays::before,
+.luxury-hero-rays::after,
+.luxury-hero-dust,
+.luxury-hero-dust::before,
+.luxury-hero-dust::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.jcc-luxury-hero::before {
+  inset: -18% -28% -8%;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 42% 78% at -8% 42%, rgba(255, 247, 230, 0.18) 0%, rgba(255, 247, 230, 0.13) 22%, rgba(255, 247, 230, 0.05) 48%, transparent 72%),
+    radial-gradient(ellipse 42% 78% at 108% 42%, rgba(255, 247, 230, 0.17) 0%, rgba(255, 247, 230, 0.12) 22%, rgba(255, 247, 230, 0.05) 48%, transparent 72%),
+    radial-gradient(ellipse 54% 36% at 50% 42%, rgba(214, 170, 67, 0.08) 0%, rgba(214, 170, 67, 0.04) 34%, transparent 70%);
+  filter: blur(108px);
+  opacity: 0.94;
+  transform: translate3d(0, 0, 0);
+  animation: luxury-hero-bloom 24s cubic-bezier(.22,.61,.36,1) infinite alternate;
+}
+
+.jcc-luxury-hero::after {
+  inset: 0;
+  z-index: 1;
+  background:
+    radial-gradient(ellipse at center, transparent 42%, rgba(18, 35, 63, 0.08) 100%),
+    repeating-radial-gradient(circle at 18% 24%, rgba(18, 35, 63, 0.035) 0 0.7px, transparent 0.9px 3.8px),
+    repeating-conic-gradient(from 18deg at 50% 50%, rgba(255, 255, 255, 0.02) 0deg 7deg, rgba(18, 35, 63, 0.018) 8deg 11deg, transparent 12deg 17deg);
+  opacity: 0.42;
+  mix-blend-mode: multiply;
+}
+
+.luxury-hero-rays {
+  inset: -12% -8%;
+  overflow: hidden;
+}
+
+.luxury-hero-rays::before,
+.luxury-hero-rays::after {
+  top: 8%;
+  bottom: 2%;
+  width: 58%;
+  z-index: 0;
+  opacity: 0.045;
+  filter: blur(18px);
+  transform: translate3d(0, 0, 0);
+  background: repeating-linear-gradient(
+    18deg,
+    transparent 0 26px,
+    rgba(255, 247, 230, 0.9) 34px 38px,
+    transparent 50px 92px
+  );
+  mask-image: linear-gradient(90deg, #000 0%, rgba(0, 0, 0, 0.72) 26%, transparent 82%);
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, rgba(0, 0, 0, 0.72) 26%, transparent 82%);
+  animation: luxury-hero-rays-drift 28s cubic-bezier(.22,.61,.36,1) infinite alternate;
+}
+
+.luxury-hero-rays::before {
+  left: -17%;
+  transform: rotate(7deg) translate3d(0, 0, 0);
+}
+
+.luxury-hero-rays::after {
+  right: -17%;
+  transform: scaleX(-1) rotate(7deg) translate3d(0, 0, 0);
+}
+
+.luxury-hero-dust {
+  inset: 14% 0 6%;
+  opacity: 0.9;
+  transform: translate3d(0, 0, 0);
+}
+
+.luxury-hero-dust::before,
+.luxury-hero-dust::after {
+  left: 0;
+  top: 0;
+  width: 2px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(214, 170, 67, 0.09);
+  filter: blur(1.6px);
+  transform: translate3d(0, 0, 0);
+  animation: luxury-dust-rise 26s cubic-bezier(.22,.61,.36,1) infinite alternate;
+}
+
+.luxury-hero-dust::before {
+  box-shadow:
+    6vw 53vh 0 rgba(214, 170, 67, 0.08),
+    9vw 36vh 0 rgba(255, 247, 230, 0.07),
+    12vw 62vh 0 rgba(214, 170, 67, 0.06),
+    15vw 47vh 0 rgba(18, 35, 63, 0.04),
+    18vw 68vh 0 rgba(214, 170, 67, 0.08),
+    21vw 41vh 0 rgba(255, 247, 230, 0.08),
+    25vw 58vh 0 rgba(214, 170, 67, 0.05),
+    28vw 31vh 0 rgba(18, 35, 63, 0.04),
+    32vw 66vh 0 rgba(214, 170, 67, 0.07),
+    36vw 49vh 0 rgba(255, 247, 230, 0.08),
+    40vw 73vh 0 rgba(214, 170, 67, 0.06),
+    44vw 39vh 0 rgba(18, 35, 63, 0.04),
+    48vw 61vh 0 rgba(214, 170, 67, 0.08),
+    52vw 44vh 0 rgba(255, 247, 230, 0.07),
+    56vw 70vh 0 rgba(214, 170, 67, 0.06),
+    60vw 34vh 0 rgba(18, 35, 63, 0.04),
+    64vw 55vh 0 rgba(214, 170, 67, 0.08),
+    68vw 76vh 0 rgba(255, 247, 230, 0.06),
+    72vw 46vh 0 rgba(214, 170, 67, 0.07),
+    76vw 64vh 0 rgba(18, 35, 63, 0.04),
+    80vw 37vh 0 rgba(214, 170, 67, 0.08),
+    84vw 59vh 0 rgba(255, 247, 230, 0.07),
+    88vw 69vh 0 rgba(214, 170, 67, 0.06),
+    93vw 51vh 0 rgba(18, 35, 63, 0.04);
+}
+
+.luxury-hero-dust::after {
+  width: 3px;
+  height: 3px;
+  filter: blur(2.5px);
+  animation-duration: 30s;
+  animation-delay: -8s;
+  box-shadow:
+    4vw 71vh 0 rgba(214, 170, 67, 0.05),
+    8vw 44vh 0 rgba(255, 247, 230, 0.08),
+    14vw 77vh 0 rgba(214, 170, 67, 0.07),
+    19vw 55vh 0 rgba(214, 170, 67, 0.04),
+    24vw 38vh 0 rgba(255, 247, 230, 0.07),
+    30vw 79vh 0 rgba(214, 170, 67, 0.08),
+    35vw 52vh 0 rgba(18, 35, 63, 0.04),
+    41vw 68vh 0 rgba(214, 170, 67, 0.06),
+    47vw 33vh 0 rgba(255, 247, 230, 0.08),
+    53vw 78vh 0 rgba(214, 170, 67, 0.07),
+    59vw 57vh 0 rgba(18, 35, 63, 0.04),
+    65vw 40vh 0 rgba(255, 247, 230, 0.07),
+    71vw 72vh 0 rgba(214, 170, 67, 0.08),
+    77vw 50vh 0 rgba(214, 170, 67, 0.05),
+    83vw 82vh 0 rgba(255, 247, 230, 0.06),
+    89vw 43vh 0 rgba(214, 170, 67, 0.07),
+    95vw 63vh 0 rgba(18, 35, 63, 0.04);
+}
+
+@keyframes luxury-hero-bloom {
+  from { opacity: 0.8; transform: translate3d(0, 0, 0); }
+  to { opacity: 1; transform: translate3d(0, -10px, 0); }
+}
+
+@keyframes luxury-hero-rays-drift {
+  from { opacity: 0.032; }
+  to { opacity: 0.055; }
+}
+
+@keyframes luxury-dust-rise {
+  from { transform: translate3d(0, 8px, 0); opacity: 0.72; }
+  to { transform: translate3d(0, -20px, 0); opacity: 0.96; }
 }
 
 .noise-overlay {
@@ -887,6 +1078,7 @@ body::before {
 .hero-enter-d1 { animation-delay: 0.08s; }
 .hero-enter-d2 { animation-delay: 0.18s; }
 .hero-enter-d3 { animation-delay: 0.28s; }
+.hero-enter-d4 { animation-delay: 0.38s; }
 
 /* Loader progress bar — CSS-only scaleX so the animation runs on the
    compositor thread with no JS involvement after the loader mounts. */
@@ -897,6 +1089,13 @@ body::before {
 
 @media (prefers-reduced-motion: reduce) {
   .hero-enter { animation: none; opacity: 1; }
+  .jcc-luxury-hero::before,
+  .luxury-hero-rays::before,
+  .luxury-hero-rays::after,
+  .luxury-hero-dust::before,
+  .luxury-hero-dust::after {
+    animation: none;
+  }
 }
 
 /* ── Scroll-triggered fade-in (Server Component sections) ──────────────────
@@ -917,6 +1116,74 @@ body::before {
 }
 @media (prefers-reduced-motion: reduce) {
   .anim-fade-up { opacity: 1; transform: none; transition: none; }
+}
+
+/* ── Franchise logo pop-in — nested inside an AnimateIn wrapper; triggers
+   off the ancestor's .anim-visible so each crest gets its own flourish. ── */
+.franchise-logo {
+  opacity: 0;
+  transform: scale(0.35) rotate(-12deg);
+  transition: opacity 0.7s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.anim-visible .franchise-logo {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .franchise-logo { opacity: 1; transform: none; transition: none; }
+}
+
+/* ---- Auction — Raise Paddle ----
+   A sibling of .btn-vibrant-blue's navy-fill/gold-border family, not a new
+   visual language: same shape language, restrained gold glow instead of a
+   loud "bid now" gamified button. Cooldown state dims the paddle and shows
+   a thin radial ring (drawn via conic-gradient mask) that sweeps closed as
+   the brief re-arm window elapses, so repeated clicks read as "the paddle
+   is being lowered", not a disabled dead button. */
+.auction-paddle {
+  position: relative;
+  background: var(--color-jcc-blue);
+  color: #FFFFFF !important;
+  font-weight: 900;
+  border-radius: 1rem;
+  border: 1.5px solid var(--color-jcc-accent);
+  padding: 0.85rem 1.75rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s ease, opacity 0.35s ease;
+  box-shadow: 0 4px 16px rgba(18, 35, 63, 0.18);
+}
+.auction-paddle:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: var(--color-jcc-accent-highlight);
+  box-shadow: 0 10px 28px rgba(18, 35, 63, 0.25), 0 0 22px color-mix(in srgb, var(--color-jcc-accent) 35%, transparent);
+}
+.auction-paddle:active:not(:disabled) {
+  transform: translateY(0px) scale(0.98);
+  box-shadow: 0 3px 10px rgba(18, 35, 63, 0.2);
+}
+.auction-paddle:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  border-color: color-mix(in srgb, var(--color-jcc-accent) 40%, transparent);
+}
+@keyframes auction-paddle-cooldown-sweep {
+  from { background: conic-gradient(color-mix(in srgb, var(--color-jcc-accent) 70%, transparent) 0deg, transparent 0deg); }
+  to   { background: conic-gradient(color-mix(in srgb, var(--color-jcc-accent) 70%, transparent) 360deg, transparent 360deg); }
+}
+.auction-paddle-cooldown-ring {
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: auction-paddle-cooldown-sweep linear forwards;
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), black calc(100% - 3px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), black calc(100% - 3px));
+}
+@media (prefers-reduced-motion: reduce) {
+  .auction-paddle, .auction-paddle-cooldown-ring { transition: none; animation: none; }
 }
 
 /* Editorial divider that "draws" itself left-to-right once its

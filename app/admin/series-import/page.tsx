@@ -690,7 +690,7 @@ export default function SeriesImportPage() {
 
   if (saveResult) {
     return (
-      <div className="min-h-screen bg-[var(--jcc-bg)] px-4 pt-32 pb-16">
+      <div className="min-h-screen bg-[var(--jcc-bg)] px-4 page-top pb-16">
         <div className="max-w-2xl mx-auto space-y-6">
           <div className="flex items-center gap-3">
             <CheckCircle className="w-8 h-8 text-jcc-accent" />
@@ -729,7 +729,7 @@ export default function SeriesImportPage() {
 
   return (
     <div className="min-h-screen bg-[var(--jcc-bg)] text-jcc-blue">
-      <div className="max-w-4xl mx-auto px-4 pt-36 pb-12 space-y-6">
+      <div className="max-w-4xl mx-auto px-4 page-top pb-12 space-y-6">
 
         {/* Header */}
         <div className="flex items-center gap-4">

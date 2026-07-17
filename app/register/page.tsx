@@ -597,7 +597,7 @@ export default function RegisterPage() {
     const headlineWords = ["THE", "NEXT", "SUNDAY", "BATTLE", "AWAITS"];
 
     return (
-      <div className="min-h-screen pt-36 pb-24 relative overflow-hidden hero-gradient flex items-center justify-center">
+      <div className="min-h-screen page-top pb-24 relative overflow-hidden hero-gradient flex items-center justify-center">
         <div className="absolute inset-0 stadium-glow opacity-40 z-0" />
         <div className="absolute inset-0 noise-overlay opacity-[0.08] pointer-events-none z-0" />
 
@@ -781,7 +781,7 @@ export default function RegisterPage() {
   const sc = statusConfig[currentStatus as keyof typeof statusConfig];
 
   return (
-    <div className="min-h-screen pt-36 pb-20 relative overflow-hidden hero-gradient">
+    <div className="min-h-screen page-top pb-20 relative overflow-hidden hero-gradient">
       {/* Cinematic Background Elements */}
       <div className="absolute inset-0 stadium-glow opacity-50 z-0" />
       <div className="absolute inset-0 noise-overlay opacity-20 pointer-events-none z-0" />

@@ -18,7 +18,9 @@
       "Bash(curl -sf http://localhost:3003)",
       "Bash(break)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3002/toss)",
-      "Bash(npm ls *)"
+      "Bash(npm ls *)",
+      "Bash(node -e \"const l=require\\('lucide-react'\\); console.log\\(['Gavel','Hammer','Timer','TrendingUp','Wallet','Coins','ChevronRight','Sparkles'].map\\(n=>n+':'+\\(typeof l[n]\\)\\).join\\('\\\\n'\\)\\)\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/auction)"
     ],
     "additionalDirectories": [
       "/Users/rudrakshjhalani/.claude",

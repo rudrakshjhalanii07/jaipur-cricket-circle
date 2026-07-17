@@ -5,6 +5,7 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import LazyFloatingWhatsApp from "@/components/LazyFloatingWhatsApp";
+import LazyFloatingMatchButton from "@/components/LazyFloatingMatchButton";
 import LoaderWrapper from "@/components/LoaderWrapper";
 import PageTransition from "@/components/PageTransition";
 import { Providers } from "@/components/Providers";
@@ -13,6 +14,7 @@ import ScrollSystem from "@/components/ScrollSystem";
 import SectionProgress from "@/components/SectionProgress";
 import DeferredStyles from "@/components/DeferredStyles";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getClubStatistics } from "@/lib/statistics";
 
 // Cached server-side fetch — same 5-min TTL as the homepage.  Avoids a live
 // Supabase query on every request while keeping the ticker data fresh.
@@ -30,6 +32,23 @@ const getNavbarMatch = unstable_cache(
     return data ?? null;
   },
   ["navbar-match"],
+  { revalidate: 300 }
+);
+
+// Powers the site-wide floating "match details" button (any page, not just
+// the homepage) — registrations for whatever match getNavbarMatch resolves.
+const getNavbarMatchRegistrations = unstable_cache(
+  async (matchId: string) => {
+    const { data } = await supabaseAdmin
+      .from("registrations")
+      .select("id, name, status")
+      .eq("match_id", matchId)
+      .order("created_at", { ascending: true });
+    return ((data ?? []) as { id: string; name: string; status: string }[]).filter(
+      (r) => r.status === "registered"
+    );
+  },
+  ["navbar-match-registrations"],
   { revalidate: 300 }
 );
 
@@ -75,7 +94,14 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const nextMatch = await getNavbarMatch();
+  const [nextMatch, clubStats] = await Promise.all([
+    getNavbarMatch(),
+    getClubStatistics(),
+  ]);
+  const registeredPlayers = nextMatch
+    ? await getNavbarMatchRegistrations(nextMatch.id)
+    : [];
+
   return (
     <html
       lang="en"
@@ -99,6 +125,12 @@ export default async function RootLayout({
                 <PageTransition>{children}</PageTransition>
               </main>
               <Footer />
+              <LazyFloatingMatchButton
+                match={nextMatch}
+                confirmedCount={registeredPlayers.length}
+                registeredPlayers={registeredPlayers}
+                stats={{ totalMembers: clubStats.activeMembers, matchesPlayed: clubStats.matchesPlayed }}
+              />
               <LazyFloatingWhatsApp />
               <SectionProgress />
             </LoaderWrapper>

@@ -27,7 +27,7 @@ export default function NotFound() {
   };
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-start pt-32 sm:pt-40 pb-20 overflow-hidden px-4 sm:px-6 lg:px-8 bg-jcc-bg">
+    <div className="relative min-h-screen flex flex-col items-center justify-start page-top pb-20 overflow-hidden px-4 sm:px-6 lg:px-8 bg-jcc-bg">
       {/* Stadium ambient light effect */}
       <div className="stadium-glow opacity-60 pointer-events-none" />
       

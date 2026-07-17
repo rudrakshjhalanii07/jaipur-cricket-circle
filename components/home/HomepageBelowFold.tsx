@@ -1,28 +1,20 @@
 // Server Component — all below-fold sections are Server Components and carry
 // zero client JS themselves. Only their small client islands (AnimateIn,
 // MemberPhoto, ScorelineCard) are downloaded by the browser.
-import RivalrySection from "./RivalrySection";
-import CommunitySection from "./CommunitySection";
+import GallerySection from "./GallerySection";
+import StatsSection from "./StatsSection";
+import FranchiseSection from "./FranchiseSection";
+import OurStorySection from "./OurStorySection";
 import BoundaryBanterSection from "./BoundaryBanterSection";
 import WhyJCCSection from "./WhyJCCSection";
-import FinalCTASection from "./FinalCTASection";
-import type { CommunityMember, ArticleData, RecentMatch } from "@/app/page";
-import type { RivalrySeason } from "@/lib/rivalry";
+import type { ArticleData } from "@/app/page";
 
 interface HomepageBelowFoldProps {
-  rivalry: {
-    activeSeason: RivalrySeason;
-    recentMatches: RecentMatch[];
-    latestMatch: RecentMatch | null;
-  };
-  community: {
-    members: CommunityMember[];
-    stats: {
-      activePlayers: string;
-      sundayGames: string;
-      sundaysActive: string;
-      communityLove: string;
-    };
+  stats: {
+    activePlayers: string;
+    sundayGames: string;
+    sundaysActive: string;
+    communityLove: string;
   };
   chewvana: {
     articles: ArticleData[];
@@ -31,17 +23,17 @@ interface HomepageBelowFoldProps {
 }
 
 export default function HomepageBelowFold({
-  rivalry,
-  community,
+  stats,
   chewvana,
 }: HomepageBelowFoldProps) {
   return (
     <>
-      <RivalrySection {...rivalry} />
-      <CommunitySection {...community} />
+      <GallerySection />
+      <StatsSection stats={stats} />
+      <FranchiseSection />
+      <OurStorySection />
       <BoundaryBanterSection {...chewvana} />
       <WhyJCCSection />
-      <FinalCTASection />
     </>
   );
 }

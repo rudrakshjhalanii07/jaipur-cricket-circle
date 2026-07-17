@@ -10,16 +10,15 @@ import LiveTicker, { type TickerMatch } from "./LiveTicker";
 
 const navLinks = [
   { href: "/", label: "Home" },
+  { href: "/members", label: "Members" },
   { href: "/boundary-banter", label: "Boundary Banter" },
   { href: "/rivalry", label: "Rivalry" },
   { href: "/about", label: "About" },
 ];
 
 const menuLinks = [
-  { href: "/members", label: "Members" },
   { href: "/tournament", label: "Tournament" },
   { href: "/toss", label: "Toss" },
-  { href: "/auction", label: "Auction" },
   { href: "/register", label: "Register" },
   { href: "/profile", label: "Profile" },
 ];

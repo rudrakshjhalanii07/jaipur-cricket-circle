@@ -3,16 +3,7 @@
 import { useRef } from "react";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import Link from "next/link";
-import {
-  ChevronRight,
-  Users,
-  CalendarCheck,
-  ChevronDown,
-  Trophy,
-  Calendar,
-  Heart,
-} from "lucide-react";
-import { fadeUp } from "@/lib/animations";
+import { ChevronRight, ChevronDown } from "lucide-react";
 
 interface HeroStats {
   activePlayers: string;
@@ -37,9 +28,6 @@ export default function HeroSection({ stats }: { stats: HeroStats }) {
   const textX = useTransform(springX, [-0.5, 0.5], ["-8px", "8px"]);
   const textY = useTransform(springY, [-0.5, 0.5], ["-8px", "8px"]);
 
-  const cardX = useTransform(springX, [-0.5, 0.5], ["-14px", "14px"]);
-  const cardY = useTransform(springY, [-0.5, 0.5], ["-14px", "14px"]);
-
   const handleMouseMove = (e: React.MouseEvent) => {
     if (isFinePtrRef.current === null) {
       isFinePtrRef.current = window.matchMedia("(pointer: fine)").matches;
@@ -61,28 +49,21 @@ export default function HeroSection({ stats }: { stats: HeroStats }) {
     <section
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      className="relative min-h-[92vh] flex items-center justify-center overflow-hidden bg-jcc-navy-deep"
+      className="jcc-luxury-hero relative min-h-[92vh] flex items-center justify-center overflow-hidden bg-jcc-navy-deep"
     >
-      {/* Flat, solid background — no gradient fades or glow spotlights.
-          A thin subtle texture is kept for material feel, not color blending. */}
-      <div className="absolute inset-0 dot-pattern opacity-[0.08] pointer-events-none z-0" />
+      <div className="luxury-hero-rays absolute inset-0 pointer-events-none z-0" />
+      <div className="luxury-hero-dust absolute inset-0 pointer-events-none z-0" />
 
       {/* ============================================================
          CONTENT
          ============================================================ */}
-      <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 lg:pt-40 pb-16">
+      <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 page-top pb-16">
         <motion.div style={{ x: textX, y: textY }} className="text-center max-w-4xl mx-auto">
-          {/* Status Badge */}
-          <div className="mb-8 hero-enter hero-enter-d1 flex justify-center">
-            <div className="inline-flex items-center gap-2.5 px-4.5 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-jcc-accent opacity-45" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-jcc-accent" />
-              </span>
-              <span className="text-[10px] font-extrabold text-white/80 tracking-[0.25em] uppercase">
-                Est. 2026 &middot; Jaipur&apos;s Elite Cricket Community
-              </span>
-            </div>
+          {/* Tagline */}
+          <div className="hero-enter hero-enter-d2 max-w-xl mx-auto mb-6">
+            <blockquote className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white italic tracking-wide leading-tight">
+              India&apos;s most loved box cricket community.
+            </blockquote>
           </div>
 
           {/* LCP element — no animation, paints immediately at full opacity */}
@@ -92,87 +73,40 @@ export default function HeroSection({ stats }: { stats: HeroStats }) {
             <span className="text-gradient-cyan">Circle</span>
           </h1>
 
-          {/* Tagline */}
-          <div className="hero-enter hero-enter-d2 max-w-xl mx-auto">
-            <blockquote className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white italic tracking-wide leading-tight">
-              &ldquo;Sunday isn&apos;t a day. It&apos;s <span className="text-gradient-cyan">match day</span>.&rdquo;
-            </blockquote>
-            <p className="mt-4 text-sm font-semibold tracking-wider text-jcc-text-muted uppercase">
-              Jaipur&apos;s premier social brotherhood built on weekly competition.
-            </p>
-          </div>
+          <p className="hero-enter hero-enter-d2 max-w-xl mx-auto text-sm font-semibold tracking-wider text-jcc-text-muted uppercase">
+            Play. Connect. Thrive.
+          </p>
 
-          {/* CTA Buttons */}
-          <div className="mt-10 sm:mt-12 flex flex-col sm:flex-row items-center justify-center gap-4 hero-enter hero-enter-d3">
+          {/* CTA Button */}
+          <div className="mt-10 sm:mt-12 flex items-center justify-center hero-enter hero-enter-d3">
             <Link
               href="/register"
               className="w-full sm:w-auto btn-vibrant-blue group text-sm font-black relative overflow-hidden"
             >
               <span className="relative z-10 flex items-center justify-center gap-2">
-                <CalendarCheck className="w-4.5 h-4.5" />
-                REGISTER FOR NEXT MATCH
+                Become a Member
                 <ChevronRight className="w-4.5 h-4.5 group-hover:translate-x-1 transition-transform" />
               </span>
             </Link>
-            <Link href="/members" className="w-full sm:w-auto btn-ghost group text-sm font-black">
-              <Users className="w-4.5 h-4.5 text-jcc-accent group-hover:text-jcc-blue group-hover:scale-110 transition-transform" />
-              VIEW SQUAD
-            </Link>
-          </div>
-        </motion.div>
-
-        {/* ============================================================
-           STAT CARDS — navy + white pairing, matching the Rivalry hero motif
-           ============================================================ */}
-        <motion.div
-          style={{ x: cardX, y: cardY }}
-          variants={fadeUp}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          transition={{ delay: 0.5 }}
-          className="relative z-20 mt-16 sm:mt-24 grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-3xl mx-auto"
-        >
-          {/* Navy card */}
-          <div className="theme-static-dark rounded-2xl p-7 border border-jcc-accent/15" style={{ background: "linear-gradient(160deg, var(--color-jcc-blue) 0%, var(--color-jcc-blue-deep) 100%)" }}>
-            <span className="text-[10px] font-black uppercase tracking-[0.25em] text-jcc-accent">Season Registry</span>
-            <div className="mt-5 grid grid-cols-2 gap-6">
-              <div>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Users className="w-3.5 h-3.5 text-jcc-accent" />
-                </div>
-                <div className="text-3xl font-black text-white">{stats.activePlayers}</div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-white/50 mt-0.5">Active Members</div>
-              </div>
-              <div>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Trophy className="w-3.5 h-3.5 text-jcc-accent" />
-                </div>
-                <div className="text-3xl font-black text-white">{stats.sundayGames}</div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-white/50 mt-0.5">Matches Played</div>
-              </div>
-            </div>
           </div>
 
-          {/* White card */}
-          <div className="premium-card rounded-2xl p-7">
-            <span className="text-[10px] font-black uppercase tracking-[0.25em] text-jcc-accent-dark">Community Pulse</span>
-            <div className="mt-5 grid grid-cols-2 gap-6">
-              <div>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-jcc-accent-dark" />
-                </div>
-                <div className="text-3xl font-black text-jcc-blue">{stats.sundaysActive}</div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-jcc-text-muted mt-0.5">Sundays Active</div>
+          {/* Stat strip — fills the dead air below the CTA with proof points */}
+          <div className="hero-enter hero-enter-d4 mt-10 sm:mt-12 grid grid-cols-4 gap-3 sm:gap-6 max-w-xl mx-auto border-t border-jcc-border pt-6">
+            {[
+              { value: stats.activePlayers, label: "Players" },
+              { value: stats.sundayGames, label: "Sunday Games" },
+              { value: stats.sundaysActive, label: "Weekends Active" },
+              { value: stats.communityLove, label: "Community Love" },
+            ].map((stat) => (
+              <div key={stat.label} className="text-center">
+                <p className="font-heading text-xl sm:text-2xl md:text-3xl font-black text-white">
+                  {stat.value}
+                </p>
+                <p className="mt-1 text-[9px] sm:text-[10px] uppercase tracking-[0.12em] font-bold text-jcc-text-muted leading-tight">
+                  {stat.label}
+                </p>
               </div>
-              <div>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Heart className="w-3.5 h-3.5 text-jcc-accent-dark" />
-                </div>
-                <div className="text-3xl font-black text-jcc-blue">{stats.communityLove}</div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-jcc-text-muted mt-0.5">Community Love</div>
-              </div>
-            </div>
+            ))}
           </div>
         </motion.div>
       </div>
