@@ -47,6 +47,30 @@ export function formatLakhs(lakhs: number): string {
   return `₹${lakhs} L`;
 }
 
+// Inverse of formatLakhs(), for every organizer-facing money input (wallet
+// balances, base prices, bid increments, CSV import) so nobody has to type
+// or read a raw lakh integer. "20cr"/"20 Cr"/"20crore" -> 2000 (lakhs);
+// "50l"/"50L"/"50lakh(s)" -> 50; a bare number ("2000") is already lakhs,
+// matching this module's existing storage convention. Strips commas/₹/$ so
+// pasted spreadsheet values ("₹1,20,000") and CSV cells work the same way.
+// Returns null for anything unparseable — callers treat that as a
+// validation error rather than silently coercing to 0/NaN.
+const CRORE_SUFFIX = /^(cr|crore|crores)$/i;
+const LAKH_SUFFIX = /^(l|lakh|lakhs|lac|lacs)$/i;
+
+export function parseMoneyLakhs(input: string): number | null {
+  const cleaned = input.trim().replace(/[,₹$]/g, "");
+  if (!cleaned) return null;
+  const match = cleaned.match(/^([0-9]*\.?[0-9]+)\s*([a-zA-Z]*)$/);
+  if (!match) return null;
+  const [, numberPart, suffix] = match;
+  const value = Number(numberPart);
+  if (!Number.isFinite(value)) return null;
+  if (!suffix || LAKH_SUFFIX.test(suffix)) return Math.round(value);
+  if (CRORE_SUFFIX.test(suffix)) return Math.round(value * 100);
+  return null;
+}
+
 export function validateJccBid(ctx: BidValidationContext): BidValidationResult {
   if (ctx.wallet.budget_remaining < ctx.proposedAmount) {
     return { ok: false, reason: "Team cannot afford this bid" };

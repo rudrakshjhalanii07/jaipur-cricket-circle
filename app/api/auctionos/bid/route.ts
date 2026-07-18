@@ -2,15 +2,13 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getTemplate } from "@/lib/auctionos/core/registry";
 import { fetchAuctionTemplateRow } from "@/lib/auctionos/core/data";
-import type { Auction, AuctionWallet, AuctionLot } from "@/lib/auctionos/core/types";
+import { verifyAdminPassword } from "@/lib/auctionos/core/auth";
+import type { Auction, AuctionWallet, AuctionLot, AuctionCategory } from "@/lib/auctionos/core/types";
 import "@/lib/auctionos/templates";
 
 export async function POST(request: Request) {
   try {
     const password = request.headers.get("x-admin-password");
-    if (!password || password !== process.env.ADMIN_PASSWORD) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     const body = await request.json();
     const { lot_id, wallet_id } = body as {
@@ -43,6 +41,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Auction not found" }, { status: 404 });
     }
 
+    if (!password || !(await verifyAdminPassword((auction as Auction).id, password))) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { data: wallet, error: walletError } = await supabaseAdmin
       .from("auction_wallets")
       .select("*")
@@ -63,8 +65,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unknown template" }, { status: 500 });
     }
 
+    let category: AuctionCategory | null = null;
+    if ((lot as AuctionLot).category_id) {
+      const { data: categoryRow } = await supabaseAdmin
+        .from("auction_categories")
+        .select("*")
+        .eq("id", (lot as AuctionLot).category_id as string)
+        .maybeSingle();
+      category = (categoryRow as AuctionCategory) ?? null;
+    }
+
     const currentBid = (lot as AuctionLot).current_bid ?? (lot as AuctionLot).base_price;
-    const increment = template.bidIncrements.nextIncrement(currentBid, lot as AuctionLot, auction as Auction);
+    const increment = template.bidIncrements.nextIncrement(currentBid, lot as AuctionLot, auction as Auction, category);
     const newBid = currentBid + increment;
 
     const validation = template.validation.validateBid({

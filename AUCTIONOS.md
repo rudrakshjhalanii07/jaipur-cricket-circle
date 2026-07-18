@@ -497,8 +497,15 @@ JSONB columns remain the pressure-release valve for fields guessed wrong.
 | `app/api/auctionos/{start,advance,bid,sold,unsold,cancel,undo-bid,undo-sale}/route.ts` | Generic API routes |
 | `app/api/auctionos/current/route.ts` | Service-role "what's the current auction" read, `access_code` stripped — replaces the anon client's now-removed direct read of `auctions` |
 | `app/api/auctionos/resolve-code/route.ts` | Turns an access code into an auction id (never returns the code itself) — the landing page's "Enter Auction Hall" front door |
-| `app/auctionos/page.tsx` | The SaaS landing — same `HeroBackdrop`/wordmark hallmark as the in-hall hero, with "Enter Auction Hall" / "Prepare Next Auction" as buttons that open a modal (code entry / organizer password) rather than two permanently-open inline forms; no auction details shown |
+| `app/auctionos/page.tsx` | The SaaS landing — "Enter Auction Hall" opens a modal with a Join Code (+ optional Captain Access Key) / Admin Password tab switch; "Prepare Next Auction" routes straight to `/auctionos/new` (Phase 3) |
 | `app/auctionos/hall/page.tsx` | Resolves auction (via `supabaseAdmin`, service role) → template via `module_key`, renders `AuctionExperience` behind `HallAccessGate` |
+| `lib/auctionos/core/auth.ts` | Per-auction credential verification: `hashSecret`, `verifyAdminPassword`, `verifyCaptainKey`, `resolveAuctionByAdminPassword` (Phase 3) |
+| `lib/auctionos/core/dashboard-guard.ts` | `guardAdminAccess`/`guardDraftMutation` — shared admin-password + draft-status gate for every dashboard CRUD route (Phase 3) |
+| `lib/auctionos/wizard/csv.ts` | `papaparse`-based Talent Pool CSV → row mapper, lenient column matching, row-level error reporting (Phase 3) |
+| `app/api/auctionos/draft`, `[id]`, `[id]/{teams,wallet-kinds,lots,categories,captains,begin}`, `resolve-admin`, `resolve-captain`, `upload-logo` | Wizard/dashboard CRUD + credential routes (Phase 3) — `start/route.ts` is removed, superseded by `draft` + the incremental step routes |
+| `app/auctionos/new/page.tsx` | Wizard Step 1: Identity — creates the draft auction, one-time join-code/admin-password reveal (Phase 3) |
+| `app/auctionos/dashboard/[id]/page.tsx` + `components/auctionos/wizard/DashboardShell.tsx` | Steps 2–7 + Begin Auction — client-side bootstrap fetch, progress sidebar, sticky top bar, admin-password resume gate (Phase 3) |
+| `components/auctionos/wizard/steps/*.tsx`, `LogoUpload.tsx`, `JoinCodeCard.tsx` | Franchises/Wallets/Talent Pool/Categories/Captains/Review step UI + shared logo upload and join-code/QR components (Phase 3) |
 
 Note: `blank` has no auction-builder wizard (JCC's is bespoke UI living
 inside `jcc/AuctionExperience.tsx`, not a generic engine piece) — a
@@ -824,25 +831,193 @@ everything to everyone, same as before this rewrite.
   can be created today but nothing reads them; a future `validateBid` hook
   reading this table is the natural place to wire it in.
 
+## Phase 3 — onboarding wizard, dashboard, per-auction auth
+
+Implemented: the premium multi-step wizard + dashboard + per-auction
+credential model described in the "wizard-pass plan" referenced throughout
+this doc (schema v4 delta `supabase/add_auctionos_wizard.sql`, passes 1–3).
+This replaces the old flow where every auction shared one
+`process.env.ADMIN_PASSWORD` and creation happened as a single bespoke
+`PoolBuilderModal` inside `AuctionExperience.tsx`.
+
+- **Schema/auth foundation (pass 1)** — `auctions` gained `logo_url`,
+  `venue`, `theme_key`, `admin_password_hash`, and a `'draft'` status;
+  `auction_teams` (auction-scoped franchises, deliberately not the global
+  `teams` table); `auction_wallets.auction_team_id` alongside the existing
+  `team_id` (exactly one set, via `chk_wallet_team_xor`); `auction_captains
+  .access_key_hash`. New RPCs `auctionos_create_auction_draft` (Identity
+  submit) and `auctionos_begin_auction` (completeness gate, `draft` →
+  `scheduled`, one-way lock). `lib/auctionos/core/auth.ts` — `hashSecret()`,
+  `verifyAdminPassword()`, `verifyCaptainKey()`,
+  `resolveAuctionByAdminPassword()` — and `lib/auctionos/core/
+  dashboard-guard.ts` (`guardAdminAccess`/`guardDraftMutation`) centralize
+  the per-auction credential checks every dashboard route now shares.
+- **CRUD API routes (pass 2)** — `app/api/auctionos/draft`, `[id]` (GET
+  bootstrap / PATCH identity), `[id]/teams`, `[id]/wallet-kinds`,
+  `[id]/lots` (single + bulk create, bulk PATCH, DELETE), `[id]/categories`,
+  `[id]/captains`, `[id]/begin`, `resolve-admin`, `resolve-captain`,
+  `upload-logo` (new `auctionos-logos` Supabase Storage bucket). Creating a
+  franchise auto-seeds one `auction_wallets` row per existing wallet kind,
+  and vice versa when a wallet kind is created — mirroring the wallet-
+  per-team-per-kind loop the old single-shot `auctionos_create_auction`
+  used to run inline, just spread incrementally across wizard steps now.
+- **Wizard UI (pass 3, this pass)** — `app/auctionos/new/page.tsx` (Step 1:
+  Identity — name, logo upload via `lib/image-optimize.ts` +
+  `upload-logo`, venue, date, a 3-swatch theme picker that also resolves
+  which `auction_templates` row to instantiate, one-time join-code/admin-
+  password reveal). `app/auctionos/dashboard/[id]/page.tsx` (minimal
+  server component) + `components/auctionos/wizard/DashboardShell.tsx`
+  (client-side bootstrap fetch, inline admin-password resume gate, sticky
+  top bar with editable name + join-code/QR, progress sidebar with
+  per-step completion heuristics, `framer-motion` crossfade between
+  steps). `components/auctionos/wizard/steps/{Identity,Franchises,Wallets,
+  TalentPool,Categories,Captains,Review}Step.tsx` — CSV import
+  (`lib/auctionos/wizard/csv.ts`, `papaparse`-based, lenient column
+  matching, row-level error reporting) plus manual add and a searchable/
+  filterable bulk-edit table for the Talent Pool; category → wallet-kind
+  linking and player assignment (no duplicate assignment, enforced by the
+  lots table's single `category_id`); captain assignment from the talent
+  pool with a one-time `access_key` reveal; a read-only Review summary +
+  "Begin Auction" that locks the draft. `app/auctionos/page.tsx` — "Prepare
+  Next Auction" now routes straight to `/auctionos/new` (no more
+  `PasswordModal`); "Enter Auction Hall" gained a Join Code / Admin
+  Password tab switch, with an optional Captain Access Key field on the
+  Join Code tab that resolves via `resolve-captain` and stores identity in
+  a new `auctionos_captain` sessionStorage key (`HallAccessGate` needed no
+  changes — it still only reads `auctionos_code_ok`/`jcc_admin_password`,
+  both of which the new flows still set).
+
+Deviations from the plan, with reasoning:
+
+- **`lib/auctionos/wizard/csv.ts` returns `{ rows, errors }`, not a bare
+  array.** The plan's own row-level-feedback requirement ("row 4: missing
+  name") has nowhere to live in a bare array return type — a bare array
+  would have to throw on the first bad row and abandon the rest of the
+  import.
+- **Wallet-before-franchise ordering** is handled by reflecting actual DB
+  state rather than forcing a step order: `FranchisesStep` shows an inline
+  note ("wallets will be created automatically once a wallet kind exists")
+  when no wallet kinds exist yet, instead of blocking franchise creation —
+  matching what `teams/route.ts` and `wallet-kinds/route.ts` already do
+  server-side (each backfills the other's missing side on create).
+- **The join code is only shown to the dashboard within the same browser
+  session it was created in.** `GET /api/auctionos/[id]`'s bootstrap
+  payload deliberately excludes `access_code` (same one-time-reveal
+  philosophy as everywhere else in this doc — see "Landing philosophy").
+  The Identity step's one-time reveal panel stashes it in a
+  per-auction sessionStorage key (`auctionos_code_<id>`) purely so the
+  dashboard's sticky bar can still show/copy/QR it without inventing a new
+  "show me the code again" server endpoint; resuming a draft in a fresh
+  session via the Admin Password tab will not show the join code again —
+  this is intentional, not a bug, consistent with the access code's
+  existing one-time semantics.
+- **Read-only lock (`status !== 'draft'`)** renders the Review-step summary
+  for whichever sidebar step is active, with a banner and a "Go to Auction
+  Hall" link, rather than a fully independent read-only variant of all
+  seven step components — simpler, and matches the plan's own phrasing
+  ("just the Review-style summary").
+
+### Post-pass fixes and follow-ups (same phase, applied after initial review)
+
+- **Categories now precede Talent Pool** in both `WIZARD_STEPS`
+  (`components/auctionos/wizard/types.ts`) and the sidebar — reversed from
+  the original build order once CSV category-matching (below) needed
+  categories to already exist to match against.
+- **Bid increment is now real per-category organizer data, not a
+  deviation.** The original pass shipped a note saying increments were
+  "template-defined for now" because `auction_categories` had no column for
+  it. That's been closed: `auction_categories.bid_increment INT` (schema
+  v4, `add_auctionos_wizard.sql` §6, nullable — `NULL` falls back to the
+  template's own tier ladder) is a real column, editable in
+  `CategoriesStep`, and — critically — actually **enforced**, not just
+  stored: `BidIncrementConfig.nextIncrement` (`lib/auctionos/core/
+  template.ts`) now takes the lot's category as a fourth argument; both the
+  engine default and JCC's implementation (`lib/auctionos/templates/jcc/
+  index.ts`) prefer `category.bid_increment` when set.
+  `app/api/auctionos/bid/route.ts` — the route that actually charges the
+  bid — fetches the lot's category and passes it through, so the override
+  is enforced server-side. The Hall's own "next bid" preview
+  (`SpotlightStage` in `AuctionExperience.tsx`) was quietly reading a
+  fetched-but-discarded `categories` state before this; fixed to read it
+  for real so the preview never disagrees with what the server charges.
+  This is a **flat per-category number, not a tiered ladder** — a
+  ladder-editor (multiple "up to X, raise by Y" rows per category) is
+  future work if ever needed; the flat override was what the organizer
+  actually asked for.
+- **CSV import now also recognizes an image column and a category column**
+  (`lib/auctionos/wizard/csv.ts`) — `image_url`/`photo`/`avatar`/etc.
+  aliases normalize into a single `metadata.image_url`, rendered as a
+  thumbnail in both the import preview and the pool table; a
+  `category`/`role`/`position`/etc. column is matched by name (case/
+  whitespace insensitive) against categories that already exist, setting
+  `category_id` directly on import. An unmatched category name doesn't fail
+  the row — it imports unassigned with a row-level warning, same "one bad
+  cell never fails the whole import" stance as `base_price`.
+- **`transfer_enabled` removed from `WalletsStep`'s UI.** The column/RPC
+  (`auctionos_transfer_funds`) stay in the schema for whenever a real
+  transfer feature gets built (see Roadmap), but the wallet-kind creation
+  form no longer shows a toggle that visibly does nothing — it was a
+  decision the organizer had to make with no observable effect, which is
+  worse than not offering it.
+- **Dropdown styling** — `app/globals.css` gained `.select-field`/
+  `.select-field-sm`, mirroring the site's existing `.admin-select`
+  technique (custom SVG chevron, `appearance: none`, generous padding)
+  restyled for the wizard's navy-on-ivory palette. Applied to all 8
+  `<select>` elements across `CategoriesStep`/`CaptainsStep`/
+  `TalentPoolStep`, replacing the cramped native OS chevron.
+- **`DashboardShell` hydration mismatch, fixed.** It originally read
+  `sessionStorage` inside a `useState` lazy initializer — during SSR
+  `window` doesn't exist, so the server always rendered the "no admin
+  password" branch, while the client's first render (before hydration
+  reconciles) could immediately read a stored password and jump to a
+  different branch, producing two different DOM trees on the same pass.
+  Fixed by starting `adminPassword`/`joinCode` resolution as `null`/
+  unread on both server and the client's first paint, gated by a `mounted`
+  flag set in a mount-only `useEffect`; every branch that depends on
+  `sessionStorage` now waits for `mounted` before diverging.
+- **Random draw order, spectator-hidden.** `auctionos_begin_auction` now
+  reshuffles every lot's `lot_order` at the `draft` → `scheduled` lock, via
+  `ROW_NUMBER() OVER (ORDER BY category.sort_order, random())` — categories
+  still run in their authored `sort_order` (Marquee/MVP first, then the
+  rest), but which lot within a category comes up next is randomized fresh
+  each time an auction begins, not derivable from CSV/manual-add insertion
+  order. `AuctionExperience.tsx`'s "Upcoming Lots" list (which previewed
+  the next several lots by name) was removed entirely — spectators and
+  captains should not be able to see who's coming next, only who's
+  currently on the block. `auctionos_advance_lot` is unchanged; it already
+  just walks `lot_order ASC` among `status = 'upcoming'`.
+
 ## Roadmap
 
 - ~~Apply `supabase/add_auctionos.sql` (schema v3) to Supabase.~~ Done.
-  Still open: walk the full admin flow end-to-end (create → advance → bid →
-  sold/unsold → undo) in-browser now that `start/route.ts`'s `team_ids`/
-  `wallet_kinds` bug is fixed — this hasn't been exercised for real yet.
-- Wire JCC's pool builder to actually assign `category_id` on lots (see the
-  "Known gap in this pass" note in the File map section above).
-- Wire an actual captain-assignment UI to `auctionos_assign_captain` — the
-  RPC exists, JCC's `AuctionExperience` doesn't call it yet (the captain
-  module ships this pass as schema + engine, not yet a pool-builder step).
+  **Still open: apply `supabase/add_auctionos_wizard.sql` (schema v4,
+  Phase 3) — written and safely re-runnable but not yet run against the
+  live Supabase project.** Nothing in Phase 3 works until it is. Also still
+  open: walk the full wizard-to-live-bid flow end-to-end in-browser (create
+  draft → franchises → wallets → categories → talent → captains → begin →
+  bid → sold/unsold → undo) — this hasn't been exercised for real yet.
+  `app/api/auctionos/start/route.ts` (the old atomic-creation route this
+  bug used to live in) no longer exists — superseded by the wizard's
+  incremental draft/CRUD flow.
+- ~~Wire JCC's pool builder to actually assign `category_id` on lots.~~
+  Moot — `PoolBuilderModal` was removed entirely in Phase 3 (pass 1); the
+  wizard is now the only creation path for any template and always assigns
+  a real `category_id`.
+- ~~Wire an actual captain-assignment UI to `auctionos_assign_captain`.~~
+  Done, via the wizard's `CaptainsStep` (Phase 3).
 - Wire `auctionos_transfer_funds` into an admin UI, once a template with
-  `transfer_enabled = true` wallet kinds actually needs it — JCC's single
-  "Main Purse" kind never exercises this path today.
+  `transfer_enabled = true` wallet kinds actually needs it — the wizard's
+  `WalletsStep` doesn't even expose the toggle today (see Phase 3's
+  post-pass fixes) since nothing consumes it yet; JCC's single "Main Purse"
+  kind never exercises this path either.
+- A tiered per-category bid-increment ladder editor, if a flat
+  `auction_categories.bid_increment` override (Phase 3) ever turns out to
+  be insufficient — see that section for what a ladder-editor would add.
 - Build an organizer-facing permissions editor over `auction_permissions`
-  — the table + fixed capability list exist, but every route still checks
-  the single shared `ADMIN_PASSWORD` instead of a role/capability lookup.
-- Build §7's Realtime sync to replace polling; build §8/§9's scoped-token
-  auth to replace the shared `ADMIN_PASSWORD` for AuctionOS writes.
+  — the table + fixed capability list exist, but no route reads it yet;
+  every AuctionOS mutation route now checks a per-auction admin password
+  (Phase 3) instead of a role/capability lookup.
+- Build §7's Realtime sync to replace polling.
 - Build the admin timeline UI + `/api/auctionos/events` route to actually
   consume the event log that's now being written.
 - Wire `auction_settings`'s visibility toggles into `AuctionExperience`

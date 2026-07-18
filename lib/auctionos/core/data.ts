@@ -13,6 +13,9 @@ import type {
   AuctionCategory,
   AuctionSettings,
   AuctionTemplateRow,
+  AuctionTeam,
+  AuctionCaptain,
+  CaptainValuation,
 } from "./types";
 import type { AuctionTemplate } from "./template";
 
@@ -47,6 +50,87 @@ export async function fetchWallets(auctionId: string): Promise<AuctionWallet[]> 
   } catch {
     return [];
   }
+}
+
+// Auction-scoped franchises created by the wizard (schema v4 — see
+// add_auctionos_wizard.sql §2). NOT the global `teams` table — a wallet
+// resolves its display info from here when `auction_team_id` is set (see
+// resolveWalletTeamInfo() below), falling back to the global `teams` join
+// when it's `team_id` instead. Public read, same shape as fetchLots/
+// fetchAuctionCategories.
+export async function fetchAuctionTeams(auctionId: string): Promise<AuctionTeam[]> {
+  try {
+    const { data, error } = await supabase
+      .from("auction_teams")
+      .select("*")
+      .eq("auction_id", auctionId)
+      .order("sort_order", { ascending: true });
+
+    if (error || !data) return [];
+    return data as AuctionTeam[];
+  } catch {
+    return [];
+  }
+}
+
+// Generic display info for a wallet, resolved from whichever side of the
+// team_id/auction_team_id pair is actually set (schema v4 — see
+// add_auctionos_wizard.sql §3 and AuctionWallet's doc comment in
+// types.ts). Template UI (e.g. JCC's AuctionExperience.tsx) that resolves a
+// wallet's name/logo/colors from the global `teams` table via `lib/teams.ts`
+// should check `wallet.auction_team_id` FIRST and use this (or an
+// equivalent `auction_teams` lookup) before falling back to its existing
+// `teams` join — that fallback path is unchanged for backward
+// compatibility. This helper only covers the generic engine's own view;
+// JCC's `AuctionExperience.tsx` still resolves display info its own way
+// (via `lib/teams.ts`'s `TEAMS` map keyed by `team_id`) and has NOT been
+// wired to call this yet — see this pass's report for the exact follow-up
+// needed there.
+export interface WalletTeamInfo {
+  name: string;
+  shortName: string | null;
+  logoUrl: string | null;
+  primaryColor: string | null;
+  secondaryColor: string | null;
+}
+
+export async function resolveWalletTeamInfo(
+  wallet: Pick<AuctionWallet, "auction_id" | "team_id" | "auction_team_id">
+): Promise<WalletTeamInfo | null> {
+  if (wallet.auction_team_id) {
+    const { data, error } = await supabase
+      .from("auction_teams")
+      .select("*")
+      .eq("id", wallet.auction_team_id)
+      .maybeSingle();
+    if (error || !data) return null;
+    const team = data as AuctionTeam;
+    return {
+      name: team.name,
+      shortName: team.short_name,
+      logoUrl: team.logo_url,
+      primaryColor: team.primary_color,
+      secondaryColor: team.secondary_color,
+    };
+  }
+
+  if (wallet.team_id) {
+    const { data, error } = await supabase
+      .from("teams")
+      .select("*")
+      .eq("id", wallet.team_id)
+      .maybeSingle();
+    if (error || !data) return null;
+    return {
+      name: data.name as string,
+      shortName: data.short_name as string,
+      logoUrl: data.logo as string,
+      primaryColor: data.primary_color as string,
+      secondaryColor: data.secondary_color as string,
+    };
+  }
+
+  return null;
 }
 
 // The shared wallet-kind concept ("Main Purse") an auction_categories row
@@ -92,6 +176,39 @@ export async function fetchAuctionCategories(auctionId: string): Promise<Auction
 
     if (error || !data) return [];
     return data as AuctionCategory[];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchAuctionCaptains(auctionId: string): Promise<AuctionCaptain[]> {
+  try {
+    const { data, error } = await supabase
+      .from("auction_captains")
+      .select("*")
+      .eq("auction_id", auctionId);
+
+    if (error || !data) return [];
+    return data as AuctionCaptain[];
+  } catch {
+    return [];
+  }
+}
+
+// Append-only snapshot log — the "current" value for a captain is just the
+// latest row here (see AUCTIONOS.md's CaptainValuation section). Returns
+// every row for the auction (small volume: one row per recalculation, not
+// per poll) so callers can reduce to latest-per-captain themselves.
+export async function fetchCaptainValuations(auctionId: string): Promise<CaptainValuation[]> {
+  try {
+    const { data, error } = await supabase
+      .from("captain_valuations")
+      .select("*")
+      .eq("auction_id", auctionId)
+      .order("created_at", { ascending: false });
+
+    if (error || !data) return [];
+    return data as CaptainValuation[];
   } catch {
     return [];
   }

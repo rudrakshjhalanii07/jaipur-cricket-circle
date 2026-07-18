@@ -4,8 +4,7 @@ import { unstable_cache } from "next/cache";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import LazyFloatingWhatsApp from "@/components/LazyFloatingWhatsApp";
-import LazyFloatingMatchButton from "@/components/LazyFloatingMatchButton";
+import SiteFloatingWidgets from "@/components/SiteFloatingWidgets";
 import LoaderWrapper from "@/components/LoaderWrapper";
 import PageTransition from "@/components/PageTransition";
 import { Providers } from "@/components/Providers";
@@ -125,13 +124,12 @@ export default async function RootLayout({
                 <PageTransition>{children}</PageTransition>
               </main>
               <Footer />
-              <LazyFloatingMatchButton
+              <SiteFloatingWidgets
                 match={nextMatch}
                 confirmedCount={registeredPlayers.length}
                 registeredPlayers={registeredPlayers}
                 stats={{ totalMembers: clubStats.activeMembers, matchesPlayed: clubStats.matchesPlayed }}
               />
-              <LazyFloatingWhatsApp />
               <SectionProgress />
             </LoaderWrapper>
           </ScrollSystem>

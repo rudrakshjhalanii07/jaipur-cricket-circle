@@ -858,6 +858,66 @@ body::before {
   background-attachment: local;
 }
 
+/* ------------------------------------------------------------
+   AuctionOS Select — same appearance:none + custom-chevron
+   technique as .admin-select above, restyled for the wizard's
+   navy-on-ivory "Royal White & Blue" surface instead of the admin
+   panel's warm-ivory/gold one. Generous right-side padding keeps
+   the chevron from crowding the label text (the thing the native
+   control got visibly wrong). .select-field is the default size
+   (matches the wizard's text inputs); .select-field-sm is for
+   compact inline contexts (filter bars, table-row assign menus).
+   ------------------------------------------------------------ */
+.select-field,
+.select-field-sm {
+  appearance: none;
+  -webkit-appearance: none;
+  /* The trigger itself is fully custom-styled below, but the dropdown
+     LIST a native <select> opens is drawn entirely by the OS/browser and
+     ignores our CSS. It defaults to the OS color scheme, which reads as a
+     jarring dark popup on this light "Royal White & Blue" surface —
+     forcing light here is the one lever the platform gives us over that
+     native popup's appearance. */
+  color-scheme: light;
+  background-color: var(--color-jcc-navy-light);
+  border: 1px solid var(--color-jcc-border);
+  border-radius: 12px;
+  color: var(--color-jcc-text-primary);
+  font-weight: 700;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23A97824' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+.select-field {
+  width: 100%;
+  padding: 12px 42px 12px 16px;
+  font-size: 0.875rem;
+}
+.select-field-sm {
+  padding: 9px 36px 9px 14px;
+  font-size: 0.75rem;
+  background-position: right 12px center;
+  background-size: 10px 7px;
+}
+.select-field:hover,
+.select-field-sm:hover {
+  border-color: color-mix(in srgb, var(--color-jcc-accent-dark) 45%, var(--color-jcc-border));
+}
+.select-field:focus,
+.select-field-sm:focus {
+  outline: none;
+  border-color: var(--color-jcc-accent-dark);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-jcc-accent-dark) 14%, transparent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23D4AF37' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+.select-field:disabled,
+.select-field-sm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Search bar — 56–60px premium field, icon inset on the left */
 .admin-search-wrap {
   position: relative;

@@ -78,8 +78,16 @@ export interface BidIncrementTier {
 export interface BidIncrementConfig {
   /** Declarative tier ladder, for anything that wants to display it (e.g. an admin builder). */
   tiers: BidIncrementTier[];
-  /** The actual next-increment computation — usually derived from `tiers`. */
-  nextIncrement(currentBid: number, lot: AuctionLot, auction: Auction): number;
+  /**
+   * The actual next-increment computation — usually derived from `tiers`.
+   * `category` is the lot's own AuctionCategory (null if the lot has none
+   * assigned yet) — organizer-editable `auction_categories.bid_increment`
+   * (schema v4) is a per-category override a template implementation
+   * should prefer over its own tier ladder when set; the default engine
+   * below ignores it since a template with no categories has nothing to
+   * override.
+   */
+  nextIncrement(currentBid: number, lot: AuctionLot, auction: Auction, category: AuctionCategory | null): number;
 }
 
 // ── Validation rules ───────────────────────────────────────────────────
@@ -211,7 +219,7 @@ const DEFAULT_AUCTION_ORDER: AuctionOrderConfig = {
 
 const DEFAULT_BID_INCREMENTS: BidIncrementConfig = {
   tiers: [{ upTo: null, amount: 1 }],
-  nextIncrement: () => 1,
+  nextIncrement: (_currentBid, _lot, _auction, category) => category?.bid_increment ?? 1,
 };
 
 const DEFAULT_VALIDATION: ValidationConfig = {

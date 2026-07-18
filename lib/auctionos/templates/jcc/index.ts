@@ -27,7 +27,12 @@ export const jccTemplate = defineTemplate({
 
   wallet: { formatAmount: formatLakhs },
   auctionOrder: jccAuctionOrder,
-  bidIncrements: { tiers: BID_INCREMENT_TIERS, nextIncrement: (currentBid) => getNextBidIncrement(currentBid) },
+  bidIncrements: {
+    tiers: BID_INCREMENT_TIERS,
+    // Per-category override (auction_categories.bid_increment) wins when an
+    // organizer set one; otherwise falls back to JCC's own tier ladder.
+    nextIncrement: (currentBid, _lot, _auction, category) => category?.bid_increment ?? getNextBidIncrement(currentBid),
+  },
   validation: { validateBid: validateJccBid },
   floorPrice: { computeFloorPrice: computeJccFloorPrice },
   valuation: { computeCaptainValue: computeJccCaptainValue },

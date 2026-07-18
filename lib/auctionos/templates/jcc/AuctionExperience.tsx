@@ -5,34 +5,27 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import {
   ArrowLeft,
+  Crown,
   Gavel,
   Lock,
   Loader2,
   AlertCircle,
-  Check,
-  X,
-  Search,
   Sparkles,
   Trophy,
 } from "lucide-react";
 
 import { TEAMS, TEAM_ORDER_ALL, type TeamId } from "@/lib/teams";
 import type { AuctionExperienceProps } from "@/lib/auctionos/core/template";
-import type { Auction, AuctionWallet, AuctionLot, AuctionCategory } from "@/lib/auctionos/core/types";
-import {
-  fetchActiveAuction,
-  fetchWallets,
-  fetchLots,
-  fetchAuctionCategories,
-  fetchAuctionTemplateBySlug,
-} from "@/lib/auctionos/core/data";
-import { fetchEligiblePlayers, type EligiblePlayer } from "./data";
-import {
-  formatLakhs,
-  getNextBid,
-  BASE_PRICE_TIERS_LAKHS,
-  DEFAULT_PURSE_LAKHS,
-} from "./rules";
+import type {
+  Auction,
+  AuctionWallet,
+  AuctionLot,
+  AuctionCategory,
+  AuctionCaptain,
+  CaptainValuation,
+} from "@/lib/auctionos/core/types";
+import { liveEngine, type AuctionEngine } from "./engine";
+import { formatLakhs, getNextBidIncrement } from "./rules";
 import { getDiceBearUrl } from "@/lib/avatar";
 import { SMOOTH_EASE } from "@/lib/animations";
 import RollingNumber from "@/components/auctionos/RollingNumber";
@@ -40,8 +33,6 @@ import AuctionCountdown from "@/components/auctionos/AuctionCountdown";
 import { AuctionOSMark, AuctionOSSeal, HeroBackdrop } from "@/components/auctionos/AuctionOSBrand";
 
 const POLL_INTERVAL_MS = 4000;
-const ROLE_OPTIONS = ["Batter", "Bowler", "All-Rounder", "Wicketkeeper"];
-const TEMPLATE_ID = "jcc";
 
 // ─── Small metadata accessors — JCC stores role/image on the generic
 // lot.metadata JSON blob rather than as typed columns. ─────────────────────
@@ -62,6 +53,17 @@ function teamKeyOf(wallets: AuctionWallet[], walletId: string | null): TeamId | 
 
 function walletForTeam(wallets: AuctionWallet[], teamId: TeamId): AuctionWallet | undefined {
   return wallets.find((w) => w.team_id === teamId);
+}
+
+// captain_valuations is an append-only log (see AUCTIONOS.md) — "current"
+// value is just the latest row per captain_id. fetchCaptainValuations()
+// already orders newest-first, so the first hit per captain wins.
+function latestValuationByCaptain(valuations: CaptainValuation[]): Map<string, CaptainValuation> {
+  const map = new Map<string, CaptainValuation>();
+  for (const v of valuations) {
+    if (!map.has(v.captain_id)) map.set(v.captain_id, v);
+  }
+  return map;
 }
 
 // ─── Admin password gate (same pattern/sessionStorage key as the tournament
@@ -271,241 +273,6 @@ function Eyebrow({ children, className = "" }: { children: React.ReactNode; clas
   );
 }
 
-// ─── Pool Builder (admin) — curates the lot list before starting a season ──
-
-interface DraftLot {
-  player_id: string | null;
-  display_name: string;
-  role: string;
-  base_price: number;
-  image: string | null;
-}
-
-function PoolBuilderModal({
-  isOpen,
-  onClose,
-  onSubmit,
-  submitting,
-  error,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (payload: { name: string; starts_at: string | null; lots: DraftLot[] }) => void;
-  submitting: boolean;
-  error: string | null;
-}) {
-  const [name, setName] = useState("Season II");
-  const [startsAt, setStartsAt] = useState("");
-  const [eligible, setEligible] = useState<EligiblePlayer[]>([]);
-  const [loadingEligible, setLoadingEligible] = useState(true);
-  const [search, setSearch] = useState("");
-  const [lots, setLots] = useState<DraftLot[]>([]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    let cancelled = false;
-    fetchEligiblePlayers().then((fetched) => {
-      if (cancelled) return;
-      setEligible(fetched);
-      setLoadingEligible(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [isOpen]);
-
-  function toggleSelect(p: EligiblePlayer) {
-    setLots((prev) => {
-      const exists = prev.find((l) => l.player_id === p.id);
-      if (exists) return prev.filter((l) => l.player_id !== p.id);
-      return [
-        ...prev,
-        {
-          player_id: p.id,
-          display_name: p.name,
-          role: p.cricket_role
-            ? p.cricket_role.charAt(0).toUpperCase() + p.cricket_role.slice(1)
-            : "All-Rounder",
-          base_price: BASE_PRICE_TIERS_LAKHS[0],
-          image: p.image,
-        },
-      ];
-    });
-  }
-
-  function updateLot(playerId: string, patch: Partial<DraftLot>) {
-    setLots((prev) =>
-      prev.map((l) => (l.player_id === playerId ? { ...l, ...patch } : l))
-    );
-  }
-
-  const filtered = eligible.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase())
-  );
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-jcc-blue/25 backdrop-blur-md z-[290]"
-          />
-          <div className="fixed inset-0 flex items-center justify-center p-4 z-[295] pointer-events-none">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 20 }}
-              className="premium-card w-full max-w-2xl max-h-[88vh] overflow-hidden flex flex-col pointer-events-auto"
-            >
-              <div className="px-6 pt-6 pb-4 border-b border-jcc-border flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-3">
-                  <AuctionOSSeal className="w-10 h-10 shrink-0" />
-                  <div>
-                    <h3 className="text-sm font-black uppercase tracking-widest text-jcc-text-primary">
-                      Prepare the Auction
-                    </h3>
-                    <p className="text-[10px] text-jcc-text-muted font-bold mt-0.5">
-                      Curate the lot list, then open the hall.
-                    </p>
-                  </div>
-                </div>
-                <button onClick={onClose} className="p-2 rounded-xl hover:bg-jcc-navy-light transition-colors">
-                  <X className="w-4 h-4 text-jcc-text-muted" />
-                </button>
-              </div>
-
-              <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[9px] font-black uppercase tracking-widest text-jcc-text-muted mb-1.5 block">
-                      Auction Name
-                    </label>
-                    <input
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full bg-jcc-navy-light border border-jcc-border rounded-xl px-3.5 py-2.5 text-jcc-text-primary text-sm font-medium focus:outline-none focus:border-jcc-accent"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[9px] font-black uppercase tracking-widest text-jcc-text-muted mb-1.5 block">
-                      Opens At (optional)
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={startsAt}
-                      onChange={(e) => setStartsAt(e.target.value)}
-                      className="w-full bg-jcc-navy-light border border-jcc-border rounded-xl px-3.5 py-2.5 text-jcc-text-primary text-sm font-medium focus:outline-none focus:border-jcc-accent"
-                    />
-                  </div>
-                </div>
-
-                <div className="relative">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-jcc-text-muted" />
-                  <input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search eligible players..."
-                    className="w-full bg-jcc-navy-light border border-jcc-border rounded-xl pl-10 pr-3.5 py-2.5 text-jcc-text-primary text-sm font-medium focus:outline-none focus:border-jcc-accent placeholder:text-jcc-text-muted/60"
-                  />
-                </div>
-
-                <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1">
-                  {loadingEligible ? (
-                    <div className="py-8 flex justify-center">
-                      <Loader2 className="w-5 h-5 text-jcc-text-muted animate-spin" />
-                    </div>
-                  ) : filtered.length === 0 ? (
-                    <p className="text-jcc-text-muted text-xs text-center py-8">No eligible players found.</p>
-                  ) : (
-                    filtered.map((p) => {
-                      const selected = lots.some((l) => l.player_id === p.id);
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => toggleSelect(p)}
-                          className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl border text-left transition-colors ${selected ? "border-jcc-accent/50 bg-jcc-accent/10" : "border-jcc-border hover:border-jcc-accent/30 bg-jcc-navy"}`}
-                        >
-                          <div className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${selected ? "bg-jcc-accent border-jcc-accent" : "border-jcc-text-muted/40"}`}>
-                            {selected && <Check className="w-3 h-3 text-jcc-blue" />}
-                          </div>
-                          <span className="text-sm font-bold text-jcc-text-primary truncate">{p.name}</span>
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-
-                {lots.length > 0 && (
-                  <div className="pt-2 border-t border-jcc-border space-y-2">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-jcc-accent-dark">
-                      Lots ({lots.length})
-                    </p>
-                    <div className="max-h-52 overflow-y-auto space-y-2 pr-1">
-                      {lots.map((l, i) => (
-                        <div key={l.player_id} className="flex items-center gap-2 text-xs">
-                          <span className="w-5 text-jcc-text-muted score-number shrink-0">{i + 1}</span>
-                          <span className="flex-1 text-jcc-text-primary font-bold truncate">{l.display_name}</span>
-                          <select
-                            value={l.role}
-                            onChange={(e) => updateLot(l.player_id!, { role: e.target.value })}
-                            className="bg-jcc-navy-light border border-jcc-border rounded-lg px-2 py-1.5 text-jcc-text-primary text-[11px]"
-                          >
-                            {ROLE_OPTIONS.map((r) => (
-                              <option key={r} value={r}>{r}</option>
-                            ))}
-                          </select>
-                          <select
-                            value={l.base_price}
-                            onChange={(e) => updateLot(l.player_id!, { base_price: Number(e.target.value) })}
-                            className="bg-jcc-navy-light border border-jcc-border rounded-lg px-2 py-1.5 text-jcc-text-primary text-[11px]"
-                          >
-                            {BASE_PRICE_TIERS_LAKHS.map((tier) => (
-                              <option key={tier} value={tier}>{formatLakhs(tier)}</option>
-                            ))}
-                          </select>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {error && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-jcc-danger/10 border border-jcc-danger/20">
-                    <AlertCircle className="w-3.5 h-3.5 text-jcc-danger shrink-0" />
-                    <p className="text-jcc-danger text-xs font-medium">{error}</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="px-6 py-4 border-t border-jcc-border shrink-0">
-                <button
-                  disabled={lots.length === 0 || !name.trim() || submitting}
-                  onClick={() =>
-                    onSubmit({
-                      name: name.trim(),
-                      starts_at: startsAt ? new Date(startsAt).toISOString() : null,
-                      lots,
-                    })
-                  }
-                  className="btn-vibrant-blue w-full disabled:opacity-40"
-                >
-                  {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Gavel className="w-3.5 h-3.5" />}
-                  {submitting ? "Preparing..." : `Prepare Auction (${lots.length} lots)`}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        </>
-      )}
-    </AnimatePresence>
-  );
-}
-
 // ─── Hammer sequence overlay ────────────────────────────────────────────────
 
 type HammerPhase = "idle" | "going_once" | "going_twice" | "sold";
@@ -579,6 +346,10 @@ function CaptainDesk({
   canBid,
   cooldown,
   onRaisePaddle,
+  hasCaptain,
+  captainValue,
+  previewBudget,
+  previewCaptainValue,
 }: {
   teamId: TeamId;
   purse: AuctionWallet | undefined;
@@ -586,35 +357,54 @@ function CaptainDesk({
   canBid: boolean;
   cooldown: boolean;
   onRaisePaddle: () => void;
+  hasCaptain: boolean;
+  captainValue: number | null;
+  previewBudget: number;
+  previewCaptainValue: number | null;
 }) {
   const team = TEAMS[teamId];
+  const budgetChanges = previewBudget !== (purse?.budget_remaining ?? 0);
   return (
     <motion.div
-      className={`id-card relative p-5 flex flex-col items-center gap-3 text-center transition-shadow duration-500 ${isLeading ? "shadow-[0_0_0_1px_rgba(212,175,55,0.55),0_18px_44px_-20px_rgba(212,175,55,0.5)] border-jcc-accent/40" : ""}`}
+      className={`id-card relative p-7 flex flex-col items-center gap-4 text-center transition-shadow duration-500 ${isLeading ? "shadow-[0_0_0_1px_rgba(212,175,55,0.55),0_18px_44px_-20px_rgba(212,175,55,0.5)]" : ""}`}
+      style={{ borderColor: `${team.primary}70`, borderWidth: 2 }}
       animate={isLeading ? { y: -3 } : { y: 0 }}
       transition={{ duration: 0.5, ease: SMOOTH_EASE }}
     >
-      <div className="w-14 h-14 rounded-xl overflow-hidden flex items-center justify-center" style={{ background: `${team.primary}14` }}>
-        <TeamLogo teamId={teamId} className="w-10 h-10 object-contain" />
-      </div>
-      <div>
-        <p className="font-heading font-black text-sm uppercase tracking-wide" style={{ color: team.primary }}>
-          {team.shortName}
-        </p>
-        <p className="text-[10px] text-jcc-text-muted font-bold">{team.captain}</p>
-      </div>
+      <TeamLogo teamId={teamId} className="w-20 h-20 object-contain" />
+      <p className="text-xs text-jcc-text-muted font-bold -mt-1">{team.captain}</p>
       <div className="w-full pt-2 border-t border-jcc-border grid grid-cols-2 gap-2">
         <div>
-          <p className="text-[9px] font-black uppercase tracking-widest text-jcc-text-muted">Purse Left</p>
-          <p className="score-number text-sm font-black text-jcc-text-primary">
+          <p className="text-[10px] font-black uppercase tracking-widest text-jcc-text-muted">Purse Left</p>
+          <p className="score-number text-lg font-black text-jcc-text-primary">
             {formatLakhs(purse?.budget_remaining ?? 0)}
           </p>
+          {budgetChanges && (
+            <p className="font-body text-xs font-bold text-jcc-accent-dark mt-0.5">
+              → {formatLakhs(previewBudget)} if won
+            </p>
+          )}
         </div>
         <div>
-          <p className="text-[9px] font-black uppercase tracking-widest text-jcc-text-muted">Squad</p>
-          <p className="score-number text-sm font-black text-jcc-text-primary">{purse?.acquired_count ?? 0}</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-jcc-text-muted">Squad</p>
+          <p className="score-number text-lg font-black text-jcc-text-primary">{purse?.acquired_count ?? 0}</p>
         </div>
       </div>
+      {hasCaptain && (
+        <div className="w-full pt-2 border-t border-jcc-border">
+          <p className="flex items-center justify-center gap-1 text-[10px] font-black uppercase tracking-widest text-jcc-text-muted">
+            <Crown className="w-3.5 h-3.5 text-jcc-accent-dark" /> Captain Value
+          </p>
+          <p className="score-number text-lg font-black text-jcc-accent-dark">
+            {captainValue != null ? formatLakhs(captainValue) : "—"}
+          </p>
+          {previewCaptainValue != null && (
+            <p className="font-body text-xs font-bold text-jcc-accent-dark mt-0.5">
+              → {formatLakhs(previewCaptainValue)} if this sale completes
+            </p>
+          )}
+        </div>
+      )}
       <button
         onClick={onRaisePaddle}
         disabled={!canBid || isLeading || cooldown}
@@ -636,31 +426,34 @@ function CaptainDesk({
 
 type ViewPhase = "hero" | "hall";
 
+// `engine` is deliberately not part of the shared AuctionExperienceProps
+// contract (lib/auctionos/core/template.ts) — it's how this template plugs
+// in a transport, not a cross-template concern. Defaults to the real
+// Supabase-backed engine; /auctionos/dev passes an in-memory mock instead.
+interface JccAuctionExperienceProps extends AuctionExperienceProps {
+  engine?: AuctionEngine;
+}
+
 export default function AuctionExperience({
   initialAuction,
   initialWallets,
   initialLots,
   initialCategories,
-}: AuctionExperienceProps) {
+  engine = liveEngine,
+}: JccAuctionExperienceProps) {
   const [season, setSeason] = useState<Auction | null>(initialAuction);
   const [participants, setParticipants] = useState<AuctionWallet[]>(initialWallets);
   const [lots, setLots] = useState<AuctionLot[]>(initialLots);
-  // Categories aren't read anywhere in this template's UI yet (JCC's pool
-  // builder still assigns a display-only `role`, not a real category_id —
-  // see the note in handleStartAuction below) — kept as state so a future
-  // pass can start reading it without re-plumbing the prop contract.
-  const [, setCategories] = useState<AuctionCategory[]>(initialCategories);
+  // Auction creation has moved to the AuctionOS wizard (app/auctionos/new)
+  // — this template's hall UI only bids in auctions already prepared
+  // there, and the wizard assigns a real category_id per lot. Read here so
+  // the next-bid preview can apply a category's bid_increment override,
+  // matching what app/api/auctionos/bid/route.ts actually charges.
+  const [categories, setCategories] = useState<AuctionCategory[]>(initialCategories);
+  const [captains, setCaptains] = useState<AuctionCaptain[]>([]);
+  const [captainValuations, setCaptainValuations] = useState<CaptainValuation[]>([]);
   const [view, setView] = useState<ViewPhase>("hero");
   const [mounted, setMounted] = useState(false);
-
-  const [showBuilder, setShowBuilder] = useState(false);
-  const [starting, setStarting] = useState(false);
-  const [startError, setStartError] = useState<string | null>(null);
-  // Shown once, right after creation — the access code is never retrievable
-  // again after this response (auctions has no public read policy; see
-  // AUCTIONOS.md's "Landing philosophy"), so the organizer must copy it
-  // here before dismissing this banner.
-  const [createdAccessCode, setCreatedAccessCode] = useState<string | null>(null);
 
   const [advancing, setAdvancing] = useState(false);
   const [cooldownTeams, setCooldownTeams] = useState<Record<string, boolean>>({});
@@ -675,19 +468,14 @@ export default function AuctionExperience({
   }, []);
 
   const refresh = useCallback(async () => {
-    const s = await fetchActiveAuction();
-    setSeason(s);
-    if (s) {
-      const [p, l, c] = await Promise.all([fetchWallets(s.id), fetchLots(s.id), fetchAuctionCategories(s.id)]);
-      setParticipants(p);
-      setLots(l);
-      setCategories(c);
-    } else {
-      setParticipants([]);
-      setLots([]);
-      setCategories([]);
-    }
-  }, []);
+    const snap = await engine.refresh();
+    setSeason(snap.auction);
+    setParticipants(snap.wallets);
+    setLots(snap.lots);
+    setCategories(snap.categories);
+    setCaptains(snap.captains);
+    setCaptainValuations(snap.captainValuations);
+  }, [engine]);
 
   useEffect(() => {
     const interval = setInterval(refresh, POLL_INTERVAL_MS);
@@ -705,7 +493,12 @@ export default function AuctionExperience({
     };
   }, [view]);
 
+  const valuationByCaptain = latestValuationByCaptain(captainValuations);
+
   const onBlockLot = lots.find((p) => p.status === "on_block") ?? null;
+  const onBlockCategory = onBlockLot?.category_id
+    ? categories.find((c) => c.id === onBlockLot.category_id) ?? null
+    : null;
   const upcomingLots = lots.filter((p) => p.status === "upcoming");
   const soldLots = [...lots.filter((p) => p.status === "sold")].sort((a, b) =>
     (b.sold_at ?? "").localeCompare(a.sold_at ?? "")
@@ -714,74 +507,22 @@ export default function AuctionExperience({
   const resolvedCount = lots.filter((p) => p.status === "sold" || p.status === "unsold").length;
   const isComplete = season?.status === "completed" || (totalLots > 0 && resolvedCount === totalLots);
 
-  async function handleStartAuction(payload: { name: string; starts_at: string | null; lots: DraftLot[] }) {
+  // Resolves the admin password only when the engine actually needs one —
+  // the mock engine does nothing off-browser, so /auctionos/dev never shows
+  // this prompt. Returns `false` to mean "caller should bail", distinct
+  // from a resolved `null` password on a no-auth engine.
+  async function ensureEngineAuth(): Promise<string | null | false> {
+    if (!engine.requiresAdminAuth) return null;
     const password = await ensurePassword();
-    if (!password) return;
-    setStarting(true);
-    setStartError(null);
-    try {
-      // template_id is now the auction_templates DB uuid, not the "jcc"
-      // slug — resolve it here rather than baking a uuid into this file.
-      const templateRow = await fetchAuctionTemplateBySlug(TEMPLATE_ID);
-      if (!templateRow) {
-        setStartError("JCC template is not seeded in the database yet.");
-        setStarting(false);
-        return;
-      }
-      // Note: lots aren't assigned a category_id here — the pool builder
-      // only collects a display-only `role` (stored in metadata, same as
-      // before), and per-auction category rows don't exist until this same
-      // request creates them, so there's no id yet to reference. Wiring a
-      // role → category_id mapping (via JCC_ROLE_TO_CATEGORY_NAME) is
-      // future pool-builder work, not part of this rewrite pass.
-      const res = await fetch("/api/auctionos/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-password": password },
-        body: JSON.stringify({
-          template_id: templateRow.id,
-          name: payload.name,
-          starts_at: payload.starts_at,
-          settings: null,
-          categories: null,
-          team_ids: TEAM_ORDER_ALL,
-          wallet_kinds: [{ name: "Main Purse", initial_balance: DEFAULT_PURSE_LAKHS, transfer_enabled: false, sort_order: 0 }],
-          lots: payload.lots.map((l, i) => ({
-            external_ref: l.player_id,
-            display_name: l.display_name,
-            base_price: l.base_price,
-            lot_order: i + 1,
-            category_id: null,
-            metadata: { role: l.role, image: l.image },
-          })),
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        setStartError(data.error ?? "Failed to start the auction");
-        setStarting(false);
-        return;
-      }
-      const { data } = await res.json();
-      if (data?.access_code) setCreatedAccessCode(data.access_code);
-      await refresh();
-      setShowBuilder(false);
-      setStarting(false);
-    } catch {
-      setStartError("Network error. Please try again.");
-      setStarting(false);
-    }
+    return password ?? false;
   }
 
   async function handleAdvance() {
     if (!season) return;
-    const password = await ensurePassword();
-    if (!password) return;
+    const password = await ensureEngineAuth();
+    if (password === false) return;
     setAdvancing(true);
-    await fetch("/api/auctionos/advance", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-admin-password": password },
-      body: JSON.stringify({ auction_id: season.id }),
-    });
+    await engine.advance(season.id, password);
     await refresh();
     setAdvancing(false);
   }
@@ -790,32 +531,24 @@ export default function AuctionExperience({
     if (!onBlockLot) return;
     const wallet = walletForTeam(participants, teamId);
     if (!wallet) return;
-    const password = await ensurePassword();
-    if (!password) return;
+    const password = await ensureEngineAuth();
+    if (password === false) return;
     setCooldownTeams((c) => ({ ...c, [teamId]: true }));
     setTimeout(() => setCooldownTeams((c) => ({ ...c, [teamId]: false })), 1500);
-    await fetch("/api/auctionos/bid", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-admin-password": password },
-      body: JSON.stringify({ lot_id: onBlockLot.id, wallet_id: wallet.id }),
-    });
+    await engine.bid(onBlockLot.id, wallet.id, password);
     await refresh();
   }
 
   async function handleSold() {
     if (!onBlockLot || !onBlockLot.current_bid_wallet_id) return;
-    const password = await ensurePassword();
-    if (!password) return;
+    const password = await ensureEngineAuth();
+    if (password === false) return;
     setLastSoldSnapshot(onBlockLot);
     setHammerPhase("going_once");
     setTimeout(() => setHammerPhase("going_twice"), 900);
     setTimeout(async () => {
       setHammerPhase("sold");
-      await fetch("/api/auctionos/sold", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-password": password },
-        body: JSON.stringify({ lot_id: onBlockLot.id }),
-      });
+      await engine.sold(onBlockLot.id, password);
       await refresh();
       setTimeout(() => setHammerPhase("idle"), 1600);
     }, 1800);
@@ -823,13 +556,9 @@ export default function AuctionExperience({
 
   async function handleUnsold() {
     if (!onBlockLot) return;
-    const password = await ensurePassword();
-    if (!password) return;
-    await fetch("/api/auctionos/unsold", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-admin-password": password },
-      body: JSON.stringify({ lot_id: onBlockLot.id }),
-    });
+    const password = await ensureEngineAuth();
+    if (password === false) return;
+    await engine.unsold(onBlockLot.id, password);
     await refresh();
   }
 
@@ -854,22 +583,6 @@ export default function AuctionExperience({
           Home
         </Link>
 
-        {createdAccessCode && (
-          <div className="absolute top-6 right-6 flex items-center gap-3 px-4 py-2.5 rounded-xl border border-jcc-border-bright bg-jcc-navy-light z-10">
-            <div className="flex flex-col">
-              <span className="text-[9px] font-black uppercase tracking-widest text-jcc-text-muted">Auction Code — share this</span>
-              <span className="score-number text-lg font-black tracking-[0.25em] text-jcc-accent-dark">{createdAccessCode}</span>
-            </div>
-            <button
-              onClick={() => setCreatedAccessCode(null)}
-              aria-label="Dismiss"
-              className="text-jcc-text-muted hover:text-jcc-text-primary transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-
         <motion.div
           className="flex flex-col items-center gap-9 text-center px-6 max-w-4xl w-full relative z-10"
           initial={mounted ? "hidden" : false}
@@ -877,7 +590,7 @@ export default function AuctionExperience({
           variants={{ visible: { transition: { staggerChildren: 0.14 } } }}
         >
           <motion.div
-            variants={{ hidden: { opacity: 0, y: -16 }, visible: { opacity: 1, y: 0 } }}
+            variants={{ hidden: { opacity: 0, y: -16 }, visible: { opacity: 1, y: -60 } }}
             className="flex items-center gap-3"
           >
             <AuctionOSSeal className="w-9 h-9" />
@@ -891,7 +604,7 @@ export default function AuctionExperience({
               hidden: { opacity: 0, scale: 0.75 },
               visible: { opacity: 1, scale: 1, transition: { type: "spring", stiffness: 100, damping: 14 } },
             }}
-            className="flex flex-col items-center leading-none gap-3"
+            className="flex flex-col items-center leading-none gap-3 -mt-8"
           >
             <AuctionOSMark className="text-[clamp(3rem,13vw,9rem)] text-jcc-text-primary" />
             <div className="flex items-center gap-3">
@@ -917,28 +630,6 @@ export default function AuctionExperience({
             )}
           </motion.div>
 
-          {season && (
-            <motion.div
-              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-              className="flex items-center gap-6 text-jcc-text-muted"
-            >
-              <div className="text-center">
-                <p className="score-number text-2xl font-black text-jcc-text-primary">{totalLots}</p>
-                <p className="text-[9px] font-black uppercase tracking-widest mt-0.5">Lots</p>
-              </div>
-              <span className="h-8 w-px bg-jcc-border-bright" />
-              <div className="text-center">
-                <p className="score-number text-2xl font-black text-jcc-text-primary">{TEAM_ORDER_ALL.length}</p>
-                <p className="text-[9px] font-black uppercase tracking-widest mt-0.5">Franchises</p>
-              </div>
-              <span className="h-8 w-px bg-jcc-border-bright" />
-              <div className="text-center">
-                <p className="score-number text-2xl font-black text-jcc-accent-dark">{formatLakhs(DEFAULT_PURSE_LAKHS)}</p>
-                <p className="text-[9px] font-black uppercase tracking-widest mt-0.5">Purse</p>
-              </div>
-            </motion.div>
-          )}
-
           <motion.div
             variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
             className="flex flex-col sm:flex-row items-center gap-4"
@@ -949,27 +640,10 @@ export default function AuctionExperience({
                 {season.status === "completed" ? "View Results" : "Enter Auction Hall"}
               </button>
             )}
-            <button
-              onClick={async () => {
-                const pw = await ensurePassword();
-                if (pw) setShowBuilder(true);
-              }}
-              className="btn-ghost"
-            >
-              <Sparkles className="w-4 h-4" />
-              {season ? "Prepare Next Auction" : "Prepare The Auction"}
-            </button>
           </motion.div>
         </motion.div>
 
         {passwordModal}
-        <PoolBuilderModal
-          isOpen={showBuilder}
-          onClose={() => setShowBuilder(false)}
-          onSubmit={handleStartAuction}
-          submitting={starting}
-          error={startError}
-        />
       </div>
     );
   }
@@ -1031,30 +705,15 @@ export default function AuctionExperience({
           <>
             <SpotlightStage
               lot={onBlockLot}
+              category={onBlockCategory}
               participants={participants}
+              captains={captains}
+              valuationByCaptain={valuationByCaptain}
               cooldownTeams={cooldownTeams}
               onRaisePaddle={handleRaisePaddle}
               onSold={handleSold}
               onUnsold={handleUnsold}
             />
-
-            {upcomingLots.length > 0 && (
-              <div className="mt-16">
-                <Eyebrow className="mb-5">Upcoming Lots</Eyebrow>
-                <div className="premium-card divide-y divide-jcc-border px-5">
-                  {upcomingLots.slice(0, 8).map((p) => (
-                    <div key={p.id} className="flex items-center justify-between py-3.5">
-                      <div className="flex items-center gap-4">
-                        <span className="score-number text-jcc-text-muted/50 text-sm w-6">{p.lot_order}</span>
-                        <span className="text-jcc-text-primary font-bold text-sm">{p.display_name}</span>
-                        <span className="text-jcc-text-muted text-[10px] font-black uppercase tracking-widest">{lotRole(p)}</span>
-                      </div>
-                      <span className="score-number text-jcc-accent-dark text-sm font-black">{formatLakhs(p.base_price)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </>
         )}
 
@@ -1066,26 +725,37 @@ export default function AuctionExperience({
                 const teamId = teamKeyOf(participants, p.sold_wallet_id);
                 const team = teamId ? TEAMS[teamId] : null;
                 return (
-                  <div key={p.id} className="flex flex-col items-center gap-3 shrink-0 w-32">
+                  <div key={p.id} className="flex flex-col items-center gap-3 shrink-0 w-36">
                     <PlayerPortrait
                       name={p.display_name}
                       image={lotImage(p)}
                       className="w-28 h-28 rounded-2xl overflow-hidden border border-jcc-border"
                     />
                     <div className="text-center">
-                      <p className="text-jcc-text-primary font-bold text-xs leading-tight">{p.display_name}</p>
+                      <p className="text-jcc-text-primary font-bold text-sm leading-tight">{p.display_name}</p>
                       {team && (
-                        <p className="text-[9px] font-black uppercase tracking-widest mt-1" style={{ color: team.primary }}>
-                          {team.shortName}
+                        <p className="text-xs font-black uppercase tracking-widest mt-1" style={{ color: team.primary }}>
+                          {team.name}
                         </p>
                       )}
-                      <p className="score-number text-jcc-accent-dark text-xs font-black mt-0.5">
+                      <p className="score-number text-jcc-accent-dark text-sm font-black mt-0.5">
                         {formatLakhs(p.sold_price ?? 0)}
                       </p>
                     </div>
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {season && (
+          <div className="mt-16">
+            <Eyebrow className="mb-6">Team Sheets</Eyebrow>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {TEAM_ORDER_ALL.map((teamId) => (
+                <TeamSheet key={teamId} teamId={teamId} lots={lots} participants={participants} />
+              ))}
             </div>
           </div>
         )}
@@ -1107,28 +777,66 @@ export default function AuctionExperience({
 
 // ─── Spotlight stage — the lot currently on the block ───────────────────
 
+// If `teamId`'s captain sits in this lot's category, project what their
+// captain_value would become should `previewBidAmount` be the winning bid —
+// mirrors _auctionos_recalc_captain_valuation's own math (highest unreversed
+// purchase in the team's category, halved) so this preview never disagrees
+// with what the server would actually charge. Returns null when this team
+// has no captain in this lot's category (nothing to project).
+function projectCaptainValue({
+  currentValue,
+  category,
+  captain,
+  previewBidAmount,
+}: {
+  currentValue: number | null;
+  category: AuctionCategory | null;
+  captain: AuctionCaptain | undefined;
+  previewBidAmount: number;
+}): { newValue: number; delta: number } | null {
+  if (!captain || !category || captain.category_id !== category.id) return null;
+  const existingHighest = currentValue != null ? currentValue * 2 : 0;
+  const newHighest = Math.max(existingHighest, previewBidAmount);
+  const newValue = newHighest * 0.5;
+  return { newValue, delta: newValue - (currentValue ?? 0) };
+}
+
 function SpotlightStage({
   lot,
+  category,
   participants,
+  captains,
+  valuationByCaptain,
   cooldownTeams,
   onRaisePaddle,
   onSold,
   onUnsold,
 }: {
   lot: AuctionLot;
+  category: AuctionCategory | null;
   participants: AuctionWallet[];
+  captains: AuctionCaptain[];
+  valuationByCaptain: Map<string, CaptainValuation>;
   cooldownTeams: Record<string, boolean>;
   onRaisePaddle: (teamId: TeamId) => void;
   onSold: () => void;
   onUnsold: () => void;
 }) {
   const currentBid = lot.current_bid ?? lot.base_price;
-  const nextBid = getNextBid(currentBid);
+  // Mirrors app/api/auctionos/bid/route.ts's own increment resolution: a
+  // category's organizer-set bid_increment (schema v4) wins over JCC's
+  // tier ladder when set, so the preview here never disagrees with what
+  // the server actually charges.
+  const nextBid = currentBid + (category?.bid_increment ?? getNextBidIncrement(currentBid));
   const leadingTeamId = teamKeyOf(participants, lot.current_bid_wallet_id);
+  const leadingTeam = leadingTeamId ? TEAMS[leadingTeamId] : null;
 
   return (
     <div>
-      <div className="premium-card px-6 py-10 sm:px-10 flex flex-col items-center text-center gap-6">
+      <div
+        className="premium-card px-6 py-10 sm:px-10 flex flex-col items-center text-center gap-6 transition-colors duration-500"
+        style={leadingTeam ? { backgroundColor: `${leadingTeam.primary}40` } : undefined}
+      >
         <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-jcc-border-bright bg-jcc-accent/5 text-jcc-accent-dark text-[10px] font-black tracking-[0.3em] uppercase">
           <span className="w-1.5 h-1.5 rounded-full bg-jcc-accent-dark animate-pulse" />
           On The Block
@@ -1160,12 +868,9 @@ function SpotlightStage({
             <p className="text-jcc-text-muted text-[9px] font-black tracking-widest uppercase mb-1">Current Bid</p>
             <RollingNumber value={currentBid} format={formatLakhs} className="text-3xl sm:text-4xl text-jcc-accent-dark font-black score-number" />
           </div>
-          <div>
-            <p className="text-jcc-text-muted text-[9px] font-black tracking-widest uppercase mb-1">Leading</p>
-            <p className="text-lg font-black" style={{ color: leadingTeamId ? TEAMS[leadingTeamId].primary : "var(--color-jcc-text-muted)" }}>
-              {leadingTeamId ? TEAMS[leadingTeamId].shortName : "—"}
-            </p>
-          </div>
+          {leadingTeamId && (
+            <TeamLogo teamId={leadingTeamId} className="w-24 h-24 sm:w-28 sm:h-28 object-contain shrink-0" />
+          )}
         </div>
 
         <div className="flex items-center gap-3">
@@ -1185,11 +890,27 @@ function SpotlightStage({
         </div>
       </div>
 
-      <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-5">
         {TEAM_ORDER_ALL.map((teamId) => {
           const purse = walletForTeam(participants, teamId);
           const isLeading = leadingTeamId === teamId;
           const canAfford = (purse?.budget_remaining ?? 0) >= nextBid;
+
+          // "If I win this lot right now" preview: the leading team would
+          // pay currentBid (what Sold actually charges); anyone else would
+          // have to clear nextBid to take the lead in the first place.
+          const captain = captains.find((c) => c.team_id === teamId);
+          const currentCaptainValue = captain ? valuationByCaptain.get(captain.id)?.captain_value ?? null : null;
+          const previewBidAmount = isLeading ? currentBid : nextBid;
+          const captainPreview = projectCaptainValue({
+            currentValue: currentCaptainValue,
+            category,
+            captain,
+            previewBidAmount,
+          });
+          const previewBudget =
+            (purse?.budget_remaining ?? 0) - previewBidAmount - (captainPreview?.delta ?? 0);
+
           return (
             <CaptainDesk
               key={teamId}
@@ -1199,10 +920,93 @@ function SpotlightStage({
               canBid={canAfford}
               cooldown={!!cooldownTeams[teamId]}
               onRaisePaddle={() => onRaisePaddle(teamId)}
+              hasCaptain={!!captain}
+              captainValue={currentCaptainValue}
+              previewBudget={previewBudget}
+              previewCaptainValue={captainPreview && captainPreview.delta > 0 ? captainPreview.newValue : null}
             />
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ─── Team sheet — honors-board style roster. Fixed 14 slots: the first 7
+// (First XI) and the next 7 (Guest Players) fill in acquisition order as
+// lots sell, regardless of category — empty slots stay visible with their
+// serial number until a name lands there. ──────────────────────────────────
+
+const TEAM_SHEET_SLOT_COUNT = 14;
+const TEAM_SHEET_FIRST_XI_COUNT = 7;
+
+function TeamSheet({
+  teamId,
+  lots,
+  participants,
+}: {
+  teamId: TeamId;
+  lots: AuctionLot[];
+  participants: AuctionWallet[];
+}) {
+  const team = TEAMS[teamId];
+  const squad = lots
+    .filter((p) => p.status === "sold" && teamKeyOf(participants, p.sold_wallet_id) === teamId)
+    .sort((a, b) => (a.sold_at ?? "").localeCompare(b.sold_at ?? ""));
+
+  const slots = Array.from({ length: TEAM_SHEET_SLOT_COUNT }, (_, i) => squad[i] ?? null);
+
+  return (
+    <div
+      className="rounded-[3rem] p-8 sm:p-10"
+      style={{
+        background: "var(--color-jcc-navy)",
+        border: "1.5px solid color-mix(in srgb, var(--color-jcc-accent) 60%, transparent)",
+      }}
+    >
+      <div className="flex items-center gap-4 mb-8">
+        <TeamLogo teamId={teamId} className="w-12 h-12 object-contain shrink-0" />
+        <h3
+          className="font-heading text-2xl sm:text-3xl font-black uppercase tracking-[0.08em]"
+          style={{ color: team.primary }}
+        >
+          {team.name}
+        </h3>
+      </div>
+
+      {slots.map((lot, i) => {
+        const isSectionStart = i === 0 || i === TEAM_SHEET_FIRST_XI_COUNT;
+        return (
+          <div key={i}>
+            {isSectionStart && (
+              <p
+                className={`text-jcc-text-muted text-[10px] font-black uppercase tracking-[0.3em] mb-2 ${i === 0 ? "" : "mt-6"}`}
+              >
+                {i === 0 ? "First XI" : "Guest Players"}
+              </p>
+            )}
+            <div className="flex items-center justify-between py-3">
+              <div className="flex items-center gap-4 min-w-0">
+                <span className="score-number text-jcc-text-muted/50 text-sm w-6 shrink-0">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span
+                  className="font-bold text-sm sm:text-base uppercase tracking-wide truncate"
+                  style={lot ? { color: team.primary } : undefined}
+                >
+                  {lot ? lot.display_name : ""}
+                </span>
+              </div>
+              {lot && (
+                <span className="score-number text-jcc-accent-dark text-xs font-black shrink-0 pl-3">
+                  {formatLakhs(lot.sold_price ?? 0)}
+                </span>
+              )}
+            </div>
+            <div className="border-t border-jcc-border" />
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -1,9 +1,10 @@
 // Generic AuctionOS domain types. No format-specific fields here — anything
 // a template needs beyond this shape belongs in `metadata` (or an
 // `auction_categories`/`auction_settings` row rather than a JSONB guess).
-// Mirrors supabase/add_auctionos.sql (schema v3) 1:1.
+// Mirrors supabase/add_auctionos.sql (schema v3) + supabase/
+// add_auctionos_wizard.sql (schema v4 delta) 1:1.
 
-export type AuctionStatus = "scheduled" | "live" | "completed";
+export type AuctionStatus = "draft" | "scheduled" | "live" | "completed";
 export type LotStatus = "upcoming" | "on_block" | "sold" | "unsold";
 export type TemplateStatus = "draft" | "published" | "archived";
 
@@ -85,6 +86,13 @@ export interface Auction {
   status: AuctionStatus;
   starts_at: string | null;
   current_lot_id: string | null;
+  // Wizard-pass additions (schema v4) — see add_auctionos_wizard.sql §1.
+  // admin_password_hash is deliberately NOT part of this type: it must
+  // never be selected in a browser-facing query, only compared server-side
+  // via lib/auctionos/core/auth.ts's verifyAdminPassword().
+  logo_url: string | null;
+  venue: string | null;
+  theme_key: string;
   created_at: string;
   updated_at: string;
 }
@@ -138,19 +146,51 @@ export interface AuctionCategory {
   floor_price: number | null;
   min_required: number;
   max_allowed: number | null;
+  // Organizer-set bid-increment override for this category (wizard-pass
+  // addition, schema v4 — see add_auctionos_wizard.sql §6). NULL means "no
+  // override, fall back to the template's own tier ladder" — see
+  // BidIncrementConfig.nextIncrement in lib/auctionos/core/template.ts.
+  bid_increment: number | null;
   created_at: string;
   updated_at: string;
+}
+
+// Auction-scoped franchise, created by the onboarding wizard. Deliberately
+// NOT the global `Team`/`public.teams` above — that table is site-wide and
+// consumed by unrelated features (tournament, toss pages). JCC's existing
+// creation path keeps using the global Team via AuctionWallet.team_id; the
+// wizard always creates one of these and points AuctionWallet.
+// auction_team_id at it instead. See add_auctionos_wizard.sql §2 /
+// AUCTIONOS.md's wizard-pass plan, "Architecture decisions §1".
+export interface AuctionTeam {
+  id: string;
+  auction_id: string;
+  name: string;
+  short_name: string | null;
+  logo_url: string | null;
+  tagline: string | null;
+  primary_color: string | null;
+  secondary_color: string | null;
+  sort_order: number;
+  created_at: string;
 }
 
 // One row per (team, wallet kind) per auction — the actual money container
 // the engine debits/credits. budget_remaining/acquired_count are CACHED
 // values, kept in sync with WalletTransaction by the same RPC that appends
 // a ledger row; the ledger is the source of truth, never this column.
+// team_id / auction_team_id (wizard-pass addition, schema v4) are a
+// nullable pair — exactly one is ever set (DB-enforced via
+// chk_wallet_team_xor): team_id for JCC's legacy global-Team path,
+// auction_team_id for anything created through the wizard. Any code
+// resolving a wallet's display name/logo/colors must check auction_team_id
+// first and fall back to the team_id join, never assume one is always set.
 export interface AuctionWallet {
   id: string;
   auction_id: string;
   wallet_kind_id: string;
-  team_id: string;
+  team_id: string | null;
+  auction_team_id: string | null;
   display_name: string | null;
   budget_total: number;
   budget_remaining: number;
@@ -175,10 +215,15 @@ export interface AuctionWalletCategoryCap {
 // zero rows here. Tied to team_id (not a specific wallet row) — the
 // captain's own wallet instance is resolved via team_id + the category's
 // wallet_kind_id at valuation time.
+// NOTE: access_key_hash (wizard-pass addition, schema v4 — see
+// add_auctionos_wizard.sql §4) is deliberately NOT a field on this type.
+// It must never be selected in a browser-facing query, only looked up and
+// compared server-side by lib/auctionos/core/auth.ts's verifyCaptainKey().
 export interface AuctionCaptain {
   id: string;
   auction_id: string;
-  team_id: string;
+  team_id: string | null;
+  auction_team_id: string | null;
   category_id: string;
   external_ref: string | null;
   display_name: string;

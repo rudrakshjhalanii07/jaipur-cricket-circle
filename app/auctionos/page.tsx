@@ -3,22 +3,26 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { KeyRound, Sparkles, Loader2, ArrowRight, X } from "lucide-react";
+import { KeyRound, Sparkles, Loader2, ArrowRight, X, Crown } from "lucide-react";
 import { AuctionOSMark, AuctionOSSeal, HeroBackdrop } from "@/components/auctionos/AuctionOSBrand";
 
 const CODE_KEY = "auctionos_code_ok";
 const ADMIN_KEY = "jcc_admin_password";
+const CAPTAIN_KEY = "auctionos_captain";
 
 // The platform landing — deliberately shows nothing about any auction
 // (no name, no lot count, no team list, no stats). It's a SaaS front door,
 // not a status page: the only two things a visitor can do here are enter a
 // code for an auction they were already invited to, or (as an organizer)
-// prepare the next one. Both actions live behind a modal, opened by their
-// button, so the landing itself stays a single calm hallmark moment — the
-// same engraved-medallion backdrop used for the in-hall hero — rather than
-// two permanently-open forms. See AUCTIONOS.md's "Landing philosophy".
+// prepare the next one. "Prepare Next Auction" now goes straight to the
+// Identity wizard (/auctionos/new) — there's no organizer password to
+// gate that anymore, since preparing IS how one gets created (see
+// AUCTIONOS.md's wizard-pass plan, "Per-auction credentials"). Only
+// "Enter Auction Hall" still opens a modal, now with a Join Code / Admin
+// Password tab switch so all three credential tiers route through here.
 export default function AuctionOSLandingPage() {
-  const [modal, setModal] = useState<"code" | "password" | null>(null);
+  const [modal, setModal] = useState<"code" | null>(null);
+  const router = useRouter();
 
   return (
     <div className="min-h-screen relative page-top flex flex-col items-center justify-center px-4 pb-16 overflow-hidden">
@@ -73,17 +77,14 @@ export default function AuctionOSLandingPage() {
             <KeyRound className="w-4 h-4" />
             Enter Auction Hall
           </button>
-          <button onClick={() => setModal("password")} className="btn-ghost">
+          <button onClick={() => router.push("/auctionos/new")} className="btn-ghost">
             <Sparkles className="w-4 h-4" />
             Prepare Next Auction
           </button>
         </motion.div>
       </div>
 
-      <AnimatePresence>
-        {modal === "code" && <CodeModal onClose={() => setModal(null)} />}
-        {modal === "password" && <PasswordModal onClose={() => setModal(null)} />}
-      </AnimatePresence>
+      <AnimatePresence>{modal === "code" && <CodeModal onClose={() => setModal(null)} />}</AnimatePresence>
     </div>
   );
 }
@@ -139,16 +140,49 @@ function ModalShell({
 
 function CodeModal({ onClose }: { onClose: () => void }) {
   const router = useRouter();
+  const [tab, setTab] = useState<"code" | "password">("code");
+
+  // Join Code tab state
   const [code, setCode] = useState("");
+  const [accessKey, setAccessKey] = useState("");
+
+  // Admin Password tab state
+  const [password, setPassword] = useState("");
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleCodeSubmit(e: FormEvent) {
     e.preventDefault();
     if (!code.trim()) return;
     setSubmitting(true);
     setError(null);
     try {
+      // Captain path: a filled access key means resolve via resolve-captain
+      // instead of resolve-code — stores captain identity in a new
+      // sessionStorage key, but STILL sets CODE_KEY too so
+      // HallAccessGate's existing check keeps working unchanged.
+      if (accessKey.trim()) {
+        const res = await fetch("/api/auctionos/resolve-captain", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: code.trim(), access_key: accessKey.trim() }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.error ?? "Invalid code or access key.");
+          setSubmitting(false);
+          return;
+        }
+        sessionStorage.setItem(
+          CAPTAIN_KEY,
+          JSON.stringify({ auctionId: data.auction_id, captainId: data.captain_id, teamId: data.team_id })
+        );
+        sessionStorage.setItem(CODE_KEY, data.auction_id);
+        router.push("/auctionos/hall");
+        return;
+      }
+
       const res = await fetch("/api/auctionos/resolve-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -168,62 +202,30 @@ function CodeModal({ onClose }: { onClose: () => void }) {
     }
   }
 
-  return (
-    <ModalShell
-      icon={<KeyRound className="w-5 h-5" />}
-      title="Enter Auction Hall"
-      description="Have an auction code from your organizer? Enter it to join that auction's room."
-      onClose={onClose}
-    >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
-        <input
-          autoFocus
-          value={code}
-          onChange={(e) => {
-            setCode(e.target.value.toUpperCase());
-            setError(null);
-          }}
-          placeholder="AUCTION CODE"
-          maxLength={12}
-          className="w-full px-4 py-3 rounded-xl bg-jcc-navy-deep border border-jcc-border text-jcc-text-primary text-sm font-black uppercase tracking-[0.2em] text-center placeholder:text-jcc-text-muted/50 focus:outline-none focus:border-jcc-accent-dark transition-colors"
-        />
-        {error && <p className="text-red-500 text-[11px] font-bold text-center">{error}</p>}
-        <button
-          type="submit"
-          disabled={submitting || !code.trim()}
-          className="btn-vibrant-blue justify-center disabled:opacity-50 disabled:pointer-events-none"
-        >
-          {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-          Enter
-        </button>
-      </form>
-    </ModalShell>
-  );
-}
-
-function PasswordModal({ onClose }: { onClose: () => void }) {
-  const router = useRouter();
-  const [password, setPassword] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleSubmit(e: FormEvent) {
+  async function handlePasswordSubmit(e: FormEvent) {
     e.preventDefault();
     if (!password) return;
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/verify-password", {
+      const res = await fetch("/api/auctionos/resolve-admin", {
         method: "POST",
-        headers: { "x-admin-password": password },
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
       });
+      const data = await res.json();
       if (!res.ok) {
-        setError("Incorrect password.");
+        setError(data.error ?? "Incorrect password.");
         setSubmitting(false);
         return;
       }
       sessionStorage.setItem(ADMIN_KEY, password);
-      router.push("/auctionos/hall");
+      // resolve-admin only returns { auction_id } (no status) — route to
+      // the dashboard unconditionally and let DashboardShell itself show
+      // the read-only locked view (with a link into the Hall) once it
+      // learns the auction isn't 'draft' anymore. Simpler than a second
+      // round trip just to branch here.
+      router.push(`/auctionos/dashboard/${data.auction_id}`);
     } catch {
       setError("Network error. Please try again.");
       setSubmitting(false);
@@ -232,33 +234,102 @@ function PasswordModal({ onClose }: { onClose: () => void }) {
 
   return (
     <ModalShell
-      icon={<Sparkles className="w-5 h-5" />}
-      title="Prepare Next Auction"
-      description="Organizer access. Sign in to build the lot list and open the next auction."
+      icon={tab === "code" ? <KeyRound className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
+      title="Enter Auction Hall"
+      description={
+        tab === "code"
+          ? "Have an auction code from your organizer? Enter it to join that auction's room — add your captain access key too if you have one."
+          : "Organizer access. Sign in with your auction's admin password to resume building or manage it."
+      }
       onClose={onClose}
     >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
-        <input
-          autoFocus
-          type="password"
-          value={password}
-          onChange={(e) => {
-            setPassword(e.target.value);
+      <div className="flex rounded-xl border border-jcc-border overflow-hidden mb-1">
+        <button
+          type="button"
+          onClick={() => {
+            setTab("code");
             setError(null);
           }}
-          placeholder="ORGANIZER PASSWORD"
-          className="w-full px-4 py-3 rounded-xl bg-jcc-navy-deep border border-jcc-border text-jcc-text-primary text-sm font-black uppercase tracking-[0.15em] text-center placeholder:text-jcc-text-muted/50 focus:outline-none focus:border-jcc-accent-dark transition-colors"
-        />
-        {error && <p className="text-red-500 text-[11px] font-bold text-center">{error}</p>}
-        <button
-          type="submit"
-          disabled={submitting || !password}
-          className="btn-ghost justify-center disabled:opacity-50 disabled:pointer-events-none"
+          className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-colors ${
+            tab === "code" ? "bg-jcc-navy-deep text-jcc-text-primary" : "text-jcc-text-muted"
+          }`}
         >
-          {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-          Prepare
+          Join Code
         </button>
-      </form>
+        <button
+          type="button"
+          onClick={() => {
+            setTab("password");
+            setError(null);
+          }}
+          className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-colors ${
+            tab === "password" ? "bg-jcc-navy-deep text-jcc-text-primary" : "text-jcc-text-muted"
+          }`}
+        >
+          Admin Password
+        </button>
+      </div>
+
+      {tab === "code" ? (
+        <form onSubmit={handleCodeSubmit} className="flex flex-col gap-2.5">
+          <input
+            autoFocus
+            value={code}
+            onChange={(e) => {
+              setCode(e.target.value.toUpperCase());
+              setError(null);
+            }}
+            placeholder="AUCTION CODE"
+            maxLength={12}
+            className="w-full px-4 py-3 rounded-xl bg-jcc-navy-deep border border-jcc-border text-jcc-text-primary text-sm font-black uppercase tracking-[0.2em] text-center placeholder:text-jcc-text-muted/50 focus:outline-none focus:border-jcc-accent-dark transition-colors"
+          />
+          <div className="flex items-center gap-2">
+            <Crown className="w-3.5 h-3.5 text-jcc-text-muted shrink-0" />
+            <input
+              value={accessKey}
+              onChange={(e) => {
+                setAccessKey(e.target.value.toUpperCase());
+                setError(null);
+              }}
+              placeholder="CAPTAIN ACCESS KEY (optional)"
+              maxLength={12}
+              className="w-full px-3 py-2.5 rounded-xl bg-jcc-navy-deep border border-jcc-border text-jcc-text-primary text-xs font-black uppercase tracking-[0.15em] text-center placeholder:text-jcc-text-muted/50 focus:outline-none focus:border-jcc-accent-dark transition-colors"
+            />
+          </div>
+          {error && <p className="text-red-500 text-[11px] font-bold text-center">{error}</p>}
+          <button
+            type="submit"
+            disabled={submitting || !code.trim()}
+            className="btn-vibrant-blue justify-center disabled:opacity-50 disabled:pointer-events-none"
+          >
+            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+            Enter
+          </button>
+        </form>
+      ) : (
+        <form onSubmit={handlePasswordSubmit} className="flex flex-col gap-2.5">
+          <input
+            autoFocus
+            type="password"
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setError(null);
+            }}
+            placeholder="ADMIN PASSWORD"
+            className="w-full px-4 py-3 rounded-xl bg-jcc-navy-deep border border-jcc-border text-jcc-text-primary text-sm font-black uppercase tracking-[0.15em] text-center placeholder:text-jcc-text-muted/50 focus:outline-none focus:border-jcc-accent-dark transition-colors"
+          />
+          {error && <p className="text-red-500 text-[11px] font-bold text-center">{error}</p>}
+          <button
+            type="submit"
+            disabled={submitting || !password}
+            className="btn-vibrant-blue justify-center disabled:opacity-50 disabled:pointer-events-none"
+          >
+            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            Sign In
+          </button>
+        </form>
+      )}
     </ModalShell>
   );
 }
