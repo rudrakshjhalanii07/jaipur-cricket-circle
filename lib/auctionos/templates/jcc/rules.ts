@@ -12,7 +12,8 @@ import type {
   BidIncrementTier,
 } from "@/lib/auctionos/core/template";
 
-export const DEFAULT_PURSE_LAKHS = 2000; // ₹20 Cr per team
+export const DEFAULT_PURSE_LAKHS = 1400; // ₹14 Cr per team — Wallet A (MVP + Regular)
+export const DEFAULT_GUEST_PURSE_LAKHS = 500; // ₹5 Cr per team — Wallet B (Guest Players)
 
 export const BASE_PRICE_TIERS_LAKHS = [20, 30, 50, 75, 100] as const;
 

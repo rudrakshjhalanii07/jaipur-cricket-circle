@@ -17,6 +17,8 @@ export default function CategoriesStep({ auctionId, data, adminPassword, refetch
   const [basePrice, setBasePrice] = useState("");
   const [walletKindId, setWalletKindId] = useState("");
   const [bidIncrement, setBidIncrement] = useState("");
+  const [minRequired, setMinRequired] = useState("");
+  const [maxResellRounds, setMaxResellRounds] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -50,6 +52,22 @@ export default function CategoriesStep({ auctionId, data, adminPassword, refetch
         return;
       }
     }
+    let required = 0;
+    if (minRequired.trim()) {
+      required = Number(minRequired);
+      if (!Number.isInteger(required) || required < 0) {
+        setError("Squad quota must be a whole number (0 or more).");
+        return;
+      }
+    }
+    let resellCap: number | null = null;
+    if (maxResellRounds.trim()) {
+      resellCap = Number(maxResellRounds);
+      if (!Number.isInteger(resellCap) || resellCap < 0) {
+        setError("Max resell rounds must be a whole number (0 or more).");
+        return;
+      }
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -61,6 +79,8 @@ export default function CategoriesStep({ auctionId, data, adminPassword, refetch
           base_price: price,
           wallet_kind_id: walletKindId || null,
           bid_increment: increment,
+          min_required: required,
+          max_resell_rounds: resellCap,
         }),
       });
       const json = await res.json();
@@ -73,6 +93,8 @@ export default function CategoriesStep({ auctionId, data, adminPassword, refetch
       setBasePrice("");
       setWalletKindId("");
       setBidIncrement("");
+      setMinRequired("");
+      setMaxResellRounds("");
       await refetch();
     } catch {
       setError("Network error");
@@ -163,7 +185,45 @@ export default function CategoriesStep({ auctionId, data, adminPassword, refetch
                 ))}
               </select>
             </div>
+            <div className="w-36 flex flex-col gap-2">
+              <label className="text-jcc-text-muted text-[10px] font-black uppercase tracking-[0.2em]">Squad Quota</label>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                step={1}
+                value={minRequired}
+                onChange={(e) => setMinRequired(e.target.value)}
+                placeholder="e.g. 2 — optional"
+                className="w-full px-4 py-3 rounded-xl bg-jcc-navy-light border border-jcc-border text-jcc-text-primary text-sm font-bold placeholder:text-jcc-text-muted/50 focus:outline-none focus:border-jcc-accent-dark"
+              />
+            </div>
+            <div className="w-40 flex flex-col gap-2">
+              <label className="text-jcc-text-muted text-[10px] font-black uppercase tracking-[0.2em]">Max Resell Rounds</label>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                step={1}
+                value={maxResellRounds}
+                onChange={(e) => setMaxResellRounds(e.target.value)}
+                placeholder="e.g. 2 — optional"
+                className="w-full px-4 py-3 rounded-xl bg-jcc-navy-light border border-jcc-border text-jcc-text-primary text-sm font-bold placeholder:text-jcc-text-muted/50 focus:outline-none focus:border-jcc-accent-dark"
+              />
+            </div>
           </div>
+          <p className="text-jcc-text-muted text-[10px] font-bold max-w-2xl">
+            Squad Quota is the minimum number of players each team must own in this category (a team&rsquo;s own
+            captain, if seated here, counts as one). Leave at 0 for categories with no mandatory minimum (e.g. Guest)
+            &mdash; a category with a quota loops its own unsold players until every team meets it, per
+            AUCTION_RULES.md&rsquo;s &ldquo;Category quota&rdquo;.
+          </p>
+          <p className="text-jcc-text-muted text-[10px] font-bold max-w-2xl">
+            Max Resell Rounds only matters for a category with no Squad Quota (e.g. Guest): an unsold player is
+            re-offered up to this many times, then randomly handed to whichever eligible team currently has the
+            smallest overall squad &mdash; a best-effort balance, not a guarantee. Leave blank for the old behavior
+            (unsold is final immediately). Per AUCTION_RULES.md&rsquo;s &ldquo;Guest squad rebalancing&rdquo;.
+          </p>
 
           {error && (
             <p className="flex items-center gap-1.5 text-red-500 text-[11px] font-bold">
@@ -196,6 +256,8 @@ export default function CategoriesStep({ auctionId, data, adminPassword, refetch
                     Base {formatLakhs(category.base_price)} · Increment{" "}
                     {category.bid_increment != null ? formatLakhs(category.bid_increment) : "Template default"} · {players.length}{" "}
                     players{kind ? ` · ${kind.name}` : ""}
+                    {category.min_required > 0 ? ` · Quota ${category.min_required}/team` : ""}
+                    {category.max_resell_rounds != null ? ` · Resell x${category.max_resell_rounds} then rebalance` : ""}
                   </span>
                 </div>
                 {!readOnly && (

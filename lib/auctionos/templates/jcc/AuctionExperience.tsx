@@ -12,6 +12,7 @@ import {
   AlertCircle,
   Sparkles,
   Trophy,
+  Undo2,
 } from "lucide-react";
 
 import { TEAMS, TEAM_ORDER_ALL, type TeamId } from "@/lib/teams";
@@ -19,6 +20,7 @@ import type { AuctionExperienceProps } from "@/lib/auctionos/core/template";
 import type {
   Auction,
   AuctionWallet,
+  AuctionWalletKind,
   AuctionLot,
   AuctionCategory,
   AuctionCaptain,
@@ -26,6 +28,7 @@ import type {
 } from "@/lib/auctionos/core/types";
 import { liveEngine, type AuctionEngine } from "./engine";
 import { formatLakhs, getNextBidIncrement } from "./rules";
+import { withCaptainBonus } from "@/lib/auctionos/core/reserve";
 import { getDiceBearUrl } from "@/lib/avatar";
 import { SMOOTH_EASE } from "@/lib/animations";
 import RollingNumber from "@/components/auctionos/RollingNumber";
@@ -51,8 +54,24 @@ function teamKeyOf(wallets: AuctionWallet[], walletId: string | null): TeamId | 
   return w ? (w.team_id as TeamId) : null;
 }
 
-function walletForTeam(wallets: AuctionWallet[], teamId: TeamId): AuctionWallet | undefined {
-  return wallets.find((w) => w.team_id === teamId);
+function walletsForTeam(wallets: AuctionWallet[], teamId: TeamId): AuctionWallet[] {
+  return wallets.filter((w) => w.team_id === teamId);
+}
+
+// A category's wallet_kind_id says which wallet a purchase in it debits —
+// a team with multiple wallet kinds (e.g. Wallet A for MVP/Regular, Wallet
+// B for Guest) must never be charged against the wrong one. Categories
+// with no wallet_kind_id set (organizer didn't split wallets) fall back to
+// the team's first wallet, matching the single-wallet-per-team behavior
+// this template originally shipped with.
+function walletForTeamKind(
+  wallets: AuctionWallet[],
+  teamId: TeamId,
+  walletKindId: string | null | undefined
+): AuctionWallet | undefined {
+  const teamWallets = walletsForTeam(wallets, teamId);
+  if (!walletKindId) return teamWallets[0];
+  return teamWallets.find((w) => w.wallet_kind_id === walletKindId) ?? teamWallets[0];
 }
 
 // captain_valuations is an append-only log (see AUCTIONOS.md) — "current"
@@ -275,7 +294,11 @@ function Eyebrow({ children, className = "" }: { children: React.ReactNode; clas
 
 // ─── Hammer sequence overlay ────────────────────────────────────────────────
 
-type HammerPhase = "idle" | "going_once" | "going_twice" | "sold";
+// "allotted" plays instead of "sold" when a lot resolved through
+// auctionos_mark_unsold's forced-allotment path or an organizer's manual
+// auctionos_resolve_blocked_lot pick, rather than being won by bidding —
+// see handleUnsold below.
+type HammerPhase = "idle" | "sold" | "allotted";
 
 function HammerOverlay({
   phase,
@@ -308,32 +331,273 @@ function HammerOverlay({
               transition={{ duration: 0.45, ease: SMOOTH_EASE }}
               className="text-center px-6 relative z-10"
             >
-              {phase === "sold" ? (
-                <>
-                  <p className="text-jcc-accent-dark text-xs font-black tracking-[0.5em] uppercase mb-4">
-                    {teamName}
-                  </p>
-                  <h2
-                    className="text-[clamp(3rem,11vw,7.5rem)] font-black uppercase leading-none text-gradient-gold"
-                    style={{ filter: "drop-shadow(0 8px 40px rgba(212,175,55,0.35))" }}
-                  >
-                    Sold
-                  </h2>
-                  <p className="score-number text-2xl sm:text-3xl text-jcc-accent-dark mt-5 font-black">
-                    {formatLakhs(price ?? 0)}
-                  </p>
-                  <p className="text-jcc-text-muted text-sm mt-2 font-bold">{playerName}</p>
-                </>
-              ) : (
-                <h2 className="text-[clamp(2.25rem,8vw,5rem)] font-black uppercase text-jcc-text-primary tracking-wide">
-                  {phase === "going_once" ? "Going Once" : "Going Twice"}
+              <div>
+                <p className="text-jcc-accent-dark text-xs font-black tracking-[0.5em] uppercase mb-4">
+                  {teamName}
+                </p>
+                <h2
+                  className="text-[clamp(3rem,11vw,7.5rem)] font-black uppercase leading-none text-gradient-gold"
+                  style={{ filter: "drop-shadow(0 8px 40px rgba(212,175,55,0.35))" }}
+                >
+                  {phase === "allotted" ? "Allotted" : "Sold"}
                 </h2>
-              )}
+                <p className="score-number text-2xl sm:text-3xl text-jcc-accent-dark mt-5 font-black">
+                  {formatLakhs(price ?? 0)}
+                </p>
+                <p className="text-jcc-text-muted text-sm mt-2 font-bold">{playerName}</p>
+                {phase === "allotted" && (
+                  <p className="text-jcc-text-muted text-[10px] font-black uppercase tracking-widest mt-3">
+                    Quota completion — no bid placed
+                  </p>
+                )}
+              </div>
             </motion.div>
           </AnimatePresence>
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+// ─── Looped-lot toast ───────────────────────────────────────────────────────
+// Deliberately lightweight (not a full-screen takeover like HammerOverlay) —
+// a quota category can loop the same handful of unsold lots several times
+// in a row, and a heavy modal every time would be exhausting rather than
+// informative. See AUCTION_RULES.md's "Category quota" section.
+
+function LoopedToast({ playerName }: { playerName: string | null }) {
+  return (
+    <AnimatePresence>
+      {playerName && (
+        <motion.div
+          initial={{ opacity: 0, y: -16 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -16 }}
+          transition={{ duration: 0.35, ease: SMOOTH_EASE }}
+          className="fixed top-6 left-1/2 -translate-x-1/2 z-[240] px-5 py-3 rounded-full flex items-center gap-2.5"
+          style={{
+            backgroundColor: "color-mix(in srgb, var(--color-jcc-navy) 92%, transparent)",
+            border: "1.5px solid color-mix(in srgb, var(--color-jcc-accent) 55%, transparent)",
+            boxShadow: "0 12px 32px -12px rgba(0,0,0,0.5)",
+          }}
+        >
+          <Undo2 className="w-3.5 h-3.5 text-jcc-accent-dark shrink-0" />
+          <p className="text-jcc-text-primary text-xs font-bold">
+            <span className="text-jcc-text-muted">Unsold —</span> {playerName}{" "}
+            <span className="text-jcc-text-muted">returns to the pool</span>
+          </p>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// ─── Auction finale overlay ─────────────────────────────────────────────────
+// Fires once, the moment the auctioneer advances past the last lot and the
+// season flips to "completed" — a brief curtain-call before the room settles
+// into CompletedRecap underneath.
+
+function AuctionFinaleOverlay({ show }: { show: boolean }) {
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.6 }}
+          className="fixed inset-0 z-[260] bg-jcc-navy-deep/97 backdrop-blur-md flex flex-col items-center justify-center gap-5"
+        >
+          <div className="stadium-glow pointer-events-none" />
+          <motion.div
+            initial={{ opacity: 0, y: 18, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.6, ease: SMOOTH_EASE }}
+            className="text-center px-6 relative z-10"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.6, rotate: -8 }}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
+              transition={{ duration: 0.7, ease: SMOOTH_EASE, delay: 0.1 }}
+              className="flex justify-center mb-5"
+            >
+              <Trophy className="w-14 h-14 text-jcc-accent-dark" style={{ filter: "drop-shadow(0 8px 30px rgba(212,175,55,0.45))" }} />
+            </motion.div>
+            <h2
+              className="text-[clamp(2.25rem,8vw,5rem)] font-black uppercase leading-none text-gradient-gold"
+              style={{ filter: "drop-shadow(0 8px 40px rgba(212,175,55,0.35))" }}
+            >
+              Auction Complete
+            </h2>
+            <motion.p
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.5 }}
+              className="text-jcc-text-muted text-sm sm:text-base mt-5 font-bold max-w-md mx-auto"
+            >
+              Every seat is filled. Every purse is spent. Four squads walk out of the hall tonight.
+            </motion.p>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// ─── Category announcement overlay ─────────────────────────────────────────
+// Fires once per category transition (including the very first category of
+// a fresh auction) — a brief curtain-raiser naming the block that's about to
+// run, before the room settles into the normal "Call Next Player" flow.
+
+function CategoryAnnouncementOverlay({ category }: { category: AuctionCategory | null }) {
+  return (
+    <AnimatePresence>
+      {category && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
+          className="fixed inset-0 z-[255] bg-jcc-navy-deep/97 backdrop-blur-md flex flex-col items-center justify-center gap-4"
+        >
+          <div className="stadium-glow pointer-events-none" />
+          <motion.div
+            initial={{ opacity: 0, y: 18, scale: 0.92 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.55, ease: SMOOTH_EASE }}
+            className="text-center px-6 relative z-10"
+          >
+            <motion.span
+              initial={{ opacity: 0, letterSpacing: "0.2em" }}
+              animate={{ opacity: 1, letterSpacing: "0.5em" }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="block text-xs font-black uppercase mb-5"
+              style={{ color: category.color ?? "var(--color-jcc-accent-dark)" }}
+            >
+              Now Entering
+            </motion.span>
+            <h2
+              className="text-[clamp(2.5rem,9vw,6rem)] font-black uppercase leading-none"
+              style={{
+                color: category.color ?? "var(--color-jcc-text-primary)",
+                filter: `drop-shadow(0 8px 40px ${category.color ?? "rgba(212,175,55,0.35)"}55)`,
+              }}
+            >
+              {category.name}
+            </h2>
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              className="flex items-center justify-center gap-2 mt-6"
+            >
+              <span className="h-px w-8 bg-jcc-border-bright" />
+              <p className="text-jcc-text-muted text-xs sm:text-sm font-bold uppercase tracking-widest">
+                Floor {formatLakhs(category.floor_price ?? category.base_price)}
+              </p>
+              <span className="h-px w-8 bg-jcc-border-bright" />
+            </motion.div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// ─── Blocked-lot resolution panel ──────────────────────────────────────────
+// auctionos_advance_lot refuses to run while a lot is 'blocked' — this is
+// the only way out, an organizer-only manual pick (see
+// AUCTION_RULES.md's "Category quota"). Shown in place of the ordinary
+// on-block/interstitial UI whenever blockedLot is set.
+
+function BlockedLotPanel({
+  lot,
+  category,
+  participants,
+  captains,
+  lots,
+  onResolve,
+  resolving,
+}: {
+  lot: AuctionLot;
+  category: AuctionCategory | null;
+  participants: AuctionWallet[];
+  captains: AuctionCaptain[];
+  lots: AuctionLot[];
+  onResolve: (walletId: string | null) => void;
+  resolving: boolean;
+}) {
+  const basePrice = category?.base_price ?? lot.base_price;
+  const eligibleWallets = category?.wallet_kind_id
+    ? participants.filter((w) => w.wallet_kind_id === category.wallet_kind_id)
+    : participants;
+  const candidates = eligibleWallets
+    .map((wallet) => {
+      const purchased = category
+        ? lots.filter((l) => l.status === "sold" && l.sold_wallet_id === wallet.id && l.category_id === category.id).length
+        : 0;
+      const acquired = category
+        ? (withCaptainBonus({ [category.id]: purchased }, wallet, captains)[category.id] ?? purchased)
+        : purchased;
+      const short = category ? acquired < category.min_required : false;
+      const affordable = wallet.budget_remaining >= basePrice;
+      const teamId = teamKeyOf(participants, wallet.id);
+      return { wallet, teamId, acquired, short, affordable };
+    })
+    .filter((c) => c.teamId)
+    .sort((a, b) => Number(b.short) - Number(a.short));
+
+  return (
+    <div className="flex flex-col items-center text-center gap-6 py-16">
+      <AlertCircle className="w-9 h-9 text-jcc-accent-dark" />
+      <div>
+        <p className="text-jcc-accent-dark text-xs font-black uppercase tracking-[0.4em] mb-3">Needs Resolution</p>
+        <h2 className="text-2xl sm:text-3xl font-black uppercase text-jcc-text-primary">{lot.display_name}</h2>
+        <p className="text-jcc-text-muted text-sm max-w-md mx-auto mt-3">
+          {category?.name ?? "This category"}&rsquo;s last unsold player — the system can&rsquo;t decide who this
+          goes to on its own. Allot it to a team below, or let it go unsold for good.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap justify-center gap-3 max-w-2xl">
+        {candidates.map(({ wallet, teamId, short, affordable }) => {
+          if (!teamId) return null;
+          const team = TEAMS[teamId];
+          return (
+            <button
+              key={wallet.id}
+              onClick={() => onResolve(wallet.id)}
+              disabled={resolving || !affordable}
+              className="id-card px-5 py-4 flex flex-col items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-[0_0_0_1px_rgba(212,175,55,0.55)] transition-shadow"
+              style={{ borderColor: short ? `${team.primary}90` : undefined, borderWidth: short ? 2 : undefined }}
+            >
+              <TeamLogo teamId={teamId} className="w-10 h-10 object-contain" />
+              <p className="font-heading font-black text-xs uppercase" style={{ color: team.primary }}>
+                {team.shortName}
+              </p>
+              <p className="text-jcc-text-muted text-[10px] font-black uppercase tracking-widest">
+                {short ? "Short of quota" : "Optional pickup"}
+              </p>
+              <p className="score-number text-jcc-text-primary text-xs font-black">
+                {formatLakhs(wallet.budget_remaining)} left
+              </p>
+              {!affordable && (
+                <p className="text-red-400 text-[9px] font-black uppercase tracking-widest">Can&rsquo;t afford base price</p>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <button
+        onClick={() => onResolve(null)}
+        disabled={resolving}
+        className="btn-ghost px-6 py-2.5 text-xs disabled:opacity-50"
+      >
+        {resolving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />}
+        Leave Unsold
+      </button>
+    </div>
   );
 }
 
@@ -450,6 +714,7 @@ export default function AuctionExperience({
   // the next-bid preview can apply a category's bid_increment override,
   // matching what app/api/auctionos/bid/route.ts actually charges.
   const [categories, setCategories] = useState<AuctionCategory[]>(initialCategories);
+  const [walletKinds, setWalletKinds] = useState<AuctionWalletKind[]>([]);
   const [captains, setCaptains] = useState<AuctionCaptain[]>([]);
   const [captainValuations, setCaptainValuations] = useState<CaptainValuation[]>([]);
   const [view, setView] = useState<ViewPhase>("hero");
@@ -459,6 +724,27 @@ export default function AuctionExperience({
   const [cooldownTeams, setCooldownTeams] = useState<Record<string, boolean>>({});
   const [hammerPhase, setHammerPhase] = useState<HammerPhase>("idle");
   const [lastSoldSnapshot, setLastSoldSnapshot] = useState<AuctionLot | null>(null);
+  const [loopedPlayerName, setLoopedPlayerName] = useState<string | null>(null);
+  const [resolvingLot, setResolvingLot] = useState(false);
+  const [showFinale, setShowFinale] = useState(false);
+  // Seeded from the initial server snapshot so a spectator loading an
+  // already-finished auction doesn't get a replay of the finale ceremony —
+  // only a live transition into "completed" during this session plays it.
+  const hasPlayedFinaleRef = useRef(initialAuction?.status === "completed");
+  const [announcedCategory, setAnnouncedCategory] = useState<AuctionCategory | null>(null);
+  // Seeded from the initial snapshot the same way — null only when the
+  // auction hasn't resolved a single lot yet (a genuinely fresh start, where
+  // the first category's own announcement should still play), otherwise the
+  // category already on/next the block at load, so a page reload mid-block
+  // doesn't replay it.
+  const initialResolvedCount = initialLots.filter((p) => p.status === "sold" || p.status === "unsold").length;
+  const initialActiveLot =
+    initialLots.find((p) => p.status === "on_block") ??
+    [...initialLots.filter((p) => p.status === "upcoming")].sort((a, b) => a.lot_order - b.lot_order)[0] ??
+    null;
+  const lastAnnouncedCategoryIdRef = useRef<string | null>(
+    initialResolvedCount === 0 ? null : initialActiveLot?.category_id ?? null
+  );
 
   const { ensurePassword, passwordModal } = useAdminPassword();
 
@@ -473,8 +759,10 @@ export default function AuctionExperience({
     setParticipants(snap.wallets);
     setLots(snap.lots);
     setCategories(snap.categories);
+    setWalletKinds(snap.walletKinds);
     setCaptains(snap.captains);
     setCaptainValuations(snap.captainValuations);
+    return snap;
   }, [engine]);
 
   useEffect(() => {
@@ -499,6 +787,17 @@ export default function AuctionExperience({
   const onBlockCategory = onBlockLot?.category_id
     ? categories.find((c) => c.id === onBlockLot.category_id) ?? null
     : null;
+  // A quota category's last lot, parked because the system can't
+  // auto-resolve who it goes to (see AUCTION_RULES.md's "Category quota" —
+  // 2+ teams tied short, or the one short team can't afford base_price).
+  // auctionos_advance_lot refuses to run while this exists, so the hall
+  // must surface it rather than falling through to the ordinary
+  // "Call Next Player" interstitial (onBlockLot is null for a blocked lot
+  // too — it's not on_block, nobody can bid on it).
+  const blockedLot = lots.find((p) => p.status === "blocked") ?? null;
+  const blockedCategory = blockedLot?.category_id
+    ? categories.find((c) => c.id === blockedLot.category_id) ?? null
+    : null;
   const upcomingLots = lots.filter((p) => p.status === "upcoming");
   const soldLots = [...lots.filter((p) => p.status === "sold")].sort((a, b) =>
     (b.sold_at ?? "").localeCompare(a.sold_at ?? "")
@@ -506,6 +805,62 @@ export default function AuctionExperience({
   const totalLots = lots.length;
   const resolvedCount = lots.filter((p) => p.status === "sold" || p.status === "unsold").length;
   const isComplete = season?.status === "completed" || (totalLots > 0 && resolvedCount === totalLots);
+
+  // Plays exactly once, the moment the room crosses into "completed" — not on
+  // every refresh poll thereafter (hasPlayedFinaleRef guards re-fires when a
+  // late spectator's client catches up to an auction that finished earlier).
+  useEffect(() => {
+    if (isComplete && !hasPlayedFinaleRef.current) {
+      hasPlayedFinaleRef.current = true;
+      setShowFinale(true);
+      const timer = setTimeout(() => setShowFinale(false), 3600);
+      return () => clearTimeout(timer);
+    }
+  }, [isComplete]);
+
+  // Categories run in blocks (lot_order is reshuffled category-by-category at
+  // auctionos_begin_auction) — sold/unsold tallies per category, in the same
+  // order the auction actually calls them, not just the flat overall count.
+  const categoryProgress = [...categories]
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((category) => {
+      const catLots = lots.filter((p) => p.category_id === category.id);
+      const sold = catLots.filter((p) => p.status === "sold").length;
+      const unsold = catLots.filter((p) => p.status === "unsold").length;
+      return { category, total: catLots.length, resolved: sold + unsold };
+    })
+    .filter((c) => c.total > 0);
+
+  // Whether the next lot to be called starts a new category block — lets the
+  // "captains taking their seats" interstitial announce the category instead
+  // of repeating identical copy between every lot.
+  const lastResolvedLot =
+    [...lots]
+      .filter((p) => p.status === "sold" || p.status === "unsold")
+      .sort((a, b) => b.lot_order - a.lot_order)[0] ?? null;
+  const nextUpLot = [...upcomingLots].sort((a, b) => a.lot_order - b.lot_order)[0] ?? null;
+  const lastCategory = lastResolvedLot?.category_id
+    ? categories.find((c) => c.id === lastResolvedLot.category_id) ?? null
+    : null;
+  const nextCategory = nextUpLot?.category_id
+    ? categories.find((c) => c.id === nextUpLot.category_id) ?? null
+    : null;
+  const enteringNewCategory = resolvedCount > 0 && !!nextCategory && lastCategory?.id !== nextCategory.id;
+
+  // The category currently running the block — on_block if a lot is live,
+  // else whichever category the next call will open.
+  const activeCategory = onBlockCategory ?? blockedCategory ?? nextCategory;
+
+  // Fires the announcement overlay exactly once per category, the moment
+  // the room crosses into it (including the very first category of a fresh
+  // auction — see lastAnnouncedCategoryIdRef's seeding above).
+  useEffect(() => {
+    if (!activeCategory || activeCategory.id === lastAnnouncedCategoryIdRef.current) return;
+    lastAnnouncedCategoryIdRef.current = activeCategory.id;
+    setAnnouncedCategory(activeCategory);
+    const timer = setTimeout(() => setAnnouncedCategory(null), 2800);
+    return () => clearTimeout(timer);
+  }, [activeCategory?.id]);
 
   // Resolves the admin password only when the engine actually needs one —
   // the mock engine does nothing off-browser, so /auctionos/dev never shows
@@ -529,7 +884,7 @@ export default function AuctionExperience({
 
   async function handleRaisePaddle(teamId: TeamId) {
     if (!onBlockLot) return;
-    const wallet = walletForTeam(participants, teamId);
+    const wallet = walletForTeamKind(participants, teamId, onBlockCategory?.wallet_kind_id);
     if (!wallet) return;
     const password = await ensureEngineAuth();
     if (password === false) return;
@@ -544,21 +899,81 @@ export default function AuctionExperience({
     const password = await ensureEngineAuth();
     if (password === false) return;
     setLastSoldSnapshot(onBlockLot);
-    setHammerPhase("going_once");
-    setTimeout(() => setHammerPhase("going_twice"), 900);
-    setTimeout(async () => {
-      setHammerPhase("sold");
-      await engine.sold(onBlockLot.id, password);
-      await refresh();
-      setTimeout(() => setHammerPhase("idle"), 1600);
-    }, 1800);
+    setHammerPhase("sold");
+    await engine.sold(onBlockLot.id, password);
+    await refresh();
+    setTimeout(() => setHammerPhase("idle"), 1600);
   }
 
   async function handleUnsold() {
     if (!onBlockLot) return;
     const password = await ensureEngineAuth();
     if (password === false) return;
-    await engine.unsold(onBlockLot.id, password);
+    const lotId = onBlockLot.id;
+    const displayName = onBlockLot.display_name;
+    await engine.unsold(lotId, password);
+    const snap = await refresh();
+
+    // auctionos_mark_unsold/mockEngine.unsold don't return their outcome —
+    // it's fully expressed in the lot's own resulting status (see
+    // AUCTION_RULES.md's "Category quota"), so read it back from the fresh
+    // snapshot rather than threading extra return data through the engine
+    // interface. 'sold' only happens here via the forced-allotment path —
+    // a bid-won sale always goes through handleSold, never handleUnsold.
+    const resolved = snap.lots.find((l) => l.id === lotId);
+    if (resolved?.status === "upcoming") {
+      setLoopedPlayerName(displayName);
+      setTimeout(() => setLoopedPlayerName(null), 2000);
+    } else if (resolved?.status === "sold") {
+      setLastSoldSnapshot(resolved);
+      setHammerPhase("allotted");
+      setTimeout(() => setHammerPhase("idle"), 1600);
+    }
+  }
+
+  // Organizer's manual escape hatch for a 'blocked' lot — walletId null
+  // gives up (terminal unsold), otherwise force-allots to that team. Same
+  // admin-password gate as every other resolution action.
+  async function handleResolveBlockedLot(walletId: string | null) {
+    if (!blockedLot || !engine.resolveBlockedLot) return;
+    const password = await ensureEngineAuth();
+    if (password === false) return;
+    setResolvingLot(true);
+    const lotId = blockedLot.id;
+    await engine.resolveBlockedLot(lotId, walletId, password);
+    const snap = await refresh();
+    setResolvingLot(false);
+
+    const resolved = snap.lots.find((l) => l.id === lotId);
+    if (resolved?.status === "sold") {
+      setLastSoldSnapshot(resolved);
+      setHammerPhase("allotted");
+      setTimeout(() => setHammerPhase("idle"), 1600);
+    }
+    // resolved?.status === "unsold" (organizer gave up): nothing further to
+    // announce, same as any other terminal unsold lot.
+  }
+
+  // Retracts the current highest bid on the on_block lot — only legal
+  // server-side while the lot hasn't been hammered yet (see AUCTIONOS.md
+  // §11's auctionos_undo_bid). Real-auction-only: engine.undoBid is
+  // undefined on the mock, so this is never called from there.
+  async function handleUndoBid() {
+    if (!onBlockLot || !engine.undoBid) return;
+    const password = await ensureEngineAuth();
+    if (password === false) return;
+    await engine.undoBid(onBlockLot.id, password);
+    await refresh();
+  }
+
+  // Reverses the most recently resolved lot (sold or unsold) back onto the
+  // block — only legal server-side if no later lot has been opened yet
+  // (auctionos_undo_sale). Real-auction-only, same as handleUndoBid.
+  async function handleUndoSale() {
+    if (!lastResolvedLot || !engine.undoSale) return;
+    const password = await ensureEngineAuth();
+    if (password === false) return;
+    await engine.undoSale(lastResolvedLot.id, password);
     await refresh();
   }
 
@@ -677,6 +1092,53 @@ export default function AuctionExperience({
           )}
         </div>
 
+        {categoryProgress.length > 0 && !isComplete && (
+          <div className="flex items-center gap-3 overflow-x-auto pb-1 -mt-6 mb-10 scrollbar-thin">
+            {categoryProgress.map(({ category, resolved, total }) => {
+              const isCurrent = category.id === activeCategory?.id;
+              const accent = category.color ?? "#94a3b8";
+              return (
+                <motion.div
+                  key={category.id}
+                  animate={{ scale: isCurrent ? 1.06 : 1 }}
+                  transition={{ duration: 0.45, ease: SMOOTH_EASE }}
+                  className={`flex items-center gap-2 shrink-0 rounded-full transition-colors duration-500 ${
+                    isCurrent ? "px-4 py-2" : "px-3 py-1.5 opacity-50"
+                  }`}
+                  style={
+                    isCurrent
+                      ? {
+                          backgroundColor: `color-mix(in srgb, ${accent} 16%, transparent)`,
+                          border: `1.5px solid color-mix(in srgb, ${accent} 55%, transparent)`,
+                          boxShadow: `0 0 26px -8px color-mix(in srgb, ${accent} 70%, transparent)`,
+                        }
+                      : undefined
+                  }
+                >
+                  <span
+                    className={`rounded-full shrink-0 ${isCurrent ? "w-2.5 h-2.5 animate-pulse" : "w-1.5 h-1.5"}`}
+                    style={{ backgroundColor: accent }}
+                  />
+                  <span
+                    className={`font-black uppercase tracking-widest ${
+                      isCurrent ? "text-jcc-text-primary text-[11px]" : "text-jcc-text-muted text-[10px]"
+                    }`}
+                  >
+                    {category.name}
+                  </span>
+                  <span
+                    className={`score-number font-black ${isCurrent ? "text-sm" : "text-xs text-jcc-text-primary"}`}
+                    style={isCurrent ? { color: accent } : undefined}
+                  >
+                    {resolved}
+                    <span className="text-jcc-text-muted/50">/{total}</span>
+                  </span>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+
         {!season ? (
           <div className="flex flex-col items-center text-center gap-4 py-24">
             <AuctionOSSeal className="w-14 h-14" />
@@ -686,21 +1148,71 @@ export default function AuctionExperience({
             </p>
           </div>
         ) : isComplete ? (
-          <CompletedRecap lots={lots} participants={participants} />
+          <CompletedRecap lots={lots} participants={participants} categories={categories} />
+        ) : blockedLot ? (
+          <BlockedLotPanel
+            lot={blockedLot}
+            category={blockedCategory}
+            participants={participants}
+            captains={captains}
+            lots={lots}
+            onResolve={handleResolveBlockedLot}
+            resolving={resolvingLot}
+          />
         ) : !onBlockLot ? (
-          <div className="flex flex-col items-center text-center gap-6 py-24">
-            <Sparkles className="w-8 h-8 text-jcc-accent-dark" />
-            <h2 className="text-2xl sm:text-3xl font-black uppercase text-jcc-text-primary">
-              The Captains Are Taking Their Seats
-            </h2>
-            <p className="text-jcc-text-muted text-sm max-w-sm">
-              {upcomingLots.length} {upcomingLots.length === 1 ? "lot waits" : "lots wait"} to be called to the block.
-            </p>
-            <button onClick={handleAdvance} disabled={advancing} className="btn-vibrant-blue">
-              {advancing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gavel className="w-4 h-4" />}
-              Call First Lot
-            </button>
-          </div>
+          (() => {
+            const currentCategoryProgress = nextCategory
+              ? categoryProgress.find((c) => c.category.id === nextCategory.id) ?? null
+              : null;
+            return (
+              <div className="flex flex-col items-center text-center gap-6 py-24">
+                <Sparkles className="w-8 h-8 text-jcc-accent-dark" />
+                {nextCategory && (
+                  <p
+                    className="text-sm sm:text-base font-black uppercase tracking-[0.3em]"
+                    style={{ color: nextCategory.color ?? undefined }}
+                  >
+                    {nextCategory.name}
+                  </p>
+                )}
+                <h2 className="text-2xl sm:text-3xl font-black uppercase text-jcc-text-primary -mt-2">
+                  {resolvedCount === 0
+                    ? "The Captains Are Taking Their Seats"
+                    : enteringNewCategory
+                      ? `Next Up: ${nextCategory!.name}`
+                      : "The Floor Is Open"}
+                </h2>
+                <p className="text-jcc-text-muted text-sm max-w-sm">
+                  {upcomingLots.length} {upcomingLots.length === 1 ? "player waits" : "players wait"} to be called to
+                  the block.
+                </p>
+                <div className="flex items-center gap-3">
+                  <button onClick={handleAdvance} disabled={advancing} className="btn-vibrant-blue">
+                    {advancing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gavel className="w-4 h-4" />}
+                    {resolvedCount === 0 ? "Call First Player" : "Call Next Player"}
+                  </button>
+                  {engine.undoSale && lastResolvedLot && (
+                    <button
+                      onClick={handleUndoSale}
+                      title={`Undo ${lastResolvedLot.status === "sold" ? "sale" : "unsold call"} for ${lastResolvedLot.display_name}`}
+                      className="btn-ghost px-4 py-3"
+                    >
+                      <Undo2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+                {currentCategoryProgress && (
+                  <p className="score-number text-jcc-text-primary text-lg font-black uppercase tracking-widest">
+                    {currentCategoryProgress.category.name}{" "}
+                    <span className="text-jcc-accent-dark">
+                      {currentCategoryProgress.resolved}
+                    </span>
+                    <span className="text-jcc-text-muted/50"> / {currentCategoryProgress.total}</span>
+                  </p>
+                )}
+              </div>
+            );
+          })()
         ) : (
           <>
             <SpotlightStage
@@ -713,8 +1225,106 @@ export default function AuctionExperience({
               onRaisePaddle={handleRaisePaddle}
               onSold={handleSold}
               onUnsold={handleUnsold}
+              onUndoBid={engine.undoBid ? handleUndoBid : undefined}
             />
           </>
+        )}
+
+        {season && (
+          <div className="mt-16">
+            <Eyebrow className="mb-5">Live Wallets</Eyebrow>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {TEAM_ORDER_ALL.map((teamId) => {
+                const team = TEAMS[teamId];
+                const teamWallets = walletsForTeam(participants, teamId);
+                // Order by the wallet kind's own sort_order once it's loaded
+                // (first poll); until then, fall back to the order wallets
+                // already come in (seeding emits Wallet A before B) so the
+                // strip never flashes empty on first render.
+                const ordered = [...teamWallets].sort((a, b) => {
+                  const ai = walletKinds.find((k) => k.id === a.wallet_kind_id)?.sort_order ?? 0;
+                  const bi = walletKinds.find((k) => k.id === b.wallet_kind_id)?.sort_order ?? 0;
+                  return ai - bi;
+                });
+                return (
+                  <div
+                    key={teamId}
+                    className="flex flex-col gap-3 px-5 py-4 rounded-2xl border bg-jcc-navy-light"
+                    style={{ borderColor: `${team.primary}70` }}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <TeamLogo teamId={teamId} className="w-8 h-8 object-contain shrink-0" />
+                      <p
+                        className="text-xs font-black uppercase tracking-widest truncate"
+                        style={{ color: team.primary }}
+                      >
+                        {team.name}
+                      </p>
+                    </div>
+
+                    {ordered.map((wallet, kindIdx) => {
+                      const kindName =
+                        walletKinds.find((k) => k.id === wallet.wallet_kind_id)?.name ??
+                        `Wallet ${String.fromCharCode(65 + kindIdx)}`;
+                      const remaining = wallet.budget_remaining;
+                      const spent = wallet.budget_total - remaining;
+                      const spentPct =
+                        wallet.budget_total > 0 ? Math.min(100, Math.round((spent / wallet.budget_total) * 100)) : 0;
+                      const squadCount = wallet.acquired_count;
+                      const slotCount = TEAM_SHEET_FIRST_XI_COUNT;
+                      return (
+                        <div key={wallet.id} className={kindIdx > 0 ? "pt-3 border-t border-jcc-border" : undefined}>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-jcc-accent-dark mb-1.5">
+                            {kindName}
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <p className="text-[9px] font-black uppercase tracking-widest text-jcc-text-muted">
+                                Purse Left
+                              </p>
+                              <p className="score-number text-base font-black text-jcc-text-primary leading-tight">
+                                {formatLakhs(remaining)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-[9px] font-black uppercase tracking-widest text-jcc-text-muted">
+                                Spent
+                              </p>
+                              <p className="score-number text-base font-black text-jcc-text-primary leading-tight">
+                                {formatLakhs(spent)}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="w-full h-1.5 rounded-full bg-jcc-border overflow-hidden mt-2">
+                            <div
+                              className="h-full rounded-full"
+                              style={{ width: `${spentPct}%`, backgroundColor: team.primary }}
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between mt-2">
+                            {Array.from({ length: slotCount }, (_, i) => (
+                              <span
+                                key={i}
+                                className="w-1 h-4 rounded-full shrink-0"
+                                style={{
+                                  backgroundColor: i < squadCount ? team.primary : "var(--color-jcc-border)",
+                                }}
+                              />
+                            ))}
+                          </div>
+                          <p className="text-[10px] font-bold text-jcc-text-muted mt-3 whitespace-nowrap">
+                            {squadCount}/{slotCount} signed
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         )}
 
         {soldLots.length > 0 && (
@@ -749,12 +1359,12 @@ export default function AuctionExperience({
           </div>
         )}
 
-        {season && (
-          <div className="mt-16">
+        {season && !isComplete && (
+          <div className="mt-16 w-screen relative left-1/2 -translate-x-1/2 max-w-400 px-4 sm:px-6">
             <Eyebrow className="mb-6">Team Sheets</Eyebrow>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
               {TEAM_ORDER_ALL.map((teamId) => (
-                <TeamSheet key={teamId} teamId={teamId} lots={lots} participants={participants} />
+                <TeamSheet key={teamId} teamId={teamId} lots={lots} participants={participants} categories={categories} />
               ))}
             </div>
           </div>
@@ -770,9 +1380,66 @@ export default function AuctionExperience({
           return teamId ? TEAMS[teamId].name : null;
         })()}
       />
+      <AuctionFinaleOverlay show={showFinale} />
+      <CategoryAnnouncementOverlay category={announcedCategory} />
+      <LoopedToast playerName={loopedPlayerName} />
       {passwordModal}
     </div>
   );
+}
+
+// Slot-machine reveal for the name on the block — scrambles through random
+// letters and settles left-to-right onto the real name, once per lot (keyed
+// off `triggerKey`, not `text`, so a lot whose name happens to repeat still
+// re-scrambles). Builds a beat of anticipation before the name lands.
+const SCRAMBLE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+function ScrambleText({
+  text,
+  triggerKey,
+  className,
+}: {
+  text: string;
+  triggerKey: string;
+  className?: string;
+}) {
+  const [display, setDisplay] = useState(text);
+  // Read via ref, not a `text` dependency, so a StrictMode dev double-invoke
+  // (mount -> cleanup -> remount) just restarts the same scramble instead of
+  // silently no-oping — a ref-guarded "already ran for this key" flag would
+  // survive the first invocation's cleanup and skip the real one.
+  const textRef = useRef(text);
+  textRef.current = text;
+
+  useEffect(() => {
+    const currentText = textRef.current;
+    const durationMs = 700;
+    const frameMs = 35;
+    const totalFrames = Math.round(durationMs / frameMs);
+    let frame = 0;
+
+    const interval = setInterval(() => {
+      frame++;
+      const revealCount = Math.ceil((frame / totalFrames) * currentText.length);
+      setDisplay(
+        currentText
+          .split("")
+          .map((ch, i) => {
+            if (ch === " ") return " ";
+            return i < revealCount ? ch : SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+          })
+          .join("")
+      );
+      if (frame >= totalFrames) {
+        setDisplay(currentText);
+        clearInterval(interval);
+      }
+    }, frameMs);
+
+    return () => clearInterval(interval);
+  }, [triggerKey]);
+
+  return <span className={className}>{display}</span>;
 }
 
 // ─── Spotlight stage — the lot currently on the block ───────────────────
@@ -811,6 +1478,7 @@ function SpotlightStage({
   onRaisePaddle,
   onSold,
   onUnsold,
+  onUndoBid,
 }: {
   lot: AuctionLot;
   category: AuctionCategory | null;
@@ -821,6 +1489,7 @@ function SpotlightStage({
   onRaisePaddle: (teamId: TeamId) => void;
   onSold: () => void;
   onUnsold: () => void;
+  onUndoBid?: () => void;
 }) {
   const currentBid = lot.current_bid ?? lot.base_price;
   // Mirrors app/api/auctionos/bid/route.ts's own increment resolution: a
@@ -856,7 +1525,9 @@ function SpotlightStage({
           <p className="text-jcc-accent-dark text-[10px] font-black tracking-[0.4em] uppercase mb-2">
             {lotRole(lot)} · Lot {lot.lot_order}
           </p>
-          <h2 className="text-3xl sm:text-4xl font-black uppercase text-jcc-text-primary">{lot.display_name}</h2>
+          <h2 className="text-3xl sm:text-4xl font-black uppercase text-jcc-text-primary">
+            <ScrambleText text={lot.display_name} triggerKey={lot.id} />
+          </h2>
         </div>
 
         <div className="flex items-center gap-10 sm:gap-16">
@@ -887,12 +1558,22 @@ function SpotlightStage({
           >
             Unsold
           </button>
+          {onUndoBid && (
+            <button
+              onClick={onUndoBid}
+              disabled={!lot.current_bid_wallet_id}
+              title="Retract the current highest bid"
+              className="btn-ghost px-4 py-3 disabled:opacity-30"
+            >
+              <Undo2 className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
       <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-5">
         {TEAM_ORDER_ALL.map((teamId) => {
-          const purse = walletForTeam(participants, teamId);
+          const purse = walletForTeamKind(participants, teamId, category?.wallet_kind_id);
           const isLeading = leadingTeamId === teamId;
           const canAfford = (purse?.budget_remaining ?? 0) >= nextBid;
 
@@ -944,10 +1625,12 @@ function TeamSheet({
   teamId,
   lots,
   participants,
+  categories,
 }: {
   teamId: TeamId;
   lots: AuctionLot[];
   participants: AuctionWallet[];
+  categories: AuctionCategory[];
 }) {
   const team = TEAMS[teamId];
   const squad = lots
@@ -958,16 +1641,16 @@ function TeamSheet({
 
   return (
     <div
-      className="rounded-[3rem] p-8 sm:p-10"
+      className="rounded-4xl p-5 sm:p-6"
       style={{
         background: "var(--color-jcc-navy)",
         border: "1.5px solid color-mix(in srgb, var(--color-jcc-accent) 60%, transparent)",
       }}
     >
-      <div className="flex items-center gap-4 mb-8">
-        <TeamLogo teamId={teamId} className="w-12 h-12 object-contain shrink-0" />
+      <div className="flex items-center gap-3 mb-4">
+        <TeamLogo teamId={teamId} className="w-9 h-9 object-contain shrink-0" />
         <h3
-          className="font-heading text-2xl sm:text-3xl font-black uppercase tracking-[0.08em]"
+          className="font-heading text-lg sm:text-xl font-black uppercase tracking-[0.08em]"
           style={{ color: team.primary }}
         >
           {team.name}
@@ -976,29 +1659,31 @@ function TeamSheet({
 
       {slots.map((lot, i) => {
         const isSectionStart = i === 0 || i === TEAM_SHEET_FIRST_XI_COUNT;
+        const category = lot ? categories.find((c) => c.id === lot.category_id) ?? null : null;
+        const isMvp = !!category?.name?.toUpperCase().includes("MVP");
         return (
           <div key={i}>
             {isSectionStart && (
               <p
-                className={`text-jcc-text-muted text-[10px] font-black uppercase tracking-[0.3em] mb-2 ${i === 0 ? "" : "mt-6"}`}
+                className={`text-jcc-text-muted text-[9px] font-black uppercase tracking-[0.25em] mb-1 ${i === 0 ? "" : "mt-3"}`}
               >
                 {i === 0 ? "First XI" : "Guest Players"}
               </p>
             )}
-            <div className="flex items-center justify-between py-3">
-              <div className="flex items-center gap-4 min-w-0">
-                <span className="score-number text-jcc-text-muted/50 text-sm w-6 shrink-0">
+            <div className="flex items-center justify-between py-1">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="score-number text-jcc-text-muted/50 text-[11px] w-5 shrink-0">
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <span
-                  className="font-bold text-sm sm:text-base uppercase tracking-wide truncate"
-                  style={lot ? { color: team.primary } : undefined}
+                  className="font-bold text-xs uppercase tracking-wide truncate"
+                  style={lot ? { color: isMvp ? "var(--color-jcc-accent-dark)" : team.primary } : undefined}
                 >
                   {lot ? lot.display_name : ""}
                 </span>
               </div>
               {lot && (
-                <span className="score-number text-jcc-accent-dark text-xs font-black shrink-0 pl-3">
+                <span className="score-number text-jcc-accent-dark text-[10px] font-black shrink-0 pl-2">
                   {formatLakhs(lot.sold_price ?? 0)}
                 </span>
               )}
@@ -1013,19 +1698,52 @@ function TeamSheet({
 
 // ─── Completion recap ───────────────────────────────────────────────────────
 
-function CompletedRecap({ lots, participants }: { lots: AuctionLot[]; participants: AuctionWallet[] }) {
+function CompletedRecap({
+  lots,
+  participants,
+  categories,
+}: {
+  lots: AuctionLot[];
+  participants: AuctionWallet[];
+  categories: AuctionCategory[];
+}) {
   const sold = lots.filter((p) => p.status === "sold");
   const topSignings = [...sold].sort((a, b) => (b.sold_price ?? 0) - (a.sold_price ?? 0)).slice(0, 3);
 
   return (
     <div className="py-8">
-      <div className="flex flex-col items-center text-center gap-4 mb-14">
+      <motion.div
+        initial={{ opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: SMOOTH_EASE }}
+        className="flex flex-col items-center text-center gap-4 mb-12"
+      >
         <Trophy className="w-9 h-9 text-jcc-accent-dark" />
         <h2 className="text-3xl sm:text-4xl font-black uppercase text-jcc-text-primary">The Gavel Rests</h2>
         <p className="text-jcc-text-muted text-sm max-w-md">
           {sold.length} {sold.length === 1 ? "player" : "players"} found a new home this season.
         </p>
-      </div>
+      </motion.div>
+
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={{ visible: { transition: { staggerChildren: 0.12, delayChildren: 0.2 } } }}
+        className="w-screen relative left-1/2 -translate-x-1/2 max-w-400 px-4 sm:px-6 mb-14"
+      >
+        <Eyebrow className="mb-6 text-center">Team Sheets</Eyebrow>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+          {TEAM_ORDER_ALL.map((teamId) => (
+            <motion.div
+              key={teamId}
+              variants={{ hidden: { opacity: 0, y: 24, scale: 0.96 }, visible: { opacity: 1, y: 0, scale: 1 } }}
+              transition={{ duration: 0.5, ease: SMOOTH_EASE }}
+            >
+              <TeamSheet teamId={teamId} lots={lots} participants={participants} categories={categories} />
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
 
       {topSignings.length > 0 && (
         <div className="mb-14">
@@ -1058,32 +1776,6 @@ function CompletedRecap({ lots, participants }: { lots: AuctionLot[]; participan
           </div>
         </div>
       )}
-
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {TEAM_ORDER_ALL.map((teamId) => {
-          const purse = walletForTeam(participants, teamId);
-          const team = TEAMS[teamId];
-          const spent = (purse?.budget_total ?? 0) - (purse?.budget_remaining ?? 0);
-          return (
-            <div key={teamId} className="id-card p-5 flex flex-col items-center gap-2 text-center">
-              <TeamLogo teamId={teamId} className="w-12 h-12 object-contain" />
-              <p className="font-heading font-black text-sm uppercase" style={{ color: team.primary }}>
-                {team.shortName}
-              </p>
-              <div className="w-full pt-2 border-t border-jcc-border grid grid-cols-2 gap-2">
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-jcc-text-muted">Squad</p>
-                  <p className="score-number text-sm font-black text-jcc-text-primary">{purse?.acquired_count ?? 0}</p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-jcc-text-muted">Spent</p>
-                  <p className="score-number text-sm font-black text-jcc-text-primary">{formatLakhs(spent)}</p>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }

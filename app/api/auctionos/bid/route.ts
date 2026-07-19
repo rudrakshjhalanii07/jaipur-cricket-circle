@@ -3,7 +3,8 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getTemplate } from "@/lib/auctionos/core/registry";
 import { fetchAuctionTemplateRow } from "@/lib/auctionos/core/data";
 import { verifyAdminPassword } from "@/lib/auctionos/core/auth";
-import type { Auction, AuctionWallet, AuctionLot, AuctionCategory } from "@/lib/auctionos/core/types";
+import { violatesReserve, withCaptainBonus } from "@/lib/auctionos/core/reserve";
+import type { Auction, AuctionWallet, AuctionLot, AuctionCategory, AuctionCaptain, PlayerPurchase } from "@/lib/auctionos/core/types";
 import "@/lib/auctionos/templates";
 
 export async function POST(request: Request) {
@@ -87,6 +88,58 @@ export async function POST(request: Request) {
     });
     if (!validation.ok) {
       return NextResponse.json({ error: validation.reason ?? "Bid rejected" }, { status: 400 });
+    }
+
+    // Reserve check — generic, not template-owned (see reserve.ts): this
+    // team must still be able to afford every OTHER mandatory slot it
+    // hasn't filled yet after winning this lot.
+    const { data: auctionCategories } = await supabaseAdmin
+      .from("auction_categories")
+      .select("*")
+      .eq("auction_id", (auction as Auction).id);
+
+    const { data: walletPurchases } = await supabaseAdmin
+      .from("player_purchases")
+      .select("category_id")
+      .eq("wallet_id", wallet_id)
+      .is("reversed_at", null);
+
+    const purchaseCountByCategory: Record<string, number> = {};
+    for (const purchase of (walletPurchases ?? []) as Pick<PlayerPurchase, "category_id">[]) {
+      if (!purchase.category_id) continue;
+      purchaseCountByCategory[purchase.category_id] = (purchaseCountByCategory[purchase.category_id] ?? 0) + 1;
+    }
+
+    // A team's captain occupies one slot of their own category without a
+    // purchase row backing it (see reserve.ts's withCaptainBonus) — folded
+    // in here so the reserve check doesn't over-reserve for a slot the
+    // captain already fills.
+    const { data: auctionCaptains } = await supabaseAdmin
+      .from("auction_captains")
+      .select("team_id, auction_team_id, category_id")
+      .eq("auction_id", (auction as Auction).id);
+
+    const acquiredCountByCategory = withCaptainBonus(
+      purchaseCountByCategory,
+      wallet as AuctionWallet,
+      (auctionCaptains ?? []) as Pick<AuctionCaptain, "team_id" | "auction_team_id" | "category_id">[]
+    );
+
+    if (
+      violatesReserve(
+        {
+          wallet: wallet as AuctionWallet,
+          categories: (auctionCategories ?? []) as AuctionCategory[],
+          acquiredCountByCategory,
+        },
+        (lot as AuctionLot).category_id,
+        newBid
+      )
+    ) {
+      return NextResponse.json(
+        { error: "Bid would leave this team unable to afford its remaining mandatory slots" },
+        { status: 400 }
+      );
     }
 
     // p_expected_version is the just-read lot version — correct for now

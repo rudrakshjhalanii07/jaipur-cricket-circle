@@ -187,10 +187,10 @@ it. As of schema v3 they're permanently split:
 - **Reserve** — the live, wallet-level required holdback: `remaining
   mandatory slots × current base prices`, summed across a wallet's
   categories. **Never stored anywhere in this schema.** It's generic enough
-  (reads only `auction_categories.min_required`/`max_allowed`,
-  `auction_captains`, `player_purchases`) that it isn't part of the
-  per-template contract at all — it's a shared Reserve Engine function, not
-  something a template overrides.
+  (reads only `auction_categories.min_required`/`base_price`,
+  `player_purchases`) that it isn't part of the per-template contract at
+  all — it's a shared Reserve Engine function (`lib/auctionos/core/reserve.ts`),
+  not something a template overrides. See §16 below for the enforcement path.
 
 ### Generic domain model
 
@@ -458,13 +458,20 @@ Still true from earlier passes: the schema was generalized with only one
 proves the plug-in mechanism works end to end but has no format-specific
 logic to pressure-test the DB/code split. The real test is still a second
 template with its own real rules — and now, additionally: a second template
-whose *categories* don't map to JCC's role-based shape, and critically, a
-second auction with **more than one wallet kind** (JCC only ever exercises
-"Main Purse" — the `auction_wallet_kinds` split from `auction_wallets` this
-pass is unvalidated against an auction that actually uses two kinds, e.g.
-"Domestic Purse" + "Overseas Purse", including whether
+whose *categories* don't map to JCC's role-based shape.
+
+JCC's dev mock harness (`lib/auctionos/templates/jcc/mockSeed.ts`) now
+seeds **two wallet kinds** — "Wallet A" (MVP + Regular categories, the
+First XI's 7 slots) and "Wallet B" (Guest Players, the other 7) — and
+`AuctionExperience.tsx` resolves the wallet to bid/preview against per
+`(team_id, category.wallet_kind_id)` via `walletForTeamKind()` rather than
+assuming one wallet row per team (`walletForTeam()` is gone). This is real
+coverage for the "does the generic engine/UI actually work with more than
+one kind" question, but it's still only exercised in-browser against the
+mock — an actual Supabase-backed auction with two wallet kinds (created via
+the wizard's `WalletsStep`) remains unvalidated, including whether
 `auction_wallet_category_caps` and the Reserve Engine's per-category
-math compose correctly across kinds). `metadata`/`spectator_visibility`
+math compose correctly across kinds. `metadata`/`spectator_visibility`
 JSONB columns remain the pressure-release valve for fields guessed wrong.
 
 ## File map
@@ -472,10 +479,13 @@ JSONB columns remain the pressure-release valve for fields guessed wrong.
 | Path | Purpose |
 |---|---|
 | `supabase/add_auctionos.sql` | Generic schema + RPCs (teams, template catalog, auctions, settings, wallet kinds/wallets, categories, captains, lots, bids, purchases, wallet transactions, captain valuations, events, permissions, operators) |
+| `supabase/add_auctionos_quota.sql` | Category quota gate — `'blocked'` lot status, deferrable `lot_order` uniqueness, `_auctionos_acquired_count`/`_auctionos_finalize_purchase` helpers, rewritten `auctionos_advance_lot`/`auctionos_mark_unsold`/`auctionos_mark_sold`/`auctionos_raise_bid`, new `auctionos_resolve_blocked_lot` (§16a) |
+| `supabase/add_auctionos_guest_rebalance.sql` | Squad-balance mechanic — `auction_categories.max_resell_rounds` column, further rewritten `auctionos_mark_unsold` (resell-cap-then-rebalance branch, layered alongside §16a's quota branch), new `lot_rebalanced` event (§16b) |
 | `lib/auctionos/core/types.ts` | `Team`, `AuctionTemplateRow`, `TemplateCategory`, `TemplateWallet`, `Auction`, `AuctionSettings`, `AuctionWalletKind`, `AuctionCategory`, `AuctionWallet`, `AuctionWalletCategoryCap`, `AuctionCaptain`, `AuctionLot`, `AuctionBid`, `PlayerPurchase`, `WalletTransaction`, `CaptainValuation`, `AuctionEvent`, `AuctionPermission`, `AuctionOperator` |
 | `lib/auctionos/core/template.ts` | `AuctionTemplate` contract (algorithmic modules only), `DEFAULT_*`, `defineTemplate()` |
 | `lib/auctionos/core/registry.ts` | `registerTemplate` / `getTemplate`, keyed by `module_key` |
 | `lib/auctionos/core/data.ts` | Generic anon-client reads: auctions, wallet kinds, wallets, lots, categories, settings, template rows; `resolveAuctionTemplate()` / `fetchAuctionTemplateBySlug()` |
+| `lib/auctionos/core/reserve.ts` | Generic Reserve Engine — `computeReserve`/`reserveAfterPurchase`/`violatesReserve`; remaining mandatory slots (`category.min_required`) x current `base_price`, per wallet |
 | `lib/auctionos/templates/index.ts` | Imports all templates (registration side effect) |
 | `lib/auctionos/templates/jcc/rules.ts` | Lakhs formatting, declarative bid-increment tiers, purse validation |
 | `lib/auctionos/templates/jcc/categories.ts` | `JCC_ROLE_TO_CATEGORY_NAME` — registration-role → DB category name lookup (categories themselves now live in `template_categories`) |
@@ -494,7 +504,7 @@ JSONB columns remain the pressure-release valve for fields guessed wrong.
 | `components/auctionos/RollingNumber.tsx` | Generic tweening number (takes a `format` fn) |
 | `components/auctionos/AuctionCountdown.tsx` | Generic countdown (takes an `accentClassName`) |
 | `components/auctionos/HallAccessGate.tsx` | Client-side sessionStorage gate in front of the hall — code-verified or admin-password-verified, else bounced to `/auctionos` (see "Landing philosophy") |
-| `app/api/auctionos/{start,advance,bid,sold,unsold,cancel,undo-bid,undo-sale}/route.ts` | Generic API routes |
+| `app/api/auctionos/{start,advance,bid,sold,unsold,cancel,undo-bid,undo-sale,resolve-lot}/route.ts` | Generic API routes — `resolve-lot` calls `auctionos_resolve_blocked_lot` (§16a) |
 | `app/api/auctionos/current/route.ts` | Service-role "what's the current auction" read, `access_code` stripped — replaces the anon client's now-removed direct read of `auctions` |
 | `app/api/auctionos/resolve-code/route.ts` | Turns an access code into an auction id (never returns the code itself) — the landing page's "Enter Auction Hall" front door |
 | `app/auctionos/page.tsx` | The SaaS landing — "Enter Auction Hall" opens a modal with a Join Code (+ optional Captain Access Key) / Admin Password tab switch; "Prepare Next Auction" routes straight to `/auctionos/new` (Phase 3) |
@@ -571,7 +581,7 @@ lib/auctionos/templates/jcc/
   valuation.ts            (existing, implemented — deterministic captain-value engine, no longer stats-based)
   floorPrice.ts            (existing, implemented — renamed from reserve.ts; reads auction_categories.floor_price)
   data.ts                  (existing, unchanged)
-  AuctionExperience.tsx     (existing — spectator/admin split; see §16 for what's not yet split)
+  AuctionExperience.tsx     (existing — spectator/admin split; see §17 for what's not yet split)
   index.ts                  (existing, unchanged)
 
 app/api/auctionos/
@@ -754,6 +764,21 @@ single "Undo" affordance.
 Deliberately **not** generic event-sourcing (replay-all-events-to-derive-
 state) — unchanged reasoning from the original design.
 
+Both RPCs are now wired into the UI: `AuctionEngine.undoBid`/`undoSale`
+(`lib/auctionos/templates/jcc/engine.ts`) are **optional** interface
+members — `liveEngine` implements them (posting to `/api/auctionos/undo-bid`
+/`undo-sale`, same pattern as `advance`/`sold`/`unsold`), `mockEngine.ts`
+deliberately does not. `AuctionExperience.tsx` feature-detects
+`engine.undoBid`/`engine.undoSale` to decide whether to render the undo
+controls at all, so real auctions get an auctioneer-facing Undo Bid button
+(next to Sold/Unsold on the on-block lot, disabled unless there's a bid to
+retract) and an Undo Sale button (next to "Call Next Player", targeting
+`lastResolvedLot`) — the `/auctionos/dev` mock harness shows neither,
+without any special-casing beyond the two methods being absent. Visibility
+follows the same no-admin-split model as every other admin control
+today (§17): the buttons render for anyone viewing `/auction`, execution
+still requires the admin password via `ensureEngineAuth()`.
+
 ### 12. Event log strategy — implemented
 
 Every mutating RPC in `supabase/add_auctionos.sql` writes exactly one
@@ -777,16 +802,21 @@ correct today even though nothing reads it back yet.
 original design doesn't exist yet; `budget_remaining` is still just a plain
 column, updated only inside `auctionos_mark_sold`/`auctionos_undo_sale`.
 
-### 14. Captain valuation engine (JCC template only) — implemented, reworked in v3
+### 14. Captain valuation engine (JCC template only) — implemented, reworked in v3, split by category
 
 `lib/auctionos/templates/jcc/valuation.ts` — no longer stats-based (strike
-rate/economy) or advisory. `computeJccCaptainValue()` applies JCC's one
-deterministic rule (50% of the highest qualifying purchase) to whatever
-`highestQualifyingPurchase` it's handed; the actual query (highest
-unreversed `player_purchases.price` for the captain's team+category) lives
-in the SQL RPC helper `_auctionos_recalc_captain_valuation`, invoked from
-`auctionos_mark_sold`/`auctionos_undo_sale` and logged as a new
-`captain_valuations` row every time.
+rate/economy) or advisory. `computeJccCaptainValue()` now branches on the
+captain's category name: **MVP** captains still get 50% of the highest
+qualifying purchase; **Regular** captains bypass that formula entirely and
+get a flat 100 (₹1 Cr, JCC's lakh units) regardless of what their team has
+spent. The category match is by name (`ILIKE '%regular%'` in SQL, `/regular/i`
+in JS) since categories have no separate "kind" field — any category not
+named Regular falls back to the MVP formula. The actual highest-purchase
+query (unreversed `player_purchases.price` for the captain's team+category)
+lives in the SQL RPC helper `_auctionos_recalc_captain_valuation`, invoked
+from `auctionos_mark_sold`/`auctionos_undo_sale` and logged as a new
+`captain_valuations` row every time; `mockEngine.ts`'s `recalcCaptainValuation`
+mirrors both branches for the no-network dev harness.
 
 ### 15. Floor price engine (JCC template only) — implemented, renamed in v3
 
@@ -798,7 +828,119 @@ own `base_price`. The wallet-level "Reserve" (required holdback) this name
 used to also refer to is now a separate, generic, un-overridable Reserve
 Engine — not part of this template module at all.
 
-### 16. Live spectator architecture — partially implemented
+### 16. Reserve engine — implemented
+
+`lib/auctionos/core/reserve.ts` — generic, not template-owned (see "Floor
+Price vs. Reserve" above). `computeReserve()` sums, across a wallet's own
+categories (`category.wallet_kind_id` match), `max(0, category.min_required
+- acquired) × category.base_price` — the budget that team must keep in
+reserve to still be able to fill every mandatory slot it hasn't yet.
+`reserveAfterPurchase()`/`violatesReserve()` bump the bid's own lot category
+by one acquired slot first, so a team is never blocked from bidding on a
+lot that itself satisfies a mandatory slot.
+
+Enforced in two places, same defense-in-depth pattern as the budget check:
+
+- `app/api/auctionos/bid/route.ts` — after `template.validation.validateBid()`
+  passes, fetches this auction's categories and this wallet's unreversed
+  `player_purchases` (grouped by `category_id`), and rejects the bid with a
+  400 if `violatesReserve()` is true.
+- `supabase/add_auctionos.sql`'s `auctionos_raise_bid` — the real gate,
+  since the API-route check is meaningless if the RPC can be called
+  directly. Computes the same sum in SQL (categories LEFT JOIN a grouped
+  `player_purchases` count) and raises an exception if `budget_remaining -
+  new_bid < reserve`.
+- `lib/auctionos/templates/jcc/mockEngine.ts`'s `bid()` mirrors it for the
+  no-network dev harness, building `acquiredCountByCategory` from sold lots
+  (this harness's stand-in for `player_purchases` — see its file header)
+  instead of querying a purchases table.
+
+**New this pass:** a wallet's `acquired` count for a category now includes
+a captain bonus — a team's own captain occupies one slot of their own
+category with no purchase behind it (`withCaptainBonus()` in `reserve.ts`;
+mirrored in SQL by `_auctionos_acquired_count()`,
+`supabase/add_auctionos_quota.sql`). Generic (reads the already-generic
+`auction_captains` table), same as the rest of this section — no
+template-specific knowledge involved in the mechanism itself, even though
+JCC is the first template to actually set a nonzero `min_required`.
+
+### 16a. Category quota gate — implemented (`add_auctionos_quota.sql`)
+
+A second, separate mechanic layered on top of the Reserve Engine, also
+fully generic (driven only by `min_required > 0`, no template-specific
+code): guarantees every team can actually *reach* its mandatory minimum in
+a category, not just protects the budget to eventually afford it.
+
+- **Loop** — `auctionos_mark_unsold`: an unsold lot in a quota category is
+  requeued to the back of its own category's block (never past the next
+  category) rather than resolved, whenever other `upcoming` lots remain in
+  that category. Needs `auction_lots`'s `(auction_id, lot_order)`
+  uniqueness to be `DEFERRABLE INITIALLY DEFERRED` (a batch lot_order shift
+  to make room would otherwise spuriously collide mid-statement — a known
+  Postgres pattern, not new to this codebase, just newly needed here).
+- **The actual gate lives in `auctionos_advance_lot`, not `mark_unsold`.**
+  Every advance checks whether the lot about to open is a quota category's
+  *last* upcoming one, and if so resolves it (allot to the sole short team,
+  open normally if nobody's short, or park as a new `'blocked'` lot status
+  if 2+ teams are tied short or the one short team can't afford
+  `base_price`) *before* it ever reaches `on_block` bidding. This had to
+  move out of `mark_unsold` — a purely reactive-to-unsold design has a real
+  hole (a category can sell out entirely via ordinary bid-won sales without
+  ever going unsold), caught by a scripted simulation against
+  `mockEngine.ts` before shipping this version.
+- **`'blocked'`** is a new `auction_lots.status` value; `auctionos_
+  advance_lot` refuses to run at all while one exists.
+  `auctionos_resolve_blocked_lot(lot_id, wallet_id)` is the only way out —
+  organizer-only, `wallet_id` null gives up (terminal unsold). No automatic
+  tie-break for the 2+-short case — confirmed deliberately, not an
+  oversight; see `AUCTION_RULES.md`'s "Category quota" for the concrete
+  scenario that makes this a real, reachable case rather than a contrived
+  edge.
+- Forced allotments reuse the ordinary `'sold'` status (not a new one) —
+  every existing "what's this team's roster" reader already handles it for
+  free. `player_purchases.metadata.allotted` / the `lot_sold` event's
+  `payload.allotted` are audit-only markers.
+- `_auctionos_finalize_purchase()` is `auctionos_mark_sold`'s money-movement
+  tail, extracted so a forced allotment (no prior bid) reuses the exact
+  same purchase/ledger/captain-recalc/event logic instead of a second copy.
+
+Full behavioral spec, JCC's actual `min_required` values (MVP 2, Regular 5),
+and the UI side (`BlockedLotPanel`, the "Allotted" hammer-overlay variant,
+`LoopedToast`) are documented in `lib/auctionos/templates/jcc/
+AUCTION_RULES.md`'s "Category quota" section, not duplicated here — the
+mechanism is generic engine logic, but every value/wiring detail describing
+"how JCC actually configures and displays it" is template-scoped.
+
+### 16b. Guest squad rebalancing — implemented (`add_auctionos_guest_rebalance.sql`)
+
+A second, separate mechanic on top of §16a's quota gate, also fully
+generic (driven by `auction_categories.max_resell_rounds`, a new nullable
+column — `NULL` means unaffected, unchanged terminal-unsold behavior).
+Different goal from quota: no mandatory minimum, just "keep every team's
+overall squad about the same size" — so it never touches bidding, only
+what happens after a specific player has failed to sell more than once.
+
+Layered into the same `auctionos_mark_unsold` function as §16a's quota
+branch (mutually exclusive per category — quota takes precedence if a
+category somehow has both set): an unsold lot in a `max_resell_rounds`
+category loops (same requeue-to-end-of-block technique as quota's loop,
+counter tracked in `lot.metadata.resell_rounds`) up to that many times,
+then — still unsold — is randomly allotted to whichever affordable
+eligible team has the smallest **total** squad across every wallet it
+holds (not just this category), tiebreak by `random()`. Falls back to
+plain terminal unsold if nobody eligible can afford it — a best-effort
+balance, not a hard guarantee the way quota's allotment is.
+
+JCC sets `max_resell_rounds = 2` for Guest, leaves it `NULL` for MVP/
+Regular (quota already loops those unconditionally). Verified by a
+scripted worst-case simulation against `mockEngine.ts` (every Guest lot
+forced unsold on every attempt): the resell cap held at exactly 2 for
+every lot, nothing was left stuck, and the four teams' final total squad
+sizes came out within 1 player of each other. Full spec in
+`AUCTION_RULES.md`'s "Guest squad rebalancing" — same generic-mechanism/
+template-scoped-values split as §16a.
+
+### 17. Live spectator architecture — partially implemented
 
 `/auction` (unchanged route) still uses the anon Supabase key with no auth,
 no write capability. Polling (4s interval) stands in for Realtime today —
@@ -808,7 +950,7 @@ for a future pass to actually gate what spectators see, but
 `AuctionExperience` doesn't read `auction_settings` yet — it shows
 everything to everyone, same as before this rewrite.
 
-### 17. Future extensibility
+### 18. Future extensibility
 
 - **A second template** is still the real test of every boundary above —
   now additionally testing whether `template_categories`'s flat
@@ -825,7 +967,7 @@ everything to everyone, same as before this rewrite.
   too" story still needs a `module_key` that resolves to something more
   configurable than a hardcoded registry, deferred until there's a second
   real tenant to design against.
-- **A real broadcast/CDN layer** (§16) only becomes worth building past
+- **A real broadcast/CDN layer** (§17) only becomes worth building past
   spectator counts Realtime's connection model isn't suited for.
 - **Wallet category cap enforcement** — `auction_wallet_category_caps` rows
   can be created today but nothing reads them; a future `validateBid` hook
@@ -1008,8 +1150,9 @@ Deviations from the plan, with reasoning:
 - Wire `auctionos_transfer_funds` into an admin UI, once a template with
   `transfer_enabled = true` wallet kinds actually needs it — the wizard's
   `WalletsStep` doesn't even expose the toggle today (see Phase 3's
-  post-pass fixes) since nothing consumes it yet; JCC's single "Main Purse"
-  kind never exercises this path either.
+  post-pass fixes) since nothing consumes it yet; JCC's mock harness now
+  seeds two wallet kinds (Wallet A/B, both `transfer_enabled: false`) but
+  still never exercises this path.
 - A tiered per-category bid-increment ladder editor, if a flat
   `auction_categories.bid_increment` override (Phase 3) ever turns out to
   be insufficient — see that section for what a ladder-editor would add.

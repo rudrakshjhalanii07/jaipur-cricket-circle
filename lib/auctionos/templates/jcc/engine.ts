@@ -10,6 +10,7 @@
 import type {
   Auction,
   AuctionWallet,
+  AuctionWalletKind,
   AuctionLot,
   AuctionCategory,
   AuctionCaptain,
@@ -18,6 +19,7 @@ import type {
 import {
   fetchActiveAuction,
   fetchWallets,
+  fetchWalletKinds,
   fetchLots,
   fetchAuctionCategories,
   fetchAuctionCaptains,
@@ -27,6 +29,7 @@ import {
 export interface AuctionSnapshot {
   auction: Auction | null;
   wallets: AuctionWallet[];
+  walletKinds: AuctionWalletKind[];
   lots: AuctionLot[];
   categories: AuctionCategory[];
   captains: AuctionCaptain[];
@@ -36,6 +39,7 @@ export interface AuctionSnapshot {
 export const EMPTY_SNAPSHOT: AuctionSnapshot = {
   auction: null,
   wallets: [],
+  walletKinds: [],
   lots: [],
   categories: [],
   captains: [],
@@ -53,6 +57,19 @@ export interface AuctionEngine {
   bid(lotId: string, walletId: string, password: string | null): Promise<void>;
   sold(lotId: string, password: string | null): Promise<void>;
   unsold(lotId: string, password: string | null): Promise<void>;
+  // Undo is real-auction-only (AUCTIONOS.md §11's auctionos_undo_bid/
+  // auctionos_undo_sale) — optional so mockEngine can omit it entirely
+  // rather than fake a no-op; AuctionExperience feature-detects these to
+  // decide whether to render the undo controls at all.
+  undoBid?(lotId: string, password: string | null): Promise<void>;
+  undoSale?(lotId: string, password: string | null): Promise<void>;
+  // Organizer-only manual resolution for a 'blocked' lot (see
+  // auctionos_resolve_blocked_lot / AUCTION_RULES.md's category-quota
+  // section) — walletId given force-allots to that team, null/omitted
+  // gives up and finalizes it as unsold. Optional so a template/engine that
+  // never produces a 'blocked' lot (no quota categories) can omit it
+  // entirely, same pattern as undoBid/undoSale.
+  resolveBlockedLot?(lotId: string, walletId: string | null, password: string | null): Promise<void>;
 }
 
 async function postAdmin(path: string, password: string, body: Record<string, unknown>) {
@@ -71,14 +88,15 @@ export const liveEngine: AuctionEngine = {
   async refresh() {
     const auction = await fetchActiveAuction();
     if (!auction) return EMPTY_SNAPSHOT;
-    const [wallets, lots, categories, captains, captainValuations] = await Promise.all([
+    const [wallets, walletKinds, lots, categories, captains, captainValuations] = await Promise.all([
       fetchWallets(auction.id),
+      fetchWalletKinds(auction.id),
       fetchLots(auction.id),
       fetchAuctionCategories(auction.id),
       fetchAuctionCaptains(auction.id),
       fetchCaptainValuations(auction.id),
     ]);
-    return { auction, wallets, lots, categories, captains, captainValuations };
+    return { auction, wallets, walletKinds, lots, categories, captains, captainValuations };
   },
   async advance(auctionId, password) {
     if (!password) return;
@@ -95,5 +113,17 @@ export const liveEngine: AuctionEngine = {
   async unsold(lotId, password) {
     if (!password) return;
     await postAdmin("unsold", password, { lot_id: lotId });
+  },
+  async undoBid(lotId, password) {
+    if (!password) return;
+    await postAdmin("undo-bid", password, { lot_id: lotId });
+  },
+  async undoSale(lotId, password) {
+    if (!password) return;
+    await postAdmin("undo-sale", password, { lot_id: lotId });
+  },
+  async resolveBlockedLot(lotId, walletId, password) {
+    if (!password) return;
+    await postAdmin("resolve-lot", password, { lot_id: lotId, wallet_id: walletId });
   },
 };

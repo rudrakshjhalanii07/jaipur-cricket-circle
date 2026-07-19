@@ -17,6 +17,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       floor_price,
       min_required,
       max_allowed,
+      max_resell_rounds,
       color,
       icon,
       sort_order,
@@ -28,6 +29,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       floor_price?: number | null;
       min_required?: number;
       max_allowed?: number | null;
+      max_resell_rounds?: number | null;
       color?: string | null;
       icon?: string | null;
       sort_order?: number;
@@ -40,6 +42,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (bid_increment !== undefined && bid_increment !== null && (typeof bid_increment !== "number" || bid_increment <= 0)) {
       return NextResponse.json({ error: "bid_increment must be a positive number" }, { status: 400 });
     }
+    if (max_resell_rounds !== undefined && max_resell_rounds !== null && (typeof max_resell_rounds !== "number" || max_resell_rounds < 0)) {
+      return NextResponse.json({ error: "max_resell_rounds must be 0 or more" }, { status: 400 });
+    }
 
     const { data, error } = await supabaseAdmin
       .from("auction_categories")
@@ -51,6 +56,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         floor_price: floor_price ?? null,
         min_required: min_required ?? 0,
         max_allowed: max_allowed ?? null,
+        max_resell_rounds: max_resell_rounds ?? null,
         color: color ?? null,
         icon: icon ?? null,
         sort_order: sort_order ?? 0,
@@ -91,6 +97,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       floor_price,
       min_required,
       max_allowed,
+      max_resell_rounds,
       color,
       icon,
       sort_order,
@@ -102,6 +109,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       floor_price?: number | null;
       min_required?: number;
       max_allowed?: number | null;
+      max_resell_rounds?: number | null;
       color?: string | null;
       icon?: string | null;
       sort_order?: number;
@@ -111,6 +119,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (bid_increment !== undefined && bid_increment !== null && (typeof bid_increment !== "number" || bid_increment <= 0)) {
       return NextResponse.json({ error: "bid_increment must be a positive number" }, { status: 400 });
     }
+    if (max_resell_rounds !== undefined && max_resell_rounds !== null && (typeof max_resell_rounds !== "number" || max_resell_rounds < 0)) {
+      return NextResponse.json({ error: "max_resell_rounds must be 0 or more" }, { status: 400 });
+    }
 
     const patch: Record<string, unknown> = {};
     if (name !== undefined) patch.name = name;
@@ -119,6 +130,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (floor_price !== undefined) patch.floor_price = floor_price;
     if (min_required !== undefined) patch.min_required = min_required;
     if (max_allowed !== undefined) patch.max_allowed = max_allowed;
+    if (max_resell_rounds !== undefined) patch.max_resell_rounds = max_resell_rounds;
     if (color !== undefined) patch.color = color;
     if (icon !== undefined) patch.icon = icon;
     if (sort_order !== undefined) patch.sort_order = sort_order;

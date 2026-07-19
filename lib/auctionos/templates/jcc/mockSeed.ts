@@ -11,7 +11,11 @@
 //
 // The graphic's own header claims "56 Players" but its three category
 // counts (6 + 20 + 26) only enumerate 52 names — seeded as given rather
-// than inventing 4 more to make the header match.
+// than inventing 4 more to make the header match. MVP/Regular have since
+// grown past the graphic's original 2/5 names (see MVP_PLAYERS/
+// REGULAR_PLAYERS below) — the quota mechanic (min_required, category
+// looping/forced allotment) needs a big enough pool to actually exercise
+// its loop/allot/blocked paths, not just the exact minimum.
 //
 // Captains are seeded only into the MVP category (the graphic doesn't
 // define a captain module at all — this is an addition to exercise
@@ -23,21 +27,50 @@ import { TEAM_ORDER_ALL, TEAMS, type TeamId } from "@/lib/teams";
 import type {
   Auction,
   AuctionWallet,
+  AuctionWalletKind,
   AuctionLot,
   AuctionCategory,
   AuctionCaptain,
 } from "@/lib/auctionos/core/types";
-import { DEFAULT_PURSE_LAKHS } from "./rules";
+import { DEFAULT_PURSE_LAKHS, DEFAULT_GUEST_PURSE_LAKHS } from "./rules";
 
 const now = () => new Date().toISOString();
 
 export const MOCK_AUCTION_ID = "mock-auction";
 const MOCK_TEMPLATE_ID = "mock-template";
-const MOCK_WALLET_KIND_ID = "mock-wallet-kind-main";
+
+// Two wallet kinds: Wallet A funds the MVP + Regular categories (the First
+// XI's 7 slots), Wallet B funds Guest Players (the other 7) — a team's
+// purse for one never bleeds into the other.
+export const MOCK_WALLET_KIND_A_ID = "mock-wallet-kind-a";
+export const MOCK_WALLET_KIND_B_ID = "mock-wallet-kind-b";
 
 export const MOCK_CATEGORY_MVP_ID = "mock-category-mvp";
 export const MOCK_CATEGORY_REGULAR_ID = "mock-category-regular";
 export const MOCK_CATEGORY_GUEST_ID = "mock-category-guest";
+
+export function seedWalletKinds(): AuctionWalletKind[] {
+  return [
+    {
+      id: MOCK_WALLET_KIND_A_ID,
+      auction_id: MOCK_AUCTION_ID,
+      name: "Wallet A",
+      initial_balance: DEFAULT_PURSE_LAKHS,
+      transfer_enabled: false,
+      sort_order: 0,
+      created_at: now(),
+    },
+    {
+      id: MOCK_WALLET_KIND_B_ID,
+      auction_id: MOCK_AUCTION_ID,
+      name: "Wallet B",
+      initial_balance: DEFAULT_GUEST_PURSE_LAKHS,
+      transfer_enabled: false,
+      sort_order: 1,
+      created_at: now(),
+    },
+  ];
+}
 
 export function seedAuction(): Auction {
   return {
@@ -60,15 +93,16 @@ export function seedCategories(): AuctionCategory[] {
     {
       id: MOCK_CATEGORY_MVP_ID,
       auction_id: MOCK_AUCTION_ID,
-      wallet_kind_id: MOCK_WALLET_KIND_ID,
+      wallet_kind_id: MOCK_WALLET_KIND_A_ID,
       name: "MVP Players",
       color: null,
       icon: null,
       sort_order: 0,
       base_price: 100, // ₹1 Cr
       floor_price: null,
-      min_required: 0,
+      min_required: 2, // quota: 2 MVP per team (a Regular-category captain doesn't count here)
       max_allowed: null,
+      max_resell_rounds: null, // quota already loops unconditionally — this column is unused here
       bid_increment: 20, // ₹20 L flat step
       created_at: now(),
       updated_at: now(),
@@ -76,15 +110,16 @@ export function seedCategories(): AuctionCategory[] {
     {
       id: MOCK_CATEGORY_REGULAR_ID,
       auction_id: MOCK_AUCTION_ID,
-      wallet_kind_id: MOCK_WALLET_KIND_ID,
+      wallet_kind_id: MOCK_WALLET_KIND_A_ID,
       name: "Regular Players",
       color: null,
       icon: null,
       sort_order: 1,
       base_price: 50, // ₹50 L
       floor_price: null,
-      min_required: 0,
+      min_required: 5, // quota: 5 Regular per team, captain occupies one of the five
       max_allowed: null,
+      max_resell_rounds: null, // quota already loops unconditionally — this column is unused here
       bid_increment: 10, // ₹10 L flat step
       created_at: now(),
       updated_at: now(),
@@ -92,7 +127,7 @@ export function seedCategories(): AuctionCategory[] {
     {
       id: MOCK_CATEGORY_GUEST_ID,
       auction_id: MOCK_AUCTION_ID,
-      wallet_kind_id: MOCK_WALLET_KIND_ID,
+      wallet_kind_id: MOCK_WALLET_KIND_B_ID,
       name: "Guest Players",
       color: null,
       icon: null,
@@ -101,6 +136,7 @@ export function seedCategories(): AuctionCategory[] {
       floor_price: null,
       min_required: 0,
       max_allowed: null,
+      max_resell_rounds: 2, // resold at most twice, then randomly allotted to the smallest-squad eligible team
       bid_increment: 5, // ₹5 L flat step
       created_at: now(),
       updated_at: now(),
@@ -109,20 +145,26 @@ export function seedCategories(): AuctionCategory[] {
 }
 
 export function seedWallets(): AuctionWallet[] {
-  return TEAM_ORDER_ALL.map((teamId) => ({
-    id: `mock-wallet-${teamId}`,
-    auction_id: MOCK_AUCTION_ID,
-    wallet_kind_id: MOCK_WALLET_KIND_ID,
-    team_id: teamId,
-    auction_team_id: null,
-    display_name: null,
-    budget_total: DEFAULT_PURSE_LAKHS,
-    budget_remaining: DEFAULT_PURSE_LAKHS,
-    acquired_count: 0,
-    metadata: {},
-    created_at: now(),
-    updated_at: now(),
-  }));
+  const kinds: Array<{ id: string; budget: number }> = [
+    { id: MOCK_WALLET_KIND_A_ID, budget: DEFAULT_PURSE_LAKHS },
+    { id: MOCK_WALLET_KIND_B_ID, budget: DEFAULT_GUEST_PURSE_LAKHS },
+  ];
+  return TEAM_ORDER_ALL.flatMap((teamId) =>
+    kinds.map((kind) => ({
+      id: `mock-wallet-${teamId}-${kind.id}`,
+      auction_id: MOCK_AUCTION_ID,
+      wallet_kind_id: kind.id,
+      team_id: teamId,
+      auction_team_id: null,
+      display_name: null,
+      budget_total: kind.budget,
+      budget_remaining: kind.budget,
+      acquired_count: 0,
+      metadata: {},
+      created_at: now(),
+      updated_at: now(),
+    }))
+  );
 }
 
 // Per-team captain category, exactly as specified rather than uniform —
@@ -150,13 +192,24 @@ export function seedCaptains(): AuctionCaptain[] {
   }));
 }
 
+// 4 teams x min_required 2 = 8 MVP slots, 5 x 4 = 20 Regular slots (see
+// seedCategories' min_required — the quota this harness needs to actually
+// exercise auctionos_mark_unsold's loop/allot/blocked paths). A couple of
+// names beyond the exact minimum so a normal auction still has real
+// bidding competition and the occasional genuine unsold before the pool
+// narrows to the quota-triggering "last player" case; the graphic's
+// original 2/5-name lists were sized for the pre-quota harness only.
 const MVP_PLAYERS = [
   "Mahesh Kumar",
   "Sagar",
-  "Anil Rawat",
-  "Rahul Rathore",
-  "Siddharth Rao",
-  "Harish Jangid",
+  "Devendra",
+  "Kunal",
+  "Parth",
+  "Rohan",
+  "Siddharth",
+  "Tanay",
+  "Utkarsh",
+  "Vansh",
 ];
 
 const REGULAR_PLAYERS = [
@@ -165,21 +218,23 @@ const REGULAR_PLAYERS = [
   "Opal",
   "Harnoor Singh",
   "Lakshya",
-  "Prashant",
-  "Rudraksh Jhalani",
-  "Sanjeev Meena",
-  "Adhip",
-  "Akshat Pandey",
-  "Anagh",
-  "Ankit Jain",
-  "Dhruv Paliwal",
-  "Gaurav",
-  "Khushal Jain",
-  "Navin",
-  "Nimish Rajoria",
-  "Nishant Gupta",
-  "Rahul Kasliwal",
-  "Satvik Todwal",
+  "Arjun",
+  "Bhavya",
+  "Chirag",
+  "Dhruv",
+  "Eshan",
+  "Farhan",
+  "Girish",
+  "Harsh",
+  "Ishaan",
+  "Jatin",
+  "Kabir",
+  "Lokesh",
+  "Manan",
+  "Naveen",
+  "Om",
+  "Pranav",
+  "Qasim",
 ];
 
 const GUEST_PLAYERS = [

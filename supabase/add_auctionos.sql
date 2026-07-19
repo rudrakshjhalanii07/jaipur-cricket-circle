@@ -648,8 +648,9 @@ RETURNS VOID
 LANGUAGE plpgsql
 AS $func$
 DECLARE
-  v_captain_id UUID;
-  v_highest    INT;
+  v_captain_id     UUID;
+  v_category_name  TEXT;
+  v_highest        INT;
 BEGIN
   SELECT id INTO v_captain_id
   FROM public.auction_captains
@@ -657,6 +658,29 @@ BEGIN
 
   IF v_captain_id IS NULL THEN
     RETURN; -- this team has no captain in this category — nothing to recalculate
+  END IF;
+
+  SELECT name INTO v_category_name
+  FROM public.auction_categories
+  WHERE id = p_category_id;
+
+  -- Regular-category captains bypass the highest-purchase formula
+  -- entirely: their value is hard-coded at 100 (₹1 Cr, JCC's lakh units).
+  -- Only MVP (and any other non-Regular) captains use 50% of the highest
+  -- qualifying purchase.
+  IF v_category_name ILIKE '%regular%' THEN
+    INSERT INTO public.captain_valuations (auction_id, captain_id, triggering_purchase_id, captain_value, rationale)
+    VALUES (
+      p_auction_id,
+      v_captain_id,
+      p_triggering_purchase_id,
+      100,
+      jsonb_build_object('rule', 'regular-flat', 'value', 100)
+    );
+
+    INSERT INTO public.auction_events (auction_id, type, payload, actor)
+    VALUES (p_auction_id, 'captain_value_changed', jsonb_build_object('captain_id', v_captain_id, 'rule', 'regular-flat'), 'system');
+    RETURN;
   END IF;
 
   SELECT MAX(pp.price) INTO v_highest
@@ -673,7 +697,7 @@ BEGIN
     v_captain_id,
     p_triggering_purchase_id,
     CASE WHEN v_highest IS NULL THEN NULL ELSE v_highest * 0.5 END,
-    jsonb_build_object('highest_qualifying_purchase', v_highest)
+    jsonb_build_object('rule', 'mvp-half-highest', 'highest_qualifying_purchase', v_highest)
   );
 
   INSERT INTO public.auction_events (auction_id, type, payload, actor)
@@ -1012,13 +1036,17 @@ RETURNS JSONB
 LANGUAGE plpgsql
 AS $func$
 DECLARE
-  v_status   TEXT;
-  v_auction  UUID;
-  v_version  INT;
-  v_budget   INT;
+  v_status       TEXT;
+  v_auction      UUID;
+  v_version      INT;
+  v_budget       INT;
   v_previous_bid INT;
+  v_category     UUID;
+  v_wallet_kind  UUID;
+  v_reserve      INT;
 BEGIN
-  SELECT status, auction_id, version, current_bid INTO v_status, v_auction, v_version, v_previous_bid
+  SELECT status, auction_id, version, current_bid, category_id
+  INTO v_status, v_auction, v_version, v_previous_bid, v_category
   FROM public.auction_lots WHERE id = p_lot_id FOR UPDATE;
 
   IF v_status IS NULL THEN
@@ -1031,7 +1059,7 @@ BEGIN
     RAISE EXCEPTION 'someone else bid first — refresh and try again (expected version %, saw %)', p_expected_version, v_version;
   END IF;
 
-  SELECT budget_remaining INTO v_budget
+  SELECT budget_remaining, wallet_kind_id INTO v_budget, v_wallet_kind
   FROM public.auction_wallets
   WHERE id = p_wallet_id AND auction_id = v_auction;
 
@@ -1040,6 +1068,33 @@ BEGIN
   END IF;
   IF v_budget < p_new_bid THEN
     RAISE EXCEPTION 'wallet cannot afford this bid';
+  END IF;
+
+  -- Generic Reserve Engine (see AUCTIONOS.md's "Floor Price vs. Reserve"
+  -- and lib/auctionos/core/reserve.ts, whose reserveAfterPurchase() this
+  -- mirrors): after winning this lot, the wallet must still be able to
+  -- afford every OTHER mandatory slot (category.min_required) it hasn't
+  -- filled yet, at that category's current base_price. This lot's own
+  -- category gets its acquired count bumped by one first — a team is
+  -- never blocked from bidding on a lot that itself fills a mandatory slot.
+  SELECT COALESCE(SUM(
+    GREATEST(
+      ac.min_required - (COALESCE(pc.acquired, 0) + CASE WHEN ac.id = v_category THEN 1 ELSE 0 END),
+      0
+    ) * ac.base_price
+  ), 0)
+  INTO v_reserve
+  FROM public.auction_categories ac
+  LEFT JOIN (
+    SELECT category_id, COUNT(*) AS acquired
+    FROM public.player_purchases
+    WHERE wallet_id = p_wallet_id AND reversed_at IS NULL
+    GROUP BY category_id
+  ) pc ON pc.category_id = ac.id
+  WHERE ac.auction_id = v_auction AND ac.wallet_kind_id = v_wallet_kind;
+
+  IF v_budget - p_new_bid < v_reserve THEN
+    RAISE EXCEPTION 'bid would leave this team unable to afford its remaining mandatory slots';
   END IF;
 
   UPDATE public.auction_lots

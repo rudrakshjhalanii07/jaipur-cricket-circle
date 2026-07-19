@@ -5,7 +5,15 @@
 // add_auctionos_wizard.sql (schema v4 delta) 1:1.
 
 export type AuctionStatus = "draft" | "scheduled" | "live" | "completed";
-export type LotStatus = "upcoming" | "on_block" | "sold" | "unsold";
+// "blocked" is new: a quota category's (min_required > 0) last remaining
+// lot when the system can't unambiguously auto-resolve who it goes to (a
+// tie between equally-short teams, or the one short team can't afford
+// base_price) — see lib/auctionos/core/reserve.ts and
+// auctionos_mark_unsold/auctionos_resolve_blocked_lot in
+// supabase/add_auctionos_quota.sql. Not on_block (no bidding happens on
+// it) and not a terminal state — auctionos_resolve_blocked_lot is the only
+// way out, an organizer-only manual action.
+export type LotStatus = "upcoming" | "on_block" | "sold" | "unsold" | "blocked";
 export type TemplateStatus = "draft" | "published" | "archived";
 
 // ── Teams ──────────────────────────────────────────────────────────────
@@ -151,6 +159,14 @@ export interface AuctionCategory {
   // override, fall back to the template's own tier ladder" — see
   // BidIncrementConfig.nextIncrement in lib/auctionos/core/template.ts.
   bid_increment: number | null;
+  // Squad-balance addition (add_auctionos_guest_rebalance.sql): NULL means
+  // "no cap — loop forever" (min_required categories like MVP/Regular
+  // already loop unconditionally, ignore this column entirely). A number
+  // caps how many times a lot in THIS category may be resold before
+  // auctionos_mark_unsold gives up on ordinary bidding and randomly
+  // allots it to whichever eligible team currently has the smallest total
+  // squad — see AUCTION_RULES.md's "Guest squad rebalancing".
+  max_resell_rounds: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -272,6 +288,12 @@ export interface PlayerPurchase {
   price: number;
   purchased_at: string;
   reversed_at: string | null;
+  // `{ allotted: true }` when this purchase came from
+  // auctionos_resolve_blocked_lot / the automatic single-short-team path in
+  // auctionos_mark_unsold, rather than being won by bidding — audit-only,
+  // never read by any quota/reserve math (an allotment counts toward
+  // acquired_count exactly like a normal purchase).
+  metadata: Record<string, unknown>;
 }
 
 export type WalletTransactionType =
