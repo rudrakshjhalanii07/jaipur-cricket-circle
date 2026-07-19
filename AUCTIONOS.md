@@ -957,6 +957,40 @@ sizes came out within 1 player of each other. Full spec in
 `AUCTION_RULES.md`'s "Guest squad rebalancing" — same generic-mechanism/
 template-scoped-values split as §16a.
 
+### 16c. Category max_allowed ceiling — implemented (`add_auctionos_max_allowed_gate.sql`)
+
+`auction_categories.max_allowed` existed on the schema since `add_auctionos.sql`
+and was already wired through the categories POST/PATCH routes, but nothing
+ever *read* it — §16's Reserve Engine and §16a's quota gate both only
+enforce `min_required` as a **floor** (guaranteeing a team can reach its
+mandatory minimum), nothing capped how far past it a team could keep
+buying in the same category. Caught live: a wizard-created auction let a
+team buy a 3rd MVP player (2 purchases on top of their own captain's
+MVP slot) against JCC's intended exact 2-MVP squad, because the wizard
+preset (`components/auctionos/wizard/presets.ts`) never set `max_allowed`
+on MVP/Regular in the first place — `min_required` alone, with no ceiling,
+is silently unbounded.
+
+Fixed at both ends:
+
+- `components/auctionos/wizard/presets.ts` now sets `max_allowed` equal to
+  `min_required` for JCC's MVP (2) and Regular (5) categories — an exact
+  squad slot, not just a floor. Guest keeps `max_allowed = NULL` (uncapped
+  by quota; still governed by §16b's `max_resell_rounds`).
+- Enforced in the same two places as the Reserve Engine (§16), same
+  defense-in-depth posture: `app/api/auctionos/bid/route.ts` rejects with a
+  400 before ever calling the RPC if `acquiredCountByCategory` (purchases +
+  captain bonus, same map the reserve check already builds) has reached
+  `category.max_allowed`; `auctionos_raise_bid` re-checks the same thing via
+  `_auctionos_acquired_count()` and raises an exception — the real gate,
+  since the route-level check means nothing if the RPC is called directly.
+
+Existing auctions created before this migration have `max_allowed = NULL`
+on their categories and need a one-time backfill
+(`UPDATE auction_categories SET max_allowed = min_required WHERE min_required > 0 AND max_allowed IS NULL`)
+to actually get the cap — a fresh wizard-created auction gets it automatically
+from the preset going forward.
+
 ### 17. Live spectator architecture — partially implemented
 
 `/auction` (unchanged route) still uses the anon Supabase key with no auth,
@@ -1192,9 +1226,15 @@ Deviations from the plan, with reasoning:
   `max_resell_rounds = 2`, not a hard quota — see §16b). A partial failure
   midway (e.g. one category POST fails) still surfaces the one-time join
   code/admin password rather than losing that reveal, with a dismissible
-  list of exactly which preset steps didn't apply. Talent Pool and
-  Captains are deliberately left untouched — those are the only things
-  that actually change season to season.
+  list of exactly which preset steps didn't apply. Also assigns the 4
+  captains — fixed for now, per explicit direction, rather than sourced
+  from the Talent Pool: Nitesh Jhurani (Regular, Mavericks), Saurabh Charan
+  (Regular, NeuroStrikers), Bhairav Deep (MVP, Vikings), Naman Saini (MVP,
+  The Outliers) — via the same `.../captains` route the wizard's
+  `CaptainsStep` calls, resolving each to its just-created
+  `auction_team_id`/category id the same way the category loop resolves a
+  wallet-kind id. Talent Pool (the player list) is the one thing still left
+  untouched — that's what actually changes season to season.
 
 ## Roadmap
 

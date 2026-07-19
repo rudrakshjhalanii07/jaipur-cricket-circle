@@ -20,12 +20,14 @@
 // add_auctionos_guest_rebalance.sql's own header comment on why quota and
 // rebalance are deliberately different mechanisms.
 //
-// Applying this preset only fills Franchises/Wallets/Categories — Talent
-// Pool (the player list) and Captains still need entering fresh every
-// season, which is the whole point: those are the only things that
-// actually change season to season.
+// Applying this preset fills Franchises/Wallets/Categories, and — per
+// explicit direction, "for now" — the four captains too, since who's
+// captaining which team this season is currently fixed rather than
+// re-decided per auction. Talent Pool (the player list) still needs
+// entering fresh every season; that's the one thing left that actually
+// changes.
 
-import { TEAM_ORDER_ALL, TEAMS } from "@/lib/teams";
+import { TEAM_ORDER_ALL, TEAMS, type TeamId } from "@/lib/teams";
 
 export const JCC_SEASON_3_LOGO_URL = "/jcc_logo.png";
 export const JCC_SEASON_3_DEFAULT_NAME = "JCC Season 3 Auction";
@@ -53,6 +55,7 @@ interface PresetCategory {
   base_price: number;
   bid_increment: number;
   min_required: number;
+  max_allowed: number | null;
   max_resell_rounds: number | null;
   sort_order: number;
 }
@@ -69,6 +72,7 @@ const CATEGORIES: PresetCategory[] = [
     base_price: 100, // ₹1 Cr
     bid_increment: 20, // ₹20 L
     min_required: 2,
+    max_allowed: 2, // exact squad slot, not just a floor — a team stops bidding once filled
     max_resell_rounds: null,
     sort_order: 0,
   },
@@ -78,6 +82,7 @@ const CATEGORIES: PresetCategory[] = [
     base_price: 50, // ₹50 L
     bid_increment: 10, // ₹10 L
     min_required: 5,
+    max_allowed: 5,
     max_resell_rounds: null,
     sort_order: 1,
   },
@@ -87,10 +92,34 @@ const CATEGORIES: PresetCategory[] = [
     base_price: 25, // ₹25 L
     bid_increment: 5, // ₹5 L
     min_required: 0,
+    max_allowed: null, // uncapped by quota — governed by max_resell_rounds instead
     max_resell_rounds: 2,
     sort_order: 2,
   },
 ];
+
+interface PresetCaptain {
+  teamKey: TeamId;
+  categoryName: PresetCategory["name"];
+  displayName: string;
+}
+
+// Fixed "for now" per explicit direction — not derived from the Talent Pool
+// (which is still entered fresh every season) or from CSV, just hardcoded
+// same as the franchises/categories above.
+const CAPTAINS: PresetCaptain[] = [
+  { teamKey: "mavericks", categoryName: "Regular Players", displayName: "Nitesh Jhurani" },
+  { teamKey: "neurostrikers", categoryName: "Regular Players", displayName: "Saurabh Charan" },
+  { teamKey: "vikings", categoryName: "MVP Players", displayName: "Bhairav Deep" },
+  { teamKey: "outliers", categoryName: "MVP Players", displayName: "Naman Saini" },
+];
+
+// Exposed so TalentPoolStep can drop these names out of a CSV import — a
+// captain occupies their team's category slot directly (assigned above,
+// not auctioned; see AUCTIONOS.md §14/§16 "no purchase behind it"), so if
+// an organizer's spreadsheet also happens to list them as a player, that
+// row would otherwise create a second, redundant lot for the same person.
+export const JCC_SEASON_3_CAPTAIN_NAMES: string[] = CAPTAINS.map((c) => c.displayName);
 
 export interface PresetStepFailure {
   step: string;
@@ -128,6 +157,8 @@ async function postJson(
 export async function applyJccSeason3Preset(auctionId: string, adminPassword: string): Promise<PresetResult> {
   const failures: PresetStepFailure[] = [];
   const walletKindIdByKey = new Map<PresetWalletKind["key"], string>();
+  const categoryIdByName = new Map<PresetCategory["name"], string>();
+  const auctionTeamIdByKey = new Map<TeamId, string>();
 
   for (const teamId of TEAM_ORDER_ALL) {
     const team = TEAMS[teamId];
@@ -139,7 +170,12 @@ export async function applyJccSeason3Preset(auctionId: string, adminPassword: st
       primary_color: team.primary,
       secondary_color: team.secondary,
     });
-    if (!res.ok) failures.push({ step: `Franchise: ${team.name}`, error: res.error ?? "Failed" });
+    if (!res.ok) {
+      failures.push({ step: `Franchise: ${team.name}`, error: res.error ?? "Failed" });
+      continue;
+    }
+    const createdTeam = res.json.team as { id: string } | undefined;
+    if (createdTeam?.id) auctionTeamIdByKey.set(teamId, createdTeam.id);
   }
 
   for (const kind of WALLET_KINDS) {
@@ -171,10 +207,34 @@ export async function applyJccSeason3Preset(auctionId: string, adminPassword: st
       base_price: category.base_price,
       bid_increment: category.bid_increment,
       min_required: category.min_required,
+      max_allowed: category.max_allowed,
       max_resell_rounds: category.max_resell_rounds,
       sort_order: category.sort_order,
     });
-    if (!res.ok) failures.push({ step: `Category: ${category.name}`, error: res.error ?? "Failed" });
+    if (!res.ok) {
+      failures.push({ step: `Category: ${category.name}`, error: res.error ?? "Failed" });
+      continue;
+    }
+    const createdCategory = res.json.category as { id: string } | undefined;
+    if (createdCategory?.id) categoryIdByName.set(category.name, createdCategory.id);
+  }
+
+  for (const captain of CAPTAINS) {
+    const auctionTeamId = auctionTeamIdByKey.get(captain.teamKey);
+    const categoryId = categoryIdByName.get(captain.categoryName);
+    if (!auctionTeamId || !categoryId) {
+      // The franchise or category this captain depends on never got
+      // created above — same "don't half-assign" posture as the category
+      // loop skipping an unfunded category.
+      failures.push({ step: `Captain: ${captain.displayName}`, error: "Their franchise or category failed to create — skipped" });
+      continue;
+    }
+    const res = await postJson(`/api/auctionos/${auctionId}/captains`, adminPassword, {
+      auction_team_id: auctionTeamId,
+      category_id: categoryId,
+      display_name: captain.displayName,
+    });
+    if (!res.ok) failures.push({ step: `Captain: ${captain.displayName}`, error: res.error ?? "Failed" });
   }
 
   return { failures };

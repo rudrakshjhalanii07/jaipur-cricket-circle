@@ -308,91 +308,15 @@ $func$;
 REVOKE EXECUTE ON FUNCTION public.auctionos_create_auction_draft(JSONB) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.auctionos_create_auction_draft(JSONB) TO service_role;
 
--- Completeness gate + draft -> scheduled transition. Validates: at least
--- one franchise (an auction_teams row, OR at least one team_id-based
--- wallet already exists for JCC-style legacy-path auctions that skip the
--- wizard's Franchises step), at least one category, at least one lot.
--- Raises a descriptive exception on the first failing check — the calling
--- API route (next pass) catches and surfaces RAISE EXCEPTION's message
--- directly. Once flipped to 'scheduled', the dashboard CRUD routes (next
--- pass) refuse further edits by checking status = 'draft' themselves; this
--- function only owns the transition itself, not enforcing the lock on
--- other routes.
-DROP FUNCTION IF EXISTS public.auctionos_begin_auction(UUID);
-CREATE OR REPLACE FUNCTION public.auctionos_begin_auction(p_auction_id UUID)
-RETURNS JSONB
-LANGUAGE plpgsql
-AS $func$
-DECLARE
-  v_status         TEXT;
-  v_has_franchise  BOOLEAN;
-  v_has_category   BOOLEAN;
-  v_has_lot        BOOLEAN;
-BEGIN
-  SELECT status INTO v_status FROM public.auctions WHERE id = p_auction_id FOR UPDATE;
-  IF v_status IS NULL THEN
-    RAISE EXCEPTION 'auction not found';
-  END IF;
-  IF v_status <> 'draft' THEN
-    RAISE EXCEPTION 'auction is not in draft status (current status: %)', v_status;
-  END IF;
-
-  SELECT EXISTS (
-    SELECT 1 FROM public.auction_teams WHERE auction_id = p_auction_id
-    UNION ALL
-    SELECT 1 FROM public.auction_wallets WHERE auction_id = p_auction_id AND team_id IS NOT NULL
-  ) INTO v_has_franchise;
-  IF NOT v_has_franchise THEN
-    RAISE EXCEPTION 'add at least one franchise (or a funded wallet) before beginning the auction';
-  END IF;
-
-  SELECT EXISTS (SELECT 1 FROM public.auction_categories WHERE auction_id = p_auction_id) INTO v_has_category;
-  IF NOT v_has_category THEN
-    RAISE EXCEPTION 'add at least one category before beginning the auction';
-  END IF;
-
-  SELECT EXISTS (SELECT 1 FROM public.auction_lots WHERE auction_id = p_auction_id) INTO v_has_lot;
-  IF NOT v_has_lot THEN
-    RAISE EXCEPTION 'add at least one lot before beginning the auction';
-  END IF;
-
-  -- Shuffle the draw order once, here, at lock time — never derivable from
-  -- CSV/manual-add insertion order, and never surfaced to spectators (no
-  -- "Upcoming Lots" list exists in the UI). Categories still run in their
-  -- authored sort_order (Marquee/MVP first, then the rest), but which
-  -- specific lot comes up next within a category is random every time the
-  -- auction is begun.
-  WITH ranked AS (
-    SELECT al.id,
-           ROW_NUMBER() OVER (
-             ORDER BY COALESCE(ac.sort_order, 999999), random()
-           ) AS new_order
-    FROM public.auction_lots al
-    LEFT JOIN public.auction_categories ac ON ac.id = al.category_id
-    WHERE al.auction_id = p_auction_id
-  )
-  UPDATE public.auction_lots al
-  SET lot_order = ranked.new_order - 1
-  FROM ranked
-  WHERE al.id = ranked.id;
-
-  UPDATE public.auctions SET status = 'scheduled', updated_at = NOW() WHERE id = p_auction_id;
-
-  -- 'auction_prepared' is a NEW event type this pass — the wizard's
-  -- draft -> scheduled transition. Distinct from 'auction_created' (already
-  -- fired by auctionos_create_auction_draft at Identity-step time) and the
-  -- unrelated 'auction_started' (still fired elsewhere when the hall
-  -- itself opens/lots start moving). Add 'auction_prepared' to the
-  -- documented vocabulary list in add_auctionos.sql §14 alongside the rest.
-  INSERT INTO public.auction_events (auction_id, type, payload, actor)
-  VALUES (p_auction_id, 'auction_prepared', jsonb_build_object('status', 'scheduled'), 'system');
-
-  RETURN jsonb_build_object('auction_id', p_auction_id, 'status', 'scheduled');
-END;
-$func$;
-
-REVOKE EXECUTE ON FUNCTION public.auctionos_begin_auction(UUID) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.auctionos_begin_auction(UUID) TO service_role;
+-- Completeness gate + draft -> scheduled transition for auctionos_begin_auction
+-- used to be defined here. It is now owned entirely by
+-- add_auctionos_wallet_gate.sql (a strict superset: same franchise/category/
+-- lot checks, plus wallet-kind completeness checks and the regular-captain
+-- charge call) — that file must be applied after this one. Do not
+-- re-introduce a CREATE OR REPLACE for auctionos_begin_auction here: two
+-- files independently redefining the same function with no merge semantics
+-- is exactly what silently dropped the captain-charge call in production
+-- once before, whichever file happened to run last won outright.
 
 -- Re-declared here (full body, CREATE OR REPLACE) to add per-captain
 -- access-key generation AND (this pass) an auction_team_id parameter — see

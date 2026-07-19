@@ -15,6 +15,7 @@ import {
 import { parseTalentCsv, type ParsedTalentRow, type TalentCsvRowError } from "@/lib/auctionos/wizard/csv";
 import type { StepProps } from "@/components/auctionos/wizard/types";
 import { formatLakhs, parseMoneyLakhs } from "@/lib/auctionos/templates/jcc/rules";
+import { JCC_SEASON_3_CAPTAIN_NAMES } from "@/components/auctionos/wizard/presets";
 
 export default function TalentPoolStep({ auctionId, data, adminPassword, refetch, readOnly }: StepProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -52,8 +53,23 @@ export default function TalentPoolStep({ auctionId, data, adminPassword, refetch
     setImportError(null);
     try {
       const { rows, errors } = await parseTalentCsv(file, data.categories);
-      setPreview(rows);
-      setPreviewErrors(errors);
+
+      // Captains are assigned directly (fixed roster, see presets.ts), not
+      // auctioned — drop any CSV row that's actually one of them so it
+      // doesn't also become a redundant lot.
+      const captainNames = new Set(JCC_SEASON_3_CAPTAIN_NAMES.map((n) => n.toLowerCase()));
+      const filteredRows: ParsedTalentRow[] = [];
+      const droppedErrors: TalentCsvRowError[] = [];
+      rows.forEach((row, index) => {
+        if (captainNames.has(row.display_name.trim().toLowerCase())) {
+          droppedErrors.push({ row: index + 1, message: `"${row.display_name}" is already a captain — skipped` });
+          return;
+        }
+        filteredRows.push(row);
+      });
+
+      setPreview(filteredRows);
+      setPreviewErrors([...errors, ...droppedErrors]);
     } catch (err) {
       setImportError(err instanceof Error ? err.message : "Failed to parse CSV");
     }

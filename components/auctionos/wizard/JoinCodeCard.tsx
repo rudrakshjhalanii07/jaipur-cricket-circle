@@ -8,12 +8,20 @@ import { Check, Copy } from "lucide-react";
 // panel and the dashboard sticky bar (small variant). Encodes
 // `{origin}/auctionos?code={code}` — a scannable shortcut into the landing
 // page's code-entry flow — rather than the bare code text.
+//
+// `logoUrl` badges the template/organizer's logo in the center of the full
+// QR (falls back to the site's own JCC mark) — errorCorrectionLevel "H"
+// (~30% recovery) keeps it scannable with a badge covering roughly a
+// fifth of the code. The compact variant is small enough (32px) that a
+// badge would just break it, so it stays plain QR.
 export default function JoinCodeCard({
   code,
   variant = "full",
+  logoUrl,
 }: {
   code: string;
   variant?: "full" | "compact";
+  logoUrl?: string | null;
 }) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -24,6 +32,12 @@ export default function JoinCodeCard({
     QRCode.toDataURL(url, {
       margin: 1,
       width: variant === "compact" ? 96 : 160,
+      errorCorrectionLevel: variant === "compact" ? "M" : "H",
+      // `--color-white` is remapped to Royal Blue ink sitewide (see
+      // globals.css's "Foreground remap") — `light` needs a LITERAL white
+      // here, not that token, or the QR's own backing tile (below) and its
+      // "light" modules both resolve to the same navy and the whole code
+      // renders as one solid block.
       color: { dark: "#12233F", light: "#FFFFFF00" },
     })
       .then(setQrDataUrl)
@@ -61,8 +75,16 @@ export default function JoinCodeCard({
   return (
     <div className="flex flex-col items-center gap-4 text-center">
       {qrDataUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={qrDataUrl} alt="Join code QR" className="w-32 h-32 rounded-xl border border-jcc-border p-2 bg-white" />
+        <div className="relative w-32 h-32 rounded-xl border border-jcc-border p-2 bg-jcc-navy">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={qrDataUrl} alt="Join code QR" className="w-full h-full" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={logoUrl || "/jcc_logo.png"}
+            alt=""
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 object-contain rounded-full bg-jcc-navy border-2 border-jcc-navy shadow-sm"
+          />
+        </div>
       )}
       <button
         onClick={handleCopy}

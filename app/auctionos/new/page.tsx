@@ -340,7 +340,7 @@ export default function NewAuctionPage() {
                 <span className="text-jcc-text-muted text-[10px] font-black uppercase tracking-[0.2em]">
                   Join Code
                 </span>
-                <JoinCodeCard code={result.access_code} />
+                <JoinCodeCard code={result.access_code} logoUrl={logoUrl} />
               </div>
 
               <div className="w-full flex flex-col items-center gap-2 pt-2 border-t border-jcc-border">

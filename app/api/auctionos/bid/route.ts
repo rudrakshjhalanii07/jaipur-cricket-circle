@@ -125,6 +125,19 @@ export async function POST(request: Request) {
       (auctionCaptains ?? []) as Pick<AuctionCaptain, "team_id" | "auction_team_id" | "category_id">[]
     );
 
+    // Quota ceiling — distinct from the reserve check below, which only
+    // protects a team's ability to still afford its remaining MANDATORY
+    // slots. A category's max_allowed (when set) is a hard cap: once a
+    // team's acquired count (purchases + its own captain's slot) reaches
+    // it, they're done in that category and can't bid on more lots there,
+    // even if they can easily afford it.
+    if (category?.max_allowed != null && (acquiredCountByCategory[category.id] ?? 0) >= category.max_allowed) {
+      return NextResponse.json(
+        { error: "This team has already filled its quota for this category" },
+        { status: 400 }
+      );
+    }
+
     if (
       violatesReserve(
         {

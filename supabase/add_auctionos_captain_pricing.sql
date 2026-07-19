@@ -330,7 +330,15 @@ BEGIN
     JOIN public.auction_categories ac ON ac.id = c.category_id
     WHERE c.auction_id = p_auction_id AND ac.name ILIKE '%regular%'
   LOOP
-    IF EXISTS (SELECT 1 FROM public.captain_valuations WHERE captain_id = v_captain.captain_id) THEN
+    -- NOT "any row exists" — auctionos_assign_captain (add_auctionos_wizard.sql)
+    -- inserts a captain_value=NULL placeholder row for every captain at
+    -- assignment time, before begin_auction ever runs; an EXISTS-only guard
+    -- treats that placeholder as "already charged" and skips every Regular
+    -- captain unconditionally. Only a real (non-NULL) valuation counts.
+    IF EXISTS (
+      SELECT 1 FROM public.captain_valuations
+      WHERE captain_id = v_captain.captain_id AND captain_value IS NOT NULL
+    ) THEN
       CONTINUE;
     END IF;
 

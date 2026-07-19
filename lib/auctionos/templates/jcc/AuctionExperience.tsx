@@ -931,8 +931,19 @@ export default function AuctionExperience({
   // Fires the announcement overlay exactly once per category, the moment
   // the room crosses into it (including the very first category of a fresh
   // auction — see lastAnnouncedCategoryIdRef's seeding above).
+  //
+  // Gated on `view === "hall"`: `activeCategory` falls back to `nextCategory`
+  // (§"the category currently running the block") whenever nothing has been
+  // called yet, which is true from the moment this component first mounts —
+  // on the HERO screen, before anyone has entered the hall. Without this
+  // guard the effect fired (and its 2800ms timer started ticking) the
+  // instant the hero screen loaded, or the instant handleStartAuction's own
+  // refresh() landed mid-flight — in both cases well before the room the
+  // overlay is meant to appear in was actually on screen, so by the time a
+  // spectator reached the hall the announcement had already silently come
+  // and gone.
   useEffect(() => {
-    if (!activeCategory || activeCategory.id === lastAnnouncedCategoryIdRef.current) return;
+    if (view !== "hall" || !activeCategory || activeCategory.id === lastAnnouncedCategoryIdRef.current) return;
     setAnnouncedCategory(activeCategory);
     // The ref is only committed once the timer actually fires, not the
     // moment it's scheduled — React 18 Strict Mode double-invokes this
@@ -945,7 +956,7 @@ export default function AuctionExperience({
       setAnnouncedCategory(null);
     }, 2800);
     return () => clearTimeout(timer);
-  }, [activeCategory?.id]);
+  }, [view, activeCategory?.id]);
 
   // Resolves the admin password only when the engine actually needs one —
   // the mock engine does nothing off-browser, so /auctionos/dev never shows
