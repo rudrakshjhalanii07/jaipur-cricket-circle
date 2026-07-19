@@ -27,6 +27,7 @@ import type {
   AuctionLot,
   AuctionCategory,
   AuctionCaptain,
+  AuctionTeam,
   CaptainValuation,
 } from "@/lib/auctionos/core/types";
 import type { AuctionEngine, AuctionSnapshot } from "./engine";
@@ -39,6 +40,7 @@ import {
   seedWalletKinds,
   seedLots,
   seedCaptains,
+  seedTeams,
 } from "./mockSeed";
 
 interface MockStore {
@@ -49,6 +51,7 @@ interface MockStore {
   categories: AuctionCategory[];
   captains: AuctionCaptain[];
   captainValuations: CaptainValuation[];
+  teams: AuctionTeam[];
 }
 
 function freshStore(): MockStore {
@@ -60,6 +63,7 @@ function freshStore(): MockStore {
     categories: seedCategories(),
     captains: seedCaptains(),
     captainValuations: [],
+    teams: seedTeams(),
   };
 }
 
@@ -72,40 +76,73 @@ function snapshotOf(store: MockStore): AuctionSnapshot {
     categories: store.categories.map((c) => ({ ...c })),
     captains: store.captains.map((c) => ({ ...c })),
     captainValuations: store.captainValuations.map((v) => ({ ...v })),
+    teams: store.teams.map((t) => ({ ...t })),
   };
 }
 
 // Returns both the mutable engine and a reset() escape hatch the dev page
 // uses to restart the mock auction from lot 1 without a page reload.
 export function createMockEngine(): { engine: AuctionEngine; reset: () => void } {
-  let store = freshStore();
   let nextValuationId = 1;
 
-  // Mirrors _auctionos_recalc_captain_valuation: no-op if this team has no
-  // captain in this category; otherwise logs a new valuation row. Regular-
-  // category captains get a flat 100 (₹1 Cr); MVP (and any other) captains
-  // get half the team's highest unreversed sold price in that category.
+  // Mirrors _auctionos_charge_regular_captains: a Regular-category
+  // captain's ₹1 Cr is fixed and never purchase-derived, so it's charged
+  // once, up front, before the hall ever opens — same as a real auction
+  // charges it at auctionos_begin_auction rather than on a triggering sale.
+  function chargeRegularCaptains(base: MockStore): MockStore {
+    let wallets = base.wallets;
+    const valuations: CaptainValuation[] = [];
+    for (const captain of base.captains) {
+      const category = base.categories.find((c) => c.id === captain.category_id);
+      if (!/regular/i.test(category?.name ?? "")) continue;
+      const wallet = wallets.find((w) => w.team_id === captain.team_id && w.wallet_kind_id === category?.wallet_kind_id);
+      if (!wallet) continue;
+      wallets = wallets.map((w) => (w.id === wallet.id ? { ...w, budget_remaining: w.budget_remaining - 100 } : w));
+      valuations.push({
+        id: nextValuationId++,
+        auction_id: base.auction.id,
+        captain_id: captain.id,
+        triggering_purchase_id: null,
+        captain_value: 100,
+        rationale: { rule: "regular-flat-preauction", value: 100 },
+        created_at: new Date().toISOString(),
+      });
+    }
+    return { ...base, wallets, captainValuations: [...valuations, ...base.captainValuations] };
+  }
+
+  let store = chargeRegularCaptains(freshStore());
+
+  // Mirrors _auctionos_recalc_captain_valuation: MVP-only now — Regular
+  // captains are charged once up front (see chargeRegularCaptains) and
+  // never flow through here. No-op if this team has no captain in this
+  // category, or if it does but already has a value: "50% of his first MVP
+  // buy" means only the team's FIRST sale in that category ever sets it —
+  // later sales in the same category leave it untouched.
   function recalcCaptainValuation(teamId: string, categoryId: string, triggeringLotId: string) {
     const captain = store.captains.find((c) => c.team_id === teamId && c.category_id === categoryId);
     if (!captain) return;
 
     const category = store.categories.find((c) => c.id === categoryId);
-    const isRegular = /regular/i.test(category?.name ?? "");
+    if (/regular/i.test(category?.name ?? "")) return;
 
-    const highest = store.lots
+    const alreadyValued = store.captainValuations.some((v) => v.captain_id === captain.id);
+    if (alreadyValued) return;
+
+    const first = store.lots
       .filter((l) => l.status === "sold" && l.category_id === categoryId)
       .filter((l) => store.wallets.find((w) => w.id === l.sold_wallet_id)?.team_id === teamId)
-      .reduce<number | null>((max, l) => Math.max(max ?? -Infinity, l.sold_price ?? 0), null);
+      .reduce<AuctionLot | null>((earliest, l) => (!earliest || (l.sold_at ?? "") < (earliest.sold_at ?? "") ? l : earliest), null);
+
+    const firstPrice = first?.sold_price ?? null;
 
     const valuation: CaptainValuation = {
       id: nextValuationId++,
       auction_id: store.auction.id,
       captain_id: captain.id,
       triggering_purchase_id: triggeringLotId,
-      captain_value: isRegular ? 100 : highest == null ? null : highest * 0.5,
-      rationale: isRegular
-        ? { rule: "regular-flat", value: 100 }
-        : { rule: "mvp-half-highest", highest_qualifying_purchase: highest },
+      captain_value: firstPrice == null ? null : firstPrice * 0.5,
+      rationale: { rule: "mvp-half-first", first_qualifying_purchase: firstPrice },
       created_at: new Date().toISOString(),
     };
 
@@ -424,8 +461,8 @@ export function createMockEngine(): { engine: AuctionEngine; reset: () => void }
   return {
     engine,
     reset: () => {
-      store = freshStore();
       nextValuationId = 1;
+      store = chargeRegularCaptains(freshStore());
     },
   };
 }

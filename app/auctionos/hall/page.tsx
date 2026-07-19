@@ -2,6 +2,7 @@ import {
   fetchWallets,
   fetchLots,
   fetchAuctionCategories,
+  fetchAuctionTeams,
   resolveAuctionTemplate,
 } from "@/lib/auctionos/core/data";
 import { supabaseAdmin } from "@/lib/supabase-admin";
@@ -26,13 +27,14 @@ async function fetchActiveAuctionServer(): Promise<Auction | null> {
 
 export default async function AuctionHallPage() {
   const auction = await fetchActiveAuctionServer();
-  const [wallets, lots, categories] = auction
+  const [wallets, lots, categories, teams] = auction
     ? await Promise.all([
         fetchWallets(auction.id),
         fetchLots(auction.id),
         fetchAuctionCategories(auction.id),
+        fetchAuctionTeams(auction.id),
       ])
-    : [[], [], []];
+    : [[], [], [], []];
 
   // No auction yet — nothing to resolve a template from, so fall back to
   // the site's one built-in template until an auctioneer prepares an
@@ -48,6 +50,7 @@ export default async function AuctionHallPage() {
         initialWallets={wallets}
         initialLots={lots}
         initialCategories={categories}
+        initialTeams={teams}
       />
     </HallAccessGate>
   );

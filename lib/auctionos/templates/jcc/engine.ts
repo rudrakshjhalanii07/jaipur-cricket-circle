@@ -14,6 +14,7 @@ import type {
   AuctionLot,
   AuctionCategory,
   AuctionCaptain,
+  AuctionTeam,
   CaptainValuation,
 } from "@/lib/auctionos/core/types";
 import {
@@ -24,6 +25,7 @@ import {
   fetchAuctionCategories,
   fetchAuctionCaptains,
   fetchCaptainValuations,
+  fetchAuctionTeams,
 } from "@/lib/auctionos/core/data";
 
 export interface AuctionSnapshot {
@@ -34,6 +36,7 @@ export interface AuctionSnapshot {
   categories: AuctionCategory[];
   captains: AuctionCaptain[];
   captainValuations: CaptainValuation[];
+  teams: AuctionTeam[];
 }
 
 export const EMPTY_SNAPSHOT: AuctionSnapshot = {
@@ -44,6 +47,7 @@ export const EMPTY_SNAPSHOT: AuctionSnapshot = {
   categories: [],
   captains: [],
   captainValuations: [],
+  teams: [],
 };
 
 export interface AuctionEngine {
@@ -73,11 +77,15 @@ export interface AuctionEngine {
 }
 
 async function postAdmin(path: string, password: string, body: Record<string, unknown>) {
-  await fetch(`/api/auctionos/${path}`, {
+  const res = await fetch(`/api/auctionos/${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-admin-password": password },
     body: JSON.stringify(body),
   });
+  if (!res.ok) {
+    const payload = await res.json().catch(() => null);
+    throw new Error(payload?.error ?? `Request to ${path} failed (${res.status})`);
+  }
 }
 
 // Module-level singleton — holds no per-call state (password is passed in
@@ -88,15 +96,16 @@ export const liveEngine: AuctionEngine = {
   async refresh() {
     const auction = await fetchActiveAuction();
     if (!auction) return EMPTY_SNAPSHOT;
-    const [wallets, walletKinds, lots, categories, captains, captainValuations] = await Promise.all([
+    const [wallets, walletKinds, lots, categories, captains, captainValuations, teams] = await Promise.all([
       fetchWallets(auction.id),
       fetchWalletKinds(auction.id),
       fetchLots(auction.id),
       fetchAuctionCategories(auction.id),
       fetchAuctionCaptains(auction.id),
       fetchCaptainValuations(auction.id),
+      fetchAuctionTeams(auction.id),
     ]);
-    return { auction, wallets, walletKinds, lots, categories, captains, captainValuations };
+    return { auction, wallets, walletKinds, lots, categories, captains, captainValuations, teams };
   },
   async advance(auctionId, password) {
     if (!password) return;

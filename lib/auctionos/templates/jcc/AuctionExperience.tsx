@@ -15,7 +15,6 @@ import {
   Undo2,
 } from "lucide-react";
 
-import { TEAMS, TEAM_ORDER_ALL, type TeamId } from "@/lib/teams";
 import type { AuctionExperienceProps } from "@/lib/auctionos/core/template";
 import type {
   Auction,
@@ -24,6 +23,7 @@ import type {
   AuctionLot,
   AuctionCategory,
   AuctionCaptain,
+  AuctionTeam,
   CaptainValuation,
 } from "@/lib/auctionos/core/types";
 import { liveEngine, type AuctionEngine } from "./engine";
@@ -48,14 +48,24 @@ function lotImage(lot: AuctionLot): string | null {
   return (lot.metadata?.image as string | null | undefined) ?? null;
 }
 
-function teamKeyOf(wallets: AuctionWallet[], walletId: string | null): TeamId | null {
-  if (!walletId) return null;
-  const w = wallets.find((x) => x.id === walletId);
-  return w ? (w.team_id as TeamId) : null;
+// A wallet/captain carries team identity as EITHER team_id (legacy global
+// `teams` table, still used by the /auctionos/dev mock) XOR auction_team_id
+// (wizard-created auction_teams row) — never both (see AUCTIONOS.md's
+// AuctionWallet doc comment). This is the one place that picks whichever
+// side is actually set, so every other lookup in this file works off a
+// single opaque team-id string, matching an AuctionTeam.id from `teams`.
+function entityTeamKey(entity: Pick<AuctionWallet, "team_id" | "auction_team_id">): string | null {
+  return entity.auction_team_id ?? entity.team_id ?? null;
 }
 
-function walletsForTeam(wallets: AuctionWallet[], teamId: TeamId): AuctionWallet[] {
-  return wallets.filter((w) => w.team_id === teamId);
+function teamKeyOf(wallets: AuctionWallet[], walletId: string | null): string | null {
+  if (!walletId) return null;
+  const w = wallets.find((x) => x.id === walletId);
+  return w ? entityTeamKey(w) : null;
+}
+
+function walletsForTeam(wallets: AuctionWallet[], teamId: string): AuctionWallet[] {
+  return wallets.filter((w) => entityTeamKey(w) === teamId);
 }
 
 // A category's wallet_kind_id says which wallet a purchase in it debits —
@@ -66,7 +76,7 @@ function walletsForTeam(wallets: AuctionWallet[], teamId: TeamId): AuctionWallet
 // this template originally shipped with.
 function walletForTeamKind(
   wallets: AuctionWallet[],
-  teamId: TeamId,
+  teamId: string,
   walletKindId: string | null | undefined
 ): AuctionWallet | undefined {
   const teamWallets = walletsForTeam(wallets, teamId);
@@ -94,19 +104,27 @@ function getAdminPassword(): string | null {
     : null;
 }
 
-async function verifyAdminPassword(password: string): Promise<boolean> {
+// Verifies against THIS auction's own wizard-generated admin password
+// (auctions.admin_password_hash), not the legacy site-wide ADMIN_PASSWORD —
+// /api/auctionos/resolve-admin resolves a password to whichever auction it
+// belongs to, so a match only counts if it resolves to the auction we're
+// actually in.
+async function verifyAdminPassword(auctionId: string, password: string): Promise<boolean> {
   try {
-    const res = await fetch("/api/admin/verify-password", {
+    const res = await fetch("/api/auctionos/resolve-admin", {
       method: "POST",
-      headers: { "x-admin-password": password },
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
     });
-    return res.ok;
+    if (!res.ok) return false;
+    const { auction_id } = await res.json();
+    return auction_id === auctionId;
   } catch {
     return false;
   }
 }
 
-function useAdminPassword() {
+function useAdminPassword(auctionId: string | undefined) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [verifying, setVerifying] = useState(false);
@@ -115,7 +133,7 @@ function useAdminPassword() {
 
   const ensurePassword = useCallback(async (): Promise<string | null> => {
     const stored = getAdminPassword();
-    if (stored && (await verifyAdminPassword(stored))) return stored;
+    if (auctionId && stored && (await verifyAdminPassword(auctionId, stored))) return stored;
     if (stored && typeof window !== "undefined")
       sessionStorage.removeItem("jcc_admin_password");
     setInput("");
@@ -124,7 +142,7 @@ function useAdminPassword() {
     return new Promise<string | null>((resolve) => {
       resolverRef.current = resolve;
     });
-  }, []);
+  }, [auctionId]);
 
   const close = useCallback((pw: string | null) => {
     setOpen(false);
@@ -139,9 +157,10 @@ function useAdminPassword() {
       setError("Enter the admin password.");
       return;
     }
+    if (!auctionId) return;
     setVerifying(true);
     setError(null);
-    const ok = await verifyAdminPassword(pw);
+    const ok = await verifyAdminPassword(auctionId, pw);
     if (!ok) {
       setVerifying(false);
       setError("Incorrect password. Try again.");
@@ -151,7 +170,7 @@ function useAdminPassword() {
     if (typeof window !== "undefined")
       sessionStorage.setItem("jcc_admin_password", pw);
     close(pw);
-  }, [input, close]);
+  }, [input, close, auctionId]);
 
   const passwordModal = (
     <AnimatePresence>
@@ -206,7 +225,7 @@ function useAdminPassword() {
                 <button
                   type="submit"
                   disabled={verifying}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-jcc-blue text-xs font-black uppercase tracking-widest text-white flex items-center justify-center gap-1.5 border border-jcc-accent disabled:opacity-60 transition-opacity"
+                  className="flex-1 btn-vibrant-blue px-4! py-2.5! text-xs disabled:opacity-60"
                 >
                   {verifying ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -229,18 +248,17 @@ function useAdminPassword() {
 // ─── Team crest with initials fallback (mirrors the tournament page's
 // local TeamLogo — each immersive page keeps its own small copy). ──────────
 
-function TeamLogo({ teamId, className = "" }: { teamId: TeamId; className?: string }) {
-  const team = TEAMS[teamId];
+function TeamLogo({ team, className = "" }: { team: AuctionTeam; className?: string }) {
   const [error, setError] = useState(false);
-  if (error)
+  if (error || !team.logo_url)
     return (
-      <span className="font-black select-none" style={{ color: team.primary }}>
-        {team.shortName}
+      <span className="font-black select-none" style={{ color: team.primary_color ?? undefined }}>
+        {team.short_name ?? team.name}
       </span>
     );
   return (
     <img
-      src={team.logo}
+      src={team.logo_url}
       alt={team.name}
       className={className}
       onError={() => setError(true)}
@@ -364,6 +382,38 @@ function HammerOverlay({
 // a quota category can loop the same handful of unsold lots several times
 // in a row, and a heavy modal every time would be exhausting rather than
 // informative. See AUCTION_RULES.md's "Category quota" section.
+
+// A failed admin action (advance/bid/sold/unsold/undo/resolve) surfaces
+// here instead of failing silently — see postAdmin()'s error throw in
+// engine.ts and the actionError state in AuctionExperience. Dismissible
+// because some failures (e.g. "wallet cannot afford this bid") need the
+// organizer to read them, not just glance past an auto-clearing toast.
+function ActionErrorToast({ message, onDismiss }: { message: string | null; onDismiss: () => void }) {
+  return (
+    <AnimatePresence>
+      {message && (
+        <motion.div
+          initial={{ opacity: 0, y: -16 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -16 }}
+          transition={{ duration: 0.35, ease: SMOOTH_EASE }}
+          className="fixed top-6 left-1/2 -translate-x-1/2 z-[240] px-5 py-3 rounded-full flex items-center gap-2.5 max-w-lg"
+          style={{
+            backgroundColor: "color-mix(in srgb, var(--color-jcc-danger, #b91c1c) 92%, black)",
+            border: "1.5px solid color-mix(in srgb, white 25%, transparent)",
+            boxShadow: "0 12px 32px -12px rgba(0,0,0,0.5)",
+          }}
+        >
+          <AlertCircle className="w-3.5 h-3.5 text-[#fff] shrink-0" />
+          <p className="text-[#fff] text-xs font-bold">{message}</p>
+          <button onClick={onDismiss} className="text-[#fff]/70 hover:text-[#fff] text-xs font-black shrink-0">
+            ✕
+          </button>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
 
 function LoopedToast({ playerName }: { playerName: string | null }) {
   return (
@@ -518,6 +568,8 @@ function BlockedLotPanel({
   lots,
   onResolve,
   resolving,
+  isAdmin,
+  teams,
 }: {
   lot: AuctionLot;
   category: AuctionCategory | null;
@@ -526,6 +578,8 @@ function BlockedLotPanel({
   lots: AuctionLot[];
   onResolve: (walletId: string | null) => void;
   resolving: boolean;
+  isAdmin: boolean;
+  teams: AuctionTeam[];
 }) {
   const basePrice = category?.base_price ?? lot.base_price;
   const eligibleWallets = category?.wallet_kind_id
@@ -559,44 +613,53 @@ function BlockedLotPanel({
         </p>
       </div>
 
-      <div className="flex flex-wrap justify-center gap-3 max-w-2xl">
-        {candidates.map(({ wallet, teamId, short, affordable }) => {
-          if (!teamId) return null;
-          const team = TEAMS[teamId];
-          return (
-            <button
-              key={wallet.id}
-              onClick={() => onResolve(wallet.id)}
-              disabled={resolving || !affordable}
-              className="id-card px-5 py-4 flex flex-col items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-[0_0_0_1px_rgba(212,175,55,0.55)] transition-shadow"
-              style={{ borderColor: short ? `${team.primary}90` : undefined, borderWidth: short ? 2 : undefined }}
-            >
-              <TeamLogo teamId={teamId} className="w-10 h-10 object-contain" />
-              <p className="font-heading font-black text-xs uppercase" style={{ color: team.primary }}>
-                {team.shortName}
-              </p>
-              <p className="text-jcc-text-muted text-[10px] font-black uppercase tracking-widest">
-                {short ? "Short of quota" : "Optional pickup"}
-              </p>
-              <p className="score-number text-jcc-text-primary text-xs font-black">
-                {formatLakhs(wallet.budget_remaining)} left
-              </p>
-              {!affordable && (
-                <p className="text-red-400 text-[9px] font-black uppercase tracking-widest">Can&rsquo;t afford base price</p>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {isAdmin ? (
+        <>
+          <div className="flex flex-wrap justify-center gap-3 max-w-2xl">
+            {candidates.map(({ wallet, teamId, short, affordable }) => {
+              if (!teamId) return null;
+              const team = teams.find((t) => t.id === teamId);
+              if (!team) return null;
+              return (
+                <button
+                  key={wallet.id}
+                  onClick={() => onResolve(wallet.id)}
+                  disabled={resolving || !affordable}
+                  className="id-card px-5 py-4 flex flex-col items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-[0_0_0_1px_rgba(212,175,55,0.55)] transition-shadow"
+                  style={{ borderColor: short ? `${team.primary_color}90` : undefined, borderWidth: short ? 2 : undefined }}
+                >
+                  <TeamLogo team={team} className="w-10 h-10 object-contain" />
+                  <p className="font-heading font-black text-xs uppercase" style={{ color: team.primary_color ?? undefined }}>
+                    {team.short_name ?? team.name}
+                  </p>
+                  <p className="text-jcc-text-muted text-[10px] font-black uppercase tracking-widest">
+                    {short ? "Short of quota" : "Optional pickup"}
+                  </p>
+                  <p className="score-number text-jcc-text-primary text-xs font-black">
+                    {formatLakhs(wallet.budget_remaining)} left
+                  </p>
+                  {!affordable && (
+                    <p className="text-red-400 text-[9px] font-black uppercase tracking-widest">Can&rsquo;t afford base price</p>
+                  )}
+                </button>
+              );
+            })}
+          </div>
 
-      <button
-        onClick={() => onResolve(null)}
-        disabled={resolving}
-        className="btn-ghost px-6 py-2.5 text-xs disabled:opacity-50"
-      >
-        {resolving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />}
-        Leave Unsold
-      </button>
+          <button
+            onClick={() => onResolve(null)}
+            disabled={resolving}
+            className="btn-ghost px-6 py-2.5 text-xs disabled:opacity-50"
+          >
+            {resolving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />}
+            Leave Unsold
+          </button>
+        </>
+      ) : (
+        <p className="text-jcc-text-muted text-[10px] font-black uppercase tracking-widest">
+          Waiting for the auctioneer to resolve this lot…
+        </p>
+      )}
     </div>
   );
 }
@@ -604,39 +667,43 @@ function BlockedLotPanel({
 // ─── Captain Desk ───────────────────────────────────────────────────────────
 
 function CaptainDesk({
-  teamId,
+  team,
   purse,
   isLeading,
   canBid,
   cooldown,
   onRaisePaddle,
   hasCaptain,
+  captainName,
   captainValue,
   previewBudget,
   previewCaptainValue,
 }: {
-  teamId: TeamId;
+  team: AuctionTeam;
   purse: AuctionWallet | undefined;
   isLeading: boolean;
   canBid: boolean;
   cooldown: boolean;
   onRaisePaddle: () => void;
   hasCaptain: boolean;
+  captainName: string | null;
   captainValue: number | null;
   previewBudget: number;
   previewCaptainValue: number | null;
 }) {
-  const team = TEAMS[teamId];
   const budgetChanges = previewBudget !== (purse?.budget_remaining ?? 0);
   return (
     <motion.div
       className={`id-card relative p-7 flex flex-col items-center gap-4 text-center transition-shadow duration-500 ${isLeading ? "shadow-[0_0_0_1px_rgba(212,175,55,0.55),0_18px_44px_-20px_rgba(212,175,55,0.5)]" : ""}`}
-      style={{ borderColor: `${team.primary}70`, borderWidth: 2 }}
+      style={{ borderColor: `${team.primary_color}70`, borderWidth: 2 }}
       animate={isLeading ? { y: -3 } : { y: 0 }}
       transition={{ duration: 0.5, ease: SMOOTH_EASE }}
     >
-      <TeamLogo teamId={teamId} className="w-20 h-20 object-contain" />
-      <p className="text-xs text-jcc-text-muted font-bold -mt-1">{team.captain}</p>
+      <TeamLogo team={team} className="w-28 h-28 object-contain" />
+      {captainName && (
+        <p className="text-sm font-black text-jcc-text-primary -mt-2">{captainName}</p>
+      )}
+      {team.tagline && <p className="text-xs text-jcc-text-muted font-bold -mt-1">{team.tagline}</p>}
       <div className="w-full pt-2 border-t border-jcc-border grid grid-cols-2 gap-2">
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest text-jcc-text-muted">Purse Left</p>
@@ -703,11 +770,14 @@ export default function AuctionExperience({
   initialWallets,
   initialLots,
   initialCategories,
+  initialTeams,
+  isAdmin = true,
   engine = liveEngine,
 }: JccAuctionExperienceProps) {
   const [season, setSeason] = useState<Auction | null>(initialAuction);
   const [participants, setParticipants] = useState<AuctionWallet[]>(initialWallets);
   const [lots, setLots] = useState<AuctionLot[]>(initialLots);
+  const [teams, setTeams] = useState<AuctionTeam[]>(initialTeams);
   // Auction creation has moved to the AuctionOS wizard (app/auctionos/new)
   // — this template's hall UI only bids in auctions already prepared
   // there, and the wizard assigns a real category_id per lot. Read here so
@@ -721,6 +791,12 @@ export default function AuctionExperience({
   const [mounted, setMounted] = useState(false);
 
   const [advancing, setAdvancing] = useState(false);
+  // Surfaces a failed admin action (bad password aside — that has its own
+  // modal error) instead of letting it fail silently: postAdmin() throws on
+  // a non-2xx response, and every handler below catches it here so a
+  // rejected RPC (e.g. an organizer's session lost sync, or a server-side
+  // validation error) is visible rather than looking like a dead button.
+  const [actionError, setActionError] = useState<string | null>(null);
   const [cooldownTeams, setCooldownTeams] = useState<Record<string, boolean>>({});
   const [hammerPhase, setHammerPhase] = useState<HammerPhase>("idle");
   const [lastSoldSnapshot, setLastSoldSnapshot] = useState<AuctionLot | null>(null);
@@ -746,7 +822,7 @@ export default function AuctionExperience({
     initialResolvedCount === 0 ? null : initialActiveLot?.category_id ?? null
   );
 
-  const { ensurePassword, passwordModal } = useAdminPassword();
+  const { ensurePassword, passwordModal } = useAdminPassword(season?.id);
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setMounted(true));
@@ -762,6 +838,7 @@ export default function AuctionExperience({
     setWalletKinds(snap.walletKinds);
     setCaptains(snap.captains);
     setCaptainValuations(snap.captainValuations);
+    setTeams(snap.teams);
     return snap;
   }, [engine]);
 
@@ -856,9 +933,17 @@ export default function AuctionExperience({
   // auction — see lastAnnouncedCategoryIdRef's seeding above).
   useEffect(() => {
     if (!activeCategory || activeCategory.id === lastAnnouncedCategoryIdRef.current) return;
-    lastAnnouncedCategoryIdRef.current = activeCategory.id;
     setAnnouncedCategory(activeCategory);
-    const timer = setTimeout(() => setAnnouncedCategory(null), 2800);
+    // The ref is only committed once the timer actually fires, not the
+    // moment it's scheduled — React 18 Strict Mode double-invokes this
+    // effect (mount → cleanup → mount) in dev, and committing the ref
+    // synchronously here meant the cleanup-cancelled first timer left the
+    // overlay permanently stuck: the surviving second invocation would see
+    // the ref already set and skip scheduling its own timer entirely.
+    const timer = setTimeout(() => {
+      lastAnnouncedCategoryIdRef.current = activeCategory.id;
+      setAnnouncedCategory(null);
+    }, 2800);
     return () => clearTimeout(timer);
   }, [activeCategory?.id]);
 
@@ -866,23 +951,57 @@ export default function AuctionExperience({
   // the mock engine does nothing off-browser, so /auctionos/dev never shows
   // this prompt. Returns `false` to mean "caller should bail", distinct
   // from a resolved `null` password on a no-auth engine.
+  //
+  // Every mutating handler below (callAdvance/handleRaisePaddle/handleSold/
+  // handleUnsold/handleResolveBlockedLot/handleUndoBid/handleUndoSale)
+  // calls this first, so gating isAdmin here — rather than only hiding the
+  // triggering buttons — is defense-in-depth against a spectator somehow
+  // still reaching one of these functions (e.g. a stale ref, a future
+  // control that forgets its own isAdmin check).
   async function ensureEngineAuth(): Promise<string | null | false> {
+    if (!isAdmin) return false;
     if (!engine.requiresAdminAuth) return null;
     const password = await ensurePassword();
     return password ?? false;
   }
 
-  async function handleAdvance() {
-    if (!season) return;
+  // Shared core of "call the next lot" — used both by the in-hall Call
+  // First/Next Player button and by the hero's Start Auction button (which
+  // authenticates and calls the very first lot in one step, then enters the
+  // hall already live rather than dropping the organizer into an empty room
+  // to find the same button again). Returns whether it succeeded so a
+  // caller like handleStartAuction knows whether it's safe to change view.
+  async function callAdvance(): Promise<boolean> {
+    if (!season) return false;
     const password = await ensureEngineAuth();
-    if (password === false) return;
+    if (password === false) return false;
     setAdvancing(true);
-    await engine.advance(season.id, password);
-    await refresh();
-    setAdvancing(false);
+    setActionError(null);
+    try {
+      await engine.advance(season.id, password);
+      await refresh();
+      return true;
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to call the next player.");
+      return false;
+    } finally {
+      setAdvancing(false);
+    }
   }
 
-  async function handleRaisePaddle(teamId: TeamId) {
+  async function handleAdvance() {
+    await callAdvance();
+  }
+
+  // Hero-screen entry point: authenticates, calls the first lot, and only
+  // then drops the organizer straight into the live hall — spectators still
+  // use the password-free "Enter Auction Hall" button below to just watch.
+  async function handleStartAuction() {
+    const ok = await callAdvance();
+    if (ok) setView("hall");
+  }
+
+  async function handleRaisePaddle(teamId: string) {
     if (!onBlockLot) return;
     const wallet = walletForTeamKind(participants, teamId, onBlockCategory?.wallet_kind_id);
     if (!wallet) return;
@@ -890,44 +1009,60 @@ export default function AuctionExperience({
     if (password === false) return;
     setCooldownTeams((c) => ({ ...c, [teamId]: true }));
     setTimeout(() => setCooldownTeams((c) => ({ ...c, [teamId]: false })), 1500);
-    await engine.bid(onBlockLot.id, wallet.id, password);
-    await refresh();
+    setActionError(null);
+    try {
+      await engine.bid(onBlockLot.id, wallet.id, password);
+      await refresh();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to place bid.");
+    }
   }
 
   async function handleSold() {
     if (!onBlockLot || !onBlockLot.current_bid_wallet_id) return;
     const password = await ensureEngineAuth();
     if (password === false) return;
+    setActionError(null);
     setLastSoldSnapshot(onBlockLot);
     setHammerPhase("sold");
-    await engine.sold(onBlockLot.id, password);
-    await refresh();
-    setTimeout(() => setHammerPhase("idle"), 1600);
+    try {
+      await engine.sold(onBlockLot.id, password);
+      await refresh();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to mark lot sold.");
+    } finally {
+      setTimeout(() => setHammerPhase("idle"), 1600);
+    }
   }
 
   async function handleUnsold() {
     if (!onBlockLot) return;
     const password = await ensureEngineAuth();
     if (password === false) return;
+    setActionError(null);
     const lotId = onBlockLot.id;
     const displayName = onBlockLot.display_name;
-    await engine.unsold(lotId, password);
-    const snap = await refresh();
+    try {
+      await engine.unsold(lotId, password);
+      const snap = await refresh();
 
-    // auctionos_mark_unsold/mockEngine.unsold don't return their outcome —
-    // it's fully expressed in the lot's own resulting status (see
-    // AUCTION_RULES.md's "Category quota"), so read it back from the fresh
-    // snapshot rather than threading extra return data through the engine
-    // interface. 'sold' only happens here via the forced-allotment path —
-    // a bid-won sale always goes through handleSold, never handleUnsold.
-    const resolved = snap.lots.find((l) => l.id === lotId);
-    if (resolved?.status === "upcoming") {
-      setLoopedPlayerName(displayName);
-      setTimeout(() => setLoopedPlayerName(null), 2000);
-    } else if (resolved?.status === "sold") {
-      setLastSoldSnapshot(resolved);
-      setHammerPhase("allotted");
-      setTimeout(() => setHammerPhase("idle"), 1600);
+      // auctionos_mark_unsold/mockEngine.unsold don't return their outcome —
+      // it's fully expressed in the lot's own resulting status (see
+      // AUCTION_RULES.md's "Category quota"), so read it back from the fresh
+      // snapshot rather than threading extra return data through the engine
+      // interface. 'sold' only happens here via the forced-allotment path —
+      // a bid-won sale always goes through handleSold, never handleUnsold.
+      const resolved = snap.lots.find((l) => l.id === lotId);
+      if (resolved?.status === "upcoming") {
+        setLoopedPlayerName(displayName);
+        setTimeout(() => setLoopedPlayerName(null), 2000);
+      } else if (resolved?.status === "sold") {
+        setLastSoldSnapshot(resolved);
+        setHammerPhase("allotted");
+        setTimeout(() => setHammerPhase("idle"), 1600);
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to mark lot unsold.");
     }
   }
 
@@ -939,19 +1074,25 @@ export default function AuctionExperience({
     const password = await ensureEngineAuth();
     if (password === false) return;
     setResolvingLot(true);
+    setActionError(null);
     const lotId = blockedLot.id;
-    await engine.resolveBlockedLot(lotId, walletId, password);
-    const snap = await refresh();
-    setResolvingLot(false);
+    try {
+      await engine.resolveBlockedLot(lotId, walletId, password);
+      const snap = await refresh();
 
-    const resolved = snap.lots.find((l) => l.id === lotId);
-    if (resolved?.status === "sold") {
-      setLastSoldSnapshot(resolved);
-      setHammerPhase("allotted");
-      setTimeout(() => setHammerPhase("idle"), 1600);
+      const resolved = snap.lots.find((l) => l.id === lotId);
+      if (resolved?.status === "sold") {
+        setLastSoldSnapshot(resolved);
+        setHammerPhase("allotted");
+        setTimeout(() => setHammerPhase("idle"), 1600);
+      }
+      // resolved?.status === "unsold" (organizer gave up): nothing further to
+      // announce, same as any other terminal unsold lot.
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to resolve blocked lot.");
+    } finally {
+      setResolvingLot(false);
     }
-    // resolved?.status === "unsold" (organizer gave up): nothing further to
-    // announce, same as any other terminal unsold lot.
   }
 
   // Retracts the current highest bid on the on_block lot — only legal
@@ -962,8 +1103,13 @@ export default function AuctionExperience({
     if (!onBlockLot || !engine.undoBid) return;
     const password = await ensureEngineAuth();
     if (password === false) return;
-    await engine.undoBid(onBlockLot.id, password);
-    await refresh();
+    setActionError(null);
+    try {
+      await engine.undoBid(onBlockLot.id, password);
+      await refresh();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to undo bid.");
+    }
   }
 
   // Reverses the most recently resolved lot (sold or unsold) back onto the
@@ -973,8 +1119,13 @@ export default function AuctionExperience({
     if (!lastResolvedLot || !engine.undoSale) return;
     const password = await ensureEngineAuth();
     if (password === false) return;
-    await engine.undoSale(lastResolvedLot.id, password);
-    await refresh();
+    setActionError(null);
+    try {
+      await engine.undoSale(lastResolvedLot.id, password);
+      await refresh();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to undo sale.");
+    }
   }
 
   // ── Hero ─────────────────────────────────────────────────────────────────
@@ -1049,15 +1200,44 @@ export default function AuctionExperience({
             variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
             className="flex flex-col sm:flex-row items-center gap-4"
           >
-            {season && (
-              <button onClick={() => setView("hall")} className="btn-vibrant-blue">
-                <Gavel className="w-4 h-4" />
-                {season.status === "completed" ? "View Results" : "Enter Auction Hall"}
-              </button>
-            )}
+            {(() => {
+              if (!season) return null;
+              const notStartedYet = !onBlockLot && !blockedLot && resolvedCount === 0 && season.status !== "completed";
+              const showStartAuction = isAdmin && notStartedYet;
+              // Spectators (non-admin) get no client-side way into the hall
+              // until the auctioneer has actually called a lot — entering
+              // early would only show an inert "waiting" room anyway, but
+              // gating the button itself (rather than relying on that
+              // placeholder screen) means there's no path in at all, not
+              // just a boring one. Admins keep the ghost "preview the hall"
+              // button even pre-start, since they're the ones who'd use it
+              // to get to the Start Auction control inside the hall too.
+              if (!isAdmin && notStartedYet) {
+                return (
+                  <p className="text-jcc-text-muted text-[11px] font-black uppercase tracking-widest">
+                    Doors open once the auctioneer starts the auction
+                  </p>
+                );
+              }
+              return (
+                <>
+                  {showStartAuction && (
+                    <button onClick={handleStartAuction} disabled={advancing} className="btn-vibrant-blue">
+                      {advancing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+                      Start Auction
+                    </button>
+                  )}
+                  <button onClick={() => setView("hall")} className={showStartAuction ? "btn-ghost" : "btn-vibrant-blue"}>
+                    <Gavel className="w-4 h-4" />
+                    {season.status === "completed" ? "View Results" : "Enter Auction Hall"}
+                  </button>
+                </>
+              );
+            })()}
           </motion.div>
         </motion.div>
 
+        <ActionErrorToast message={actionError} onDismiss={() => setActionError(null)} />
         {passwordModal}
       </div>
     );
@@ -1148,7 +1328,14 @@ export default function AuctionExperience({
             </p>
           </div>
         ) : isComplete ? (
-          <CompletedRecap lots={lots} participants={participants} categories={categories} />
+          <CompletedRecap
+            lots={lots}
+            participants={participants}
+            categories={categories}
+            teams={teams}
+            captains={captains}
+            valuationByCaptain={valuationByCaptain}
+          />
         ) : blockedLot ? (
           <BlockedLotPanel
             lot={blockedLot}
@@ -1158,6 +1345,8 @@ export default function AuctionExperience({
             lots={lots}
             onResolve={handleResolveBlockedLot}
             resolving={resolvingLot}
+            isAdmin={isAdmin}
+            teams={teams}
           />
         ) : !onBlockLot ? (
           (() => {
@@ -1186,21 +1375,27 @@ export default function AuctionExperience({
                   {upcomingLots.length} {upcomingLots.length === 1 ? "player waits" : "players wait"} to be called to
                   the block.
                 </p>
-                <div className="flex items-center gap-3">
-                  <button onClick={handleAdvance} disabled={advancing} className="btn-vibrant-blue">
-                    {advancing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gavel className="w-4 h-4" />}
-                    {resolvedCount === 0 ? "Call First Player" : "Call Next Player"}
-                  </button>
-                  {engine.undoSale && lastResolvedLot && (
-                    <button
-                      onClick={handleUndoSale}
-                      title={`Undo ${lastResolvedLot.status === "sold" ? "sale" : "unsold call"} for ${lastResolvedLot.display_name}`}
-                      className="btn-ghost px-4 py-3"
-                    >
-                      <Undo2 className="w-4 h-4" />
+                {isAdmin ? (
+                  <div className="flex items-center gap-3">
+                    <button onClick={handleAdvance} disabled={advancing} className="btn-vibrant-blue">
+                      {advancing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gavel className="w-4 h-4" />}
+                      {resolvedCount === 0 ? "Call First Player" : "Call Next Player"}
                     </button>
-                  )}
-                </div>
+                    {engine.undoSale && lastResolvedLot && (
+                      <button
+                        onClick={handleUndoSale}
+                        title={`Undo ${lastResolvedLot.status === "sold" ? "sale" : "unsold call"} for ${lastResolvedLot.display_name}`}
+                        className="btn-ghost px-4 py-3"
+                      >
+                        <Undo2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-jcc-text-muted text-[10px] font-black uppercase tracking-widest">
+                    Waiting for the auctioneer…
+                  </p>
+                )}
                 {currentCategoryProgress && (
                   <p className="score-number text-jcc-text-primary text-lg font-black uppercase tracking-widest">
                     {currentCategoryProgress.category.name}{" "}
@@ -1226,6 +1421,8 @@ export default function AuctionExperience({
               onSold={handleSold}
               onUnsold={handleUnsold}
               onUndoBid={engine.undoBid ? handleUndoBid : undefined}
+              isAdmin={isAdmin}
+              teams={teams}
             />
           </>
         )}
@@ -1234,9 +1431,8 @@ export default function AuctionExperience({
           <div className="mt-16">
             <Eyebrow className="mb-5">Live Wallets</Eyebrow>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {TEAM_ORDER_ALL.map((teamId) => {
-                const team = TEAMS[teamId];
-                const teamWallets = walletsForTeam(participants, teamId);
+              {teams.map((team) => {
+                const teamWallets = walletsForTeam(participants, team.id);
                 // Order by the wallet kind's own sort_order once it's loaded
                 // (first poll); until then, fall back to the order wallets
                 // already come in (seeding emits Wallet A before B) so the
@@ -1248,15 +1444,15 @@ export default function AuctionExperience({
                 });
                 return (
                   <div
-                    key={teamId}
+                    key={team.id}
                     className="flex flex-col gap-3 px-5 py-4 rounded-2xl border bg-jcc-navy-light"
-                    style={{ borderColor: `${team.primary}70` }}
+                    style={{ borderColor: `${team.primary_color}70` }}
                   >
-                    <div className="flex items-center gap-2.5">
-                      <TeamLogo teamId={teamId} className="w-8 h-8 object-contain shrink-0" />
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <TeamLogo team={team} className="w-8 h-8 object-contain shrink-0" />
                       <p
-                        className="text-xs font-black uppercase tracking-widest truncate"
-                        style={{ color: team.primary }}
+                        className="text-xs font-black uppercase tracking-widest truncate min-w-0"
+                        style={{ color: team.primary_color ?? undefined }}
                       >
                         {team.name}
                       </p>
@@ -1299,7 +1495,7 @@ export default function AuctionExperience({
                           <div className="w-full h-1.5 rounded-full bg-jcc-border overflow-hidden mt-2">
                             <div
                               className="h-full rounded-full"
-                              style={{ width: `${spentPct}%`, backgroundColor: team.primary }}
+                              style={{ width: `${spentPct}%`, backgroundColor: team.primary_color ?? undefined }}
                             />
                           </div>
 
@@ -1309,7 +1505,7 @@ export default function AuctionExperience({
                                 key={i}
                                 className="w-1 h-4 rounded-full shrink-0"
                                 style={{
-                                  backgroundColor: i < squadCount ? team.primary : "var(--color-jcc-border)",
+                                  backgroundColor: i < squadCount ? (team.primary_color ?? undefined) : "var(--color-jcc-border)",
                                 }}
                               />
                             ))}
@@ -1333,7 +1529,7 @@ export default function AuctionExperience({
             <div className="flex gap-6 overflow-x-auto pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-thin">
               {soldLots.map((p) => {
                 const teamId = teamKeyOf(participants, p.sold_wallet_id);
-                const team = teamId ? TEAMS[teamId] : null;
+                const team = teamId ? teams.find((t) => t.id === teamId) ?? null : null;
                 return (
                   <div key={p.id} className="flex flex-col items-center gap-3 shrink-0 w-36">
                     <PlayerPortrait
@@ -1344,7 +1540,7 @@ export default function AuctionExperience({
                     <div className="text-center">
                       <p className="text-jcc-text-primary font-bold text-sm leading-tight">{p.display_name}</p>
                       {team && (
-                        <p className="text-xs font-black uppercase tracking-widest mt-1" style={{ color: team.primary }}>
+                        <p className="text-xs font-black uppercase tracking-widest mt-1" style={{ color: team.primary_color ?? undefined }}>
                           {team.name}
                         </p>
                       )}
@@ -1363,8 +1559,16 @@ export default function AuctionExperience({
           <div className="mt-16 w-screen relative left-1/2 -translate-x-1/2 max-w-400 px-4 sm:px-6">
             <Eyebrow className="mb-6">Team Sheets</Eyebrow>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-              {TEAM_ORDER_ALL.map((teamId) => (
-                <TeamSheet key={teamId} teamId={teamId} lots={lots} participants={participants} categories={categories} />
+              {teams.map((team) => (
+                <TeamSheet
+                  key={team.id}
+                  team={team}
+                  lots={lots}
+                  participants={participants}
+                  categories={categories}
+                  captains={captains}
+                  valuationByCaptain={valuationByCaptain}
+                />
               ))}
             </div>
           </div>
@@ -1377,12 +1581,13 @@ export default function AuctionExperience({
         price={lastSoldSnapshot?.current_bid ?? null}
         teamName={(() => {
           const teamId = teamKeyOf(participants, lastSoldSnapshot?.current_bid_wallet_id ?? null);
-          return teamId ? TEAMS[teamId].name : null;
+          return teamId ? teams.find((t) => t.id === teamId)?.name ?? null : null;
         })()}
       />
       <AuctionFinaleOverlay show={showFinale} />
       <CategoryAnnouncementOverlay category={announcedCategory} />
       <LoopedToast playerName={loopedPlayerName} />
+      <ActionErrorToast message={actionError} onDismiss={() => setActionError(null)} />
       {passwordModal}
     </div>
   );
@@ -1449,7 +1654,11 @@ function ScrambleText({
 // mirrors _auctionos_recalc_captain_valuation's own math (highest unreversed
 // purchase in the team's category, halved) so this preview never disagrees
 // with what the server would actually charge. Returns null when this team
-// has no captain in this lot's category (nothing to project).
+// has no captain in this lot's category (nothing to project) — also null
+// for a Regular captain (fixed price, never purchase-derived — see
+// _auctionos_charge_regular_captains) or an MVP captain who already has a
+// value (only the team's FIRST purchase in the category ever sets it, per
+// _auctionos_recalc_captain_valuation, so a later sale never moves it).
 function projectCaptainValue({
   currentValue,
   category,
@@ -1462,10 +1671,10 @@ function projectCaptainValue({
   previewBidAmount: number;
 }): { newValue: number; delta: number } | null {
   if (!captain || !category || captain.category_id !== category.id) return null;
-  const existingHighest = currentValue != null ? currentValue * 2 : 0;
-  const newHighest = Math.max(existingHighest, previewBidAmount);
-  const newValue = newHighest * 0.5;
-  return { newValue, delta: newValue - (currentValue ?? 0) };
+  if (category.name?.toUpperCase().includes("REGULAR")) return null;
+  if (currentValue != null) return null;
+  const newValue = previewBidAmount * 0.5;
+  return { newValue, delta: newValue };
 }
 
 function SpotlightStage({
@@ -1479,6 +1688,8 @@ function SpotlightStage({
   onSold,
   onUnsold,
   onUndoBid,
+  isAdmin,
+  teams,
 }: {
   lot: AuctionLot;
   category: AuctionCategory | null;
@@ -1486,10 +1697,12 @@ function SpotlightStage({
   captains: AuctionCaptain[];
   valuationByCaptain: Map<string, CaptainValuation>;
   cooldownTeams: Record<string, boolean>;
-  onRaisePaddle: (teamId: TeamId) => void;
+  onRaisePaddle: (teamId: string) => void;
   onSold: () => void;
   onUnsold: () => void;
   onUndoBid?: () => void;
+  isAdmin: boolean;
+  teams: AuctionTeam[];
 }) {
   const currentBid = lot.current_bid ?? lot.base_price;
   // Mirrors app/api/auctionos/bid/route.ts's own increment resolution: a
@@ -1498,13 +1711,13 @@ function SpotlightStage({
   // the server actually charges.
   const nextBid = currentBid + (category?.bid_increment ?? getNextBidIncrement(currentBid));
   const leadingTeamId = teamKeyOf(participants, lot.current_bid_wallet_id);
-  const leadingTeam = leadingTeamId ? TEAMS[leadingTeamId] : null;
+  const leadingTeam = leadingTeamId ? teams.find((t) => t.id === leadingTeamId) ?? null : null;
 
   return (
     <div>
       <div
         className="premium-card px-6 py-10 sm:px-10 flex flex-col items-center text-center gap-6 transition-colors duration-500"
-        style={leadingTeam ? { backgroundColor: `${leadingTeam.primary}40` } : undefined}
+        style={leadingTeam ? { backgroundColor: `${leadingTeam.primary_color}40` } : undefined}
       >
         <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-jcc-border-bright bg-jcc-accent/5 text-jcc-accent-dark text-[10px] font-black tracking-[0.3em] uppercase">
           <span className="w-1.5 h-1.5 rounded-full bg-jcc-accent-dark animate-pulse" />
@@ -1539,40 +1752,43 @@ function SpotlightStage({
             <p className="text-jcc-text-muted text-[9px] font-black tracking-widest uppercase mb-1">Current Bid</p>
             <RollingNumber value={currentBid} format={formatLakhs} className="text-3xl sm:text-4xl text-jcc-accent-dark font-black score-number" />
           </div>
-          {leadingTeamId && (
-            <TeamLogo teamId={leadingTeamId} className="w-24 h-24 sm:w-28 sm:h-28 object-contain shrink-0" />
+          {leadingTeam && (
+            <TeamLogo team={leadingTeam} className="w-24 h-24 sm:w-28 sm:h-28 object-contain shrink-0" />
           )}
         </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onSold}
-            disabled={!lot.current_bid_wallet_id}
-            className="btn-vibrant-blue px-8 py-3 disabled:opacity-30"
-          >
-            Sold
-          </button>
-          <button
-            onClick={onUnsold}
-            className="btn-ghost px-8 py-3"
-          >
-            Unsold
-          </button>
-          {onUndoBid && (
+        {isAdmin && (
+          <div className="flex items-center gap-3">
             <button
-              onClick={onUndoBid}
+              onClick={onSold}
               disabled={!lot.current_bid_wallet_id}
-              title="Retract the current highest bid"
-              className="btn-ghost px-4 py-3 disabled:opacity-30"
+              className="btn-vibrant-blue px-8 py-3 disabled:opacity-30"
             >
-              <Undo2 className="w-4 h-4" />
+              Sold
             </button>
-          )}
-        </div>
+            <button
+              onClick={onUnsold}
+              className="btn-ghost px-8 py-3"
+            >
+              Unsold
+            </button>
+            {onUndoBid && (
+              <button
+                onClick={onUndoBid}
+                disabled={!lot.current_bid_wallet_id}
+                title="Retract the current highest bid"
+                className="btn-ghost px-4 py-3 disabled:opacity-30"
+              >
+                <Undo2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-5">
-        {TEAM_ORDER_ALL.map((teamId) => {
+        {teams.map((team) => {
+          const teamId = team.id;
           const purse = walletForTeamKind(participants, teamId, category?.wallet_kind_id);
           const isLeading = leadingTeamId === teamId;
           const canAfford = (purse?.budget_remaining ?? 0) >= nextBid;
@@ -1580,7 +1796,7 @@ function SpotlightStage({
           // "If I win this lot right now" preview: the leading team would
           // pay currentBid (what Sold actually charges); anyone else would
           // have to clear nextBid to take the lead in the first place.
-          const captain = captains.find((c) => c.team_id === teamId);
+          const captain = captains.find((c) => entityTeamKey(c) === teamId);
           const currentCaptainValue = captain ? valuationByCaptain.get(captain.id)?.captain_value ?? null : null;
           const previewBidAmount = isLeading ? currentBid : nextBid;
           const captainPreview = projectCaptainValue({
@@ -1595,13 +1811,14 @@ function SpotlightStage({
           return (
             <CaptainDesk
               key={teamId}
-              teamId={teamId}
+              team={team}
               purse={purse}
               isLeading={isLeading}
-              canBid={canAfford}
+              canBid={canAfford && isAdmin}
               cooldown={!!cooldownTeams[teamId]}
               onRaisePaddle={() => onRaisePaddle(teamId)}
               hasCaptain={!!captain}
+              captainName={captain?.display_name ?? null}
               captainValue={currentCaptainValue}
               previewBudget={previewBudget}
               previewCaptainValue={captainPreview && captainPreview.delta > 0 ? captainPreview.newValue : null}
@@ -1622,22 +1839,42 @@ const TEAM_SHEET_SLOT_COUNT = 14;
 const TEAM_SHEET_FIRST_XI_COUNT = 7;
 
 function TeamSheet({
-  teamId,
+  team,
   lots,
   participants,
   categories,
+  captains,
+  valuationByCaptain,
 }: {
-  teamId: TeamId;
+  team: AuctionTeam;
   lots: AuctionLot[];
   participants: AuctionWallet[];
   categories: AuctionCategory[];
+  captains: AuctionCaptain[];
+  valuationByCaptain: Map<string, CaptainValuation>;
 }) {
-  const team = TEAMS[teamId];
+  // The captain has no purchase behind their own slot (AUCTIONOS.md
+  // "captains occupy one category slot with no purchase behind it") — they
+  // don't come from `lots` at all, so they're always pinned to slot 1
+  // rather than falling wherever their (coincidental, same-name) sale
+  // landed in acquisition order.
+  const captain = captains.find((c) => entityTeamKey(c) === team.id) ?? null;
+  const captainCategory = captain ? categories.find((c) => c.id === captain.category_id) ?? null : null;
+  const captainIsMvp = !!captainCategory?.name?.toUpperCase().includes("MVP");
+  const captainValue = captain ? valuationByCaptain.get(captain.id)?.captain_value ?? null : null;
+
   const squad = lots
-    .filter((p) => p.status === "sold" && teamKeyOf(participants, p.sold_wallet_id) === teamId)
+    .filter((p) => p.status === "sold" && teamKeyOf(participants, p.sold_wallet_id) === team.id)
+    .filter(
+      (p) => !captain || p.display_name.trim().toLowerCase() !== captain.display_name.trim().toLowerCase()
+    )
     .sort((a, b) => (a.sold_at ?? "").localeCompare(b.sold_at ?? ""));
 
-  const slots = Array.from({ length: TEAM_SHEET_SLOT_COUNT }, (_, i) => squad[i] ?? null);
+  const lotSlotCount = TEAM_SHEET_SLOT_COUNT - (captain ? 1 : 0);
+  const lotSlots: Array<AuctionLot | null> = Array.from({ length: lotSlotCount }, (_, i) => squad[i] ?? null);
+  const slots: Array<{ isCaptain: boolean; lot: AuctionLot | null }> = captain
+    ? [{ isCaptain: true, lot: null }, ...lotSlots.map((lot) => ({ isCaptain: false, lot }))]
+    : lotSlots.map((lot) => ({ isCaptain: false, lot }));
 
   return (
     <div
@@ -1647,20 +1884,33 @@ function TeamSheet({
         border: "1.5px solid color-mix(in srgb, var(--color-jcc-accent) 60%, transparent)",
       }}
     >
-      <div className="flex items-center gap-3 mb-4">
-        <TeamLogo teamId={teamId} className="w-9 h-9 object-contain shrink-0" />
+      <div className="flex items-center gap-3 mb-4 min-w-0">
+        <TeamLogo team={team} className="w-9 h-9 object-contain shrink-0" />
         <h3
-          className="font-heading text-lg sm:text-xl font-black uppercase tracking-[0.08em]"
-          style={{ color: team.primary }}
+          className="font-heading text-lg sm:text-xl font-black uppercase tracking-[0.08em] min-w-0 break-words leading-tight"
+          style={{ color: team.primary_color ?? undefined }}
         >
           {team.name}
         </h3>
       </div>
 
-      {slots.map((lot, i) => {
+      {slots.map((slot, i) => {
         const isSectionStart = i === 0 || i === TEAM_SHEET_FIRST_XI_COUNT;
-        const category = lot ? categories.find((c) => c.id === lot.category_id) ?? null : null;
-        const isMvp = !!category?.name?.toUpperCase().includes("MVP");
+        const slotLot = slot.lot;
+        const category = slotLot ? categories.find((c) => c.id === slotLot.category_id) ?? null : null;
+        const isMvp = slot.isCaptain ? captainIsMvp : !!category?.name?.toUpperCase().includes("MVP");
+        const filled = slot.isCaptain || !!slot.lot;
+        const name = slot.isCaptain ? captain?.display_name : slot.lot?.display_name;
+        // MVP captains have no value until the team's first buy in that
+        // category (highest-qualifying-purchase formula, still null) — show
+        // a placeholder rather than a wrong/empty price.
+        const priceLabel = slot.isCaptain
+          ? captainValue != null
+            ? formatLakhs(captainValue)
+            : "—"
+          : slot.lot
+            ? formatLakhs(slot.lot.sold_price ?? 0)
+            : null;
         return (
           <div key={i}>
             {isSectionStart && (
@@ -1677,14 +1927,14 @@ function TeamSheet({
                 </span>
                 <span
                   className="font-bold text-xs uppercase tracking-wide truncate"
-                  style={lot ? { color: isMvp ? "var(--color-jcc-accent-dark)" : team.primary } : undefined}
+                  style={filled ? { color: isMvp ? "var(--color-jcc-accent-dark)" : (team.primary_color ?? undefined) } : undefined}
                 >
-                  {lot ? lot.display_name : ""}
+                  {filled ? `${slot.isCaptain ? "(c) " : ""}${name}` : ""}
                 </span>
               </div>
-              {lot && (
+              {priceLabel != null && (
                 <span className="score-number text-jcc-accent-dark text-[10px] font-black shrink-0 pl-2">
-                  {formatLakhs(lot.sold_price ?? 0)}
+                  {priceLabel}
                 </span>
               )}
             </div>
@@ -1702,10 +1952,16 @@ function CompletedRecap({
   lots,
   participants,
   categories,
+  teams,
+  captains,
+  valuationByCaptain,
 }: {
   lots: AuctionLot[];
   participants: AuctionWallet[];
   categories: AuctionCategory[];
+  teams: AuctionTeam[];
+  captains: AuctionCaptain[];
+  valuationByCaptain: Map<string, CaptainValuation>;
 }) {
   const sold = lots.filter((p) => p.status === "sold");
   const topSignings = [...sold].sort((a, b) => (b.sold_price ?? 0) - (a.sold_price ?? 0)).slice(0, 3);
@@ -1733,13 +1989,20 @@ function CompletedRecap({
       >
         <Eyebrow className="mb-6 text-center">Team Sheets</Eyebrow>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-          {TEAM_ORDER_ALL.map((teamId) => (
+          {teams.map((team) => (
             <motion.div
-              key={teamId}
+              key={team.id}
               variants={{ hidden: { opacity: 0, y: 24, scale: 0.96 }, visible: { opacity: 1, y: 0, scale: 1 } }}
               transition={{ duration: 0.5, ease: SMOOTH_EASE }}
             >
-              <TeamSheet teamId={teamId} lots={lots} participants={participants} categories={categories} />
+              <TeamSheet
+                team={team}
+                lots={lots}
+                participants={participants}
+                categories={categories}
+                captains={captains}
+                valuationByCaptain={valuationByCaptain}
+              />
             </motion.div>
           ))}
         </div>
@@ -1751,7 +2014,7 @@ function CompletedRecap({
           <div className="flex justify-center gap-8 flex-wrap">
             {topSignings.map((p) => {
               const teamId = teamKeyOf(participants, p.sold_wallet_id);
-              const team = teamId ? TEAMS[teamId] : null;
+              const team = teamId ? teams.find((t) => t.id === teamId) ?? null : null;
               return (
                 <div key={p.id} className="flex flex-col items-center gap-3">
                   <PlayerPortrait
@@ -1762,7 +2025,7 @@ function CompletedRecap({
                   <div className="text-center">
                     <p className="text-jcc-text-primary font-bold text-sm">{p.display_name}</p>
                     {team && (
-                      <p className="text-[10px] font-black uppercase tracking-widest mt-0.5" style={{ color: team.primary }}>
+                      <p className="text-[10px] font-black uppercase tracking-widest mt-0.5" style={{ color: team.primary_color ?? undefined }}>
                         {team.name}
                       </p>
                     )}

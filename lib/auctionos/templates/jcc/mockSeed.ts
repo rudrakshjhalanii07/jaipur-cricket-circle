@@ -31,6 +31,7 @@ import type {
   AuctionLot,
   AuctionCategory,
   AuctionCaptain,
+  AuctionTeam,
 } from "@/lib/auctionos/core/types";
 import { DEFAULT_PURSE_LAKHS, DEFAULT_GUEST_PURSE_LAKHS } from "./rules";
 
@@ -142,6 +143,30 @@ export function seedCategories(): AuctionCategory[] {
       updated_at: now(),
     },
   ];
+}
+
+// A real (wizard-backed) auction resolves team identity from `auction_teams`
+// rows (see AuctionExperience.tsx's `teams` prop) — this harness has no DB,
+// so it synthesizes the equivalent rows from the same lib/teams.ts roster
+// the rest of this file already seeds wallets/captains against, `id` set to
+// the legacy slug so the generic `auction_team_id ?? team_id` matching in
+// AuctionExperience.tsx resolves these exactly like a real auction_teams row.
+export function seedTeams(): AuctionTeam[] {
+  return TEAM_ORDER_ALL.map((teamId, i) => {
+    const team = TEAMS[teamId];
+    return {
+      id: teamId,
+      auction_id: MOCK_AUCTION_ID,
+      name: team.name,
+      short_name: team.shortName,
+      logo_url: team.logo,
+      tagline: team.tagline,
+      primary_color: team.primary,
+      secondary_color: team.secondary,
+      sort_order: i,
+      created_at: now(),
+    };
+  });
 }
 
 export function seedWallets(): AuctionWallet[] {

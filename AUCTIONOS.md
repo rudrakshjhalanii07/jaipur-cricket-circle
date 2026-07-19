@@ -481,6 +481,9 @@ JSONB columns remain the pressure-release valve for fields guessed wrong.
 | `supabase/add_auctionos.sql` | Generic schema + RPCs (teams, template catalog, auctions, settings, wallet kinds/wallets, categories, captains, lots, bids, purchases, wallet transactions, captain valuations, events, permissions, operators) |
 | `supabase/add_auctionos_quota.sql` | Category quota gate — `'blocked'` lot status, deferrable `lot_order` uniqueness, `_auctionos_acquired_count`/`_auctionos_finalize_purchase` helpers, rewritten `auctionos_advance_lot`/`auctionos_mark_unsold`/`auctionos_mark_sold`/`auctionos_raise_bid`, new `auctionos_resolve_blocked_lot` (§16a) |
 | `supabase/add_auctionos_guest_rebalance.sql` | Squad-balance mechanic — `auction_categories.max_resell_rounds` column, further rewritten `auctionos_mark_unsold` (resell-cap-then-rebalance branch, layered alongside §16a's quota branch), new `lot_rebalanced` event (§16b) |
+| `supabase/add_auctionos_captain_charge.sql` | First pass at charging captains for real — introduced the `captain_charge` wallet-transaction type and a highest-purchase-delta charge model, superseded by `add_auctionos_captain_pricing.sql` below |
+| `supabase/add_auctionos_wallet_gate.sql` | Closes the wizard completeness gate's wallet hole — rewritten `auctionos_begin_auction` now also requires at least one wallet kind and a wallet row for every (team × wallet kind) pair before draft → scheduled, so an auction can no longer go live with teams that have no purse; also now calls `_auctionos_charge_regular_captains` right before the flip (§14) |
+| `supabase/add_auctionos_captain_pricing.sql` | Current captain pricing model (§14) — Regular captains are a fixed ₹1 Cr charged up front by `_auctionos_charge_regular_captains`; MVP captains are 50% of their team's FIRST (not highest) qualifying purchase in category, via a rewritten `_auctionos_recalc_captain_valuation`/`_auctionos_finalize_purchase`/`auctionos_undo_sale`; also fixes team/captain matching to honor `auction_team_id`, not just legacy `team_id` |
 | `lib/auctionos/core/types.ts` | `Team`, `AuctionTemplateRow`, `TemplateCategory`, `TemplateWallet`, `Auction`, `AuctionSettings`, `AuctionWalletKind`, `AuctionCategory`, `AuctionWallet`, `AuctionWalletCategoryCap`, `AuctionCaptain`, `AuctionLot`, `AuctionBid`, `PlayerPurchase`, `WalletTransaction`, `CaptainValuation`, `AuctionEvent`, `AuctionPermission`, `AuctionOperator` |
 | `lib/auctionos/core/template.ts` | `AuctionTemplate` contract (algorithmic modules only), `DEFAULT_*`, `defineTemplate()` |
 | `lib/auctionos/core/registry.ts` | `registerTemplate` / `getTemplate`, keyed by `module_key` |
@@ -802,21 +805,35 @@ correct today even though nothing reads it back yet.
 original design doesn't exist yet; `budget_remaining` is still just a plain
 column, updated only inside `auctionos_mark_sold`/`auctionos_undo_sale`.
 
-### 14. Captain valuation engine (JCC template only) — implemented, reworked in v3, split by category
+### 14. Captain valuation engine (JCC template only) — implemented, reworked in v3, split by category, pricing model changed again in a later pass
 
 `lib/auctionos/templates/jcc/valuation.ts` — no longer stats-based (strike
-rate/economy) or advisory. `computeJccCaptainValue()` now branches on the
-captain's category name: **MVP** captains still get 50% of the highest
-qualifying purchase; **Regular** captains bypass that formula entirely and
-get a flat 100 (₹1 Cr, JCC's lakh units) regardless of what their team has
-spent. The category match is by name (`ILIKE '%regular%'` in SQL, `/regular/i`
-in JS) since categories have no separate "kind" field — any category not
-named Regular falls back to the MVP formula. The actual highest-purchase
-query (unreversed `player_purchases.price` for the captain's team+category)
-lives in the SQL RPC helper `_auctionos_recalc_captain_valuation`, invoked
-from `auctionos_mark_sold`/`auctionos_undo_sale` and logged as a new
-`captain_valuations` row every time; `mockEngine.ts`'s `recalcCaptainValuation`
-mirrors both branches for the no-network dev harness.
+rate/economy) or advisory. The category match is by name (`ILIKE '%regular%'`
+in SQL, `/regular/i` in JS) since categories have no separate "kind" field —
+any category not named Regular falls back to the MVP formula.
+
+**Regular captains** are a fixed ₹1 Cr (100 lakhs, JCC's units), and it is
+NOT purchase-derived at all — it's deducted from the team's wallet once, up
+front, at `auctionos_begin_auction` (before the hall ever opens), by
+`_auctionos_charge_regular_captains` (`supabase/add_auctionos_captain_
+pricing.sql`). `mockEngine.ts`'s `chargeRegularCaptains` mirrors this at
+store-init time (the dev harness has no separate "begin" step).
+
+**MVP captains** are 50% of their team's FIRST qualifying purchase in the
+captain's own category — not the highest, and later purchases in that same
+category no longer revalue the captain at all. Still deterministically
+re-derived (earliest still-unreversed `player_purchases` row, ordered by
+`purchased_at`) rather than cached, so undoing that first purchase correctly
+falls through to whichever purchase is now earliest, or back to NULL if none
+remain. Lives in `_auctionos_recalc_captain_valuation`, invoked from
+`_auctionos_finalize_purchase`/`auctionos_undo_sale` and logged as a new
+`captain_valuations` row only when the value actually changes (a 2nd/3rd MVP
+purchase by the same team is now a no-op, not a redundant snapshot);
+`mockEngine.ts`'s `recalcCaptainValuation` mirrors this, MVP-only, for the
+no-network dev harness. Also resolves a team's wallet/captain via BOTH
+`team_id` (legacy global-teams path) and `auction_team_id` (wizard path) —
+the pricing-pass migration fixed a gap where the previous version only ever
+matched `team_id`, silently no-oping for every wizard-created auction.
 
 ### 15. Floor price engine (JCC template only) — implemented, renamed in v3
 
@@ -1128,6 +1145,56 @@ Deviations from the plan, with reasoning:
   captains should not be able to see who's coming next, only who's
   currently on the block. `auctionos_advance_lot` is unchanged; it already
   just walks `lot_order ASC` among `status = 'upcoming'`.
+
+### Post-pass fixes and follow-ups (later session)
+
+- **Wizard completeness gate closed for wallets, plus a real client-side
+  gate.** `auctionos_begin_auction` (`supabase/add_auctionos_wallet_gate.sql`,
+  layered on top of Phase 3's version) now also rejects `draft` →
+  `scheduled` if no wallet kind exists, or if any `auction_teams` row is
+  missing an `auction_wallets` row for any `auction_wallet_kinds` row —
+  closing a real bug where an organizer could finish every other step,
+  skip Wallets entirely, and still get a "successfully created" auction
+  whose teams had no purse. `components/auctionos/wizard/checklist.ts` is
+  a new shared `wizardChecklist()`/`isWizardComplete()` — the single source
+  both `DashboardShell`'s sidebar checkmarks and `ReviewStep`'s "Begin
+  Auction" button now read, so the two can never disagree again (previously
+  each computed its own ad hoc completeness check, and only the RPC's was
+  actually enforced). `ReviewStep` now lists every incomplete step by name
+  with a specific reason and a "Fix" jump-to-step button, and disables
+  "Begin Auction" until the list is empty — client-side feedback before
+  the request goes out, with the RPC still the real backstop.
+- **Read-only spectator hall.** `AuctionExperienceProps` gained an optional
+  `isAdmin` (default `true`, so `/auctionos/dev`'s mock harness and any
+  other caller keep full controls). `HallAccessGate` — which already
+  computed "does this visitor have the verified admin password" purely to
+  decide entry — now also `cloneElement`s that boolean into the single
+  `<AuctionExperience />` child it wraps. When `isAdmin` is `false`
+  (join-code spectators), every mutating control (Start Auction, Call
+  Next Player, bid paddles, Sold/Unsold, Undo Bid/Sale, blocked-lot
+  resolution) is hidden or disabled and `ensureEngineAuth` refuses outright
+  — defense-in-depth, not just hidden buttons — while wallets/team sheets/
+  the live block state stay fully visible. Previously any visitor could
+  click a mutating control and simply get the admin-password prompt
+  in-hall; that path is now organizer-only.
+- **JCC Season 3 quick-start preset.** `/auctionos/new` gained a "Start
+  From" choice (Blank vs. JCC Season 3) above the existing Identity form.
+  Picking the preset doesn't touch the schema — after the draft is
+  created, `components/auctionos/wizard/presets.ts`'s
+  `applyJccSeason3Preset()` just calls the same per-step routes the wizard
+  steps themselves call (`.../teams`, `.../wallet-kinds`, `.../categories`),
+  sequentially: the 4 real JCC franchises (from `lib/teams.ts`, logos
+  included), Wallet A (₹15 Cr, MVP+Regular) / Wallet B (₹4 Cr, Guest), and
+  MVP/Regular/Guest categories with the season's actual base
+  prices/increments/quotas — mirroring the numbers on JCC's own "Season 3
+  Auction Format" graphic and `lib/auctionos/templates/jcc/mockSeed.ts`'s
+  dev-harness config (Guest stays `min_required = 0` with
+  `max_resell_rounds = 2`, not a hard quota — see §16b). A partial failure
+  midway (e.g. one category POST fails) still surfaces the one-time join
+  code/admin password rather than losing that reveal, with a dismissible
+  list of exactly which preset steps didn't apply. Talent Pool and
+  Captains are deliberately left untouched — those are the only things
+  that actually change season to season.
 
 ## Roadmap
 

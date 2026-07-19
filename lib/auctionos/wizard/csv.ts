@@ -54,8 +54,21 @@ function isRowEmpty(row: Record<string, string>): boolean {
 
 export function parseTalentCsv(file: File, categories: CsvCategoryRef[] = []): Promise<TalentCsvResult> {
   // Match by normalized name (trim, lowercase) — same leniency as every
-  // other column here. Built once per parse, not per row.
-  const categoryByName = new Map(categories.map((c) => [c.name.trim().toLowerCase(), c.id]));
+  // other column here. Built once per parse, not per row. Also indexes
+  // each category's first word ("MVP Players" -> "mvp") as a fallback key,
+  // since organizer spreadsheets commonly use the short role word ("mvp",
+  // "regular", "guest") rather than the full category name — without this,
+  // every row importing against the JCC Season 3 preset's "MVP Players" /
+  // "Regular Players" / "Guest Players" categories would land unassigned.
+  // The full-name key always wins on collision (set first, never
+  // overwritten below).
+  const categoryByName = new Map<string, string>();
+  for (const category of categories) {
+    const full = category.name.trim().toLowerCase();
+    categoryByName.set(full, category.id);
+    const firstWord = full.split(/\s+/)[0];
+    if (firstWord && !categoryByName.has(firstWord)) categoryByName.set(firstWord, category.id);
+  }
 
   return new Promise((resolve, reject) => {
     Papa.parse<Record<string, string>>(file, {

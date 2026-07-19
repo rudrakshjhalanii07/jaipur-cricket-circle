@@ -81,7 +81,7 @@ export const TEAMS: Record<TeamId, TeamConfig> = {
     secondary: "#0B1620",
     accent: "#BB7E42",
     glow: "rgba(224, 168, 68, 0.55)",
-    tagline: "Born to Conquer",
+    tagline: "Claim the Throne",
     patternType: "lightning",
   },
 };

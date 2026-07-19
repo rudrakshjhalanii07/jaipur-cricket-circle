@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, cloneElement, isValidElement, type ReactElement } from "react";
 import { useRouter } from "next/navigation";
+import type { AuctionExperienceProps } from "@/lib/auctionos/core/template";
 
 // sessionStorage keys — CODE_KEY holds the auction id a code was verified
 // against (set by the landing page's code form); ADMIN_KEY is the same key
@@ -24,27 +25,47 @@ export default function HallAccessGate({
 }: {
   hasAuction: boolean;
   auctionId: string | null;
-  children: ReactNode;
+  // Exactly one <AuctionExperience /> element — cloned below to inject
+  // isAdmin, since this is a Client Component and the Server Component that
+  // renders it (app/auctionos/hall/page.tsx) can't pass a render-prop
+  // function across that boundary.
+  children: ReactElement<AuctionExperienceProps>;
 }) {
   const router = useRouter();
-  // Lazy initializer runs during render, not as an effect side-effect — the
-  // sessionStorage read only happens once, on mount.
-  const [allowed] = useState(() => {
-    if (typeof window === "undefined" || !hasAuction) {
+  // A lazy useState initializer that branches on `typeof window` runs
+  // during the client's very first (hydrating) render — with `window`
+  // already defined — while the server's render of the same initializer
+  // always took the `undefined` branch. That's a real hydration mismatch,
+  // not just a lint nit (React would regenerate the whole tree client-side
+  // to recover). Same fix DashboardShell.tsx already uses for this exact
+  // class of bug: both server and the client's pre-mount render show one
+  // fixed placeholder, and the real sessionStorage-derived check only runs
+  // inside a mount-only effect, so hydration always reconciles cleanly.
+  const [mounted, setMounted] = useState(false);
+  const [allowed, setAllowed] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(true);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+    if (!hasAuction) {
       // Nothing to gate — this is the organizer's "prepare an auction"
       // empty state, already protected by its own admin-password prompt.
-      return true;
+      setAllowed(true);
+      setIsAdmin(true);
+      return;
     }
     const verifiedFor = sessionStorage.getItem(CODE_KEY);
     const hasAdmin = !!sessionStorage.getItem(ADMIN_KEY);
-    return hasAdmin || (!!verifiedFor && verifiedFor === auctionId);
-  });
+    setAllowed(hasAdmin || (!!verifiedFor && verifiedFor === auctionId));
+    setIsAdmin(hasAdmin);
+  }, [hasAuction, auctionId]);
 
   useEffect(() => {
-    if (!allowed) router.replace("/auctionos");
-  }, [allowed, router]);
+    if (mounted && !allowed) router.replace("/auctionos");
+  }, [mounted, allowed, router]);
 
-  if (!allowed) {
+  if (!mounted || !allowed) {
     return (
       <div className="min-h-screen bg-jcc-navy-deep flex items-center justify-center">
         <span className="text-jcc-text-muted text-xs font-black uppercase tracking-widest">
@@ -54,5 +75,9 @@ export default function HallAccessGate({
     );
   }
 
-  return <>{children}</>;
+  // A join-code visitor who never verified the admin password (isAdmin
+  // false) gets the exact same AuctionExperience tree back, just told to
+  // render its mutating controls as non-interactive — see every `isAdmin`
+  // check inside that component.
+  return isValidElement(children) ? cloneElement(children, { isAdmin }) : children;
 }

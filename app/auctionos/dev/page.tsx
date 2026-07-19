@@ -14,7 +14,7 @@ import { useState } from "react";
 import { RotateCcw } from "lucide-react";
 import AuctionExperience from "@/lib/auctionos/templates/jcc/AuctionExperience";
 import { createMockEngine } from "@/lib/auctionos/templates/jcc/mockEngine";
-import { seedAuction, seedCategories, seedLots, seedWallets } from "@/lib/auctionos/templates/jcc/mockSeed";
+import { seedAuction, seedCategories, seedLots, seedWallets, seedTeams } from "@/lib/auctionos/templates/jcc/mockSeed";
 
 export default function AuctionOSDevPage() {
   // Constructed once per mount, not per render — a fresh mock engine
@@ -31,6 +31,7 @@ export default function AuctionOSDevPage() {
     wallets: seedWallets(),
     lots: seedLots(),
     categories: seedCategories(),
+    teams: seedTeams(),
   };
 
   function handleReset() {
@@ -53,6 +54,7 @@ export default function AuctionOSDevPage() {
         initialWallets={initial.wallets}
         initialLots={initial.lots}
         initialCategories={initial.categories}
+        initialTeams={initial.teams}
         engine={engine}
       />
     </div>

@@ -16,6 +16,7 @@ import {
 import { AuctionOSSeal } from "@/components/auctionos/AuctionOSBrand";
 import JoinCodeCard from "@/components/auctionos/wizard/JoinCodeCard";
 import { WIZARD_STEPS, type BootstrapData, type WizardStepId } from "@/components/auctionos/wizard/types";
+import { wizardChecklist } from "@/components/auctionos/wizard/checklist";
 import IdentityStep from "@/components/auctionos/wizard/steps/IdentityStep";
 import FranchisesStep from "@/components/auctionos/wizard/steps/FranchisesStep";
 import WalletsStep from "@/components/auctionos/wizard/steps/WalletsStep";
@@ -29,22 +30,16 @@ const ADMIN_KEY = "jcc_admin_password";
 function completionFor(step: WizardStepId, data: BootstrapData): boolean {
   switch (step) {
     case "identity":
+    case "captains": // optional — never blocks
       return true;
-    case "franchises":
-      return data.teams.length > 0;
-    case "wallets":
-      return data.wallet_kinds.length > 0;
-    case "talent":
-      return data.lots.length > 0;
-    case "categories":
-      return data.categories.length > 0;
-    case "captains":
-      return true; // optional — never blocks
     case "review":
     case "begin":
       return data.auction.status !== "draft";
     default:
-      return false;
+      // franchises/wallets/categories/talent all come from the same
+      // checklist ReviewStep gates "Begin Auction" on, so the sidebar
+      // checkmark and the actual submission gate can never disagree.
+      return wizardChecklist(data).find((item) => item.step === step)?.ok ?? false;
   }
 }
 
@@ -197,7 +192,14 @@ export default function DashboardShell({ auctionId }: { auctionId: string }) {
                   readOnly
                 />
               ) : (
-                <StepBody step={activeStep} auctionId={auctionId} data={data} adminPassword={adminPassword} refetch={refetch} />
+                <StepBody
+                  step={activeStep}
+                  auctionId={auctionId}
+                  data={data}
+                  adminPassword={adminPassword}
+                  refetch={refetch}
+                  onJumpToStep={setActiveStep}
+                />
               )}
             </motion.div>
           </AnimatePresence>
@@ -213,12 +215,14 @@ function StepBody({
   data,
   adminPassword,
   refetch,
+  onJumpToStep,
 }: {
   step: WizardStepId;
   auctionId: string;
   data: BootstrapData;
   adminPassword: string;
   refetch: () => Promise<void>;
+  onJumpToStep: (step: WizardStepId) => void;
 }) {
   const props = { auctionId, data, adminPassword, refetch, readOnly: false };
   switch (step) {
@@ -236,7 +240,7 @@ function StepBody({
       return <CaptainsStep {...props} />;
     case "review":
     case "begin":
-      return <ReviewStep {...props} />;
+      return <ReviewStep {...props} onJumpToStep={onJumpToStep} />;
     default:
       return null;
   }

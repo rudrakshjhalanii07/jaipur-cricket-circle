@@ -3,15 +3,30 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Check, Crown, Gavel, Loader2, ShieldAlert, Sparkles, Users, Wallet } from "lucide-react";
-import type { StepProps } from "@/components/auctionos/wizard/types";
+import { AlertTriangle, Check, Crown, Gavel, Loader2, ShieldAlert, Sparkles, Users, Wallet } from "lucide-react";
+import type { StepProps, WizardStepId } from "@/components/auctionos/wizard/types";
+import { wizardChecklist } from "@/components/auctionos/wizard/checklist";
 
-export default function ReviewStep({ auctionId, data, adminPassword, refetch, readOnly }: StepProps) {
+export default function ReviewStep({
+  auctionId,
+  data,
+  adminPassword,
+  refetch,
+  readOnly,
+  onJumpToStep,
+}: StepProps & { onJumpToStep?: (step: WizardStepId) => void }) {
   const [beginning, setBeginning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [begun, setBegun] = useState(data.auction.status !== "draft");
 
   const categoryById = useMemo(() => new Map(data.categories.map((c) => [c.id, c])), [data.categories]);
+  // Same checklist the sidebar checkmarks use (components/auctionos/wizard/
+  // checklist.ts) — this is what actually blocks the Begin button below,
+  // not just a cosmetic summary, closing the gap where every step's
+  // "complete" flag used to be decorative and only the server RPC's own
+  // (separate, easy-to-drift) checks were real.
+  const checklist = useMemo(() => wizardChecklist(data), [data]);
+  const incomplete = checklist.filter((item) => !item.ok);
 
   const playerCountByCategory = useMemo(() => {
     const map = new Map<string, number>();
@@ -23,6 +38,7 @@ export default function ReviewStep({ auctionId, data, adminPassword, refetch, re
   }, [data.lots]);
 
   async function handleBegin() {
+    if (incomplete.length > 0) return; // button is disabled for this case too — belt and suspenders
     setBeginning(true);
     setError(null);
     try {
@@ -137,11 +153,42 @@ export default function ReviewStep({ auctionId, data, adminPassword, refetch, re
 
       {!readOnly && (
         <div className="premium-card p-6 sm:p-8 flex flex-col gap-4 border-jcc-accent-dark/40">
-          <div className="flex items-start gap-2 text-jcc-text-primary text-xs font-bold">
-            <ShieldAlert className="w-4 h-4 text-jcc-accent-dark shrink-0 mt-0.5" />
-            Beginning the auction locks every step above — franchises, wallets, categories, and the talent pool
-            can no longer be edited once this is confirmed.
-          </div>
+          {incomplete.length > 0 ? (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-start gap-2 text-jcc-text-primary text-xs font-bold">
+                <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                Still needed before this auction can begin:
+              </div>
+              <div className="flex flex-col gap-2">
+                {incomplete.map((item) => (
+                  <div
+                    key={item.step}
+                    className="flex items-start gap-3 px-4 py-3 rounded-xl bg-jcc-navy-light border border-red-500/30"
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-jcc-text-primary text-xs font-black uppercase tracking-widest">{item.label}</p>
+                      <p className="text-jcc-text-muted text-[11px] font-bold mt-0.5">{item.detail}</p>
+                    </div>
+                    {onJumpToStep && (
+                      <button
+                        onClick={() => onJumpToStep(item.step)}
+                        className="btn-ghost px-3! py-1.5! text-[10px] shrink-0"
+                      >
+                        Fix
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-start gap-2 text-jcc-text-primary text-xs font-bold">
+              <ShieldAlert className="w-4 h-4 text-jcc-accent-dark shrink-0 mt-0.5" />
+              Beginning the auction locks every step above — franchises, wallets, categories, and the talent pool
+              can no longer be edited once this is confirmed.
+            </div>
+          )}
           {error && (
             <p className="flex items-center gap-1.5 text-red-500 text-[11px] font-bold">
               <ShieldAlert className="w-3.5 h-3.5" /> {error}
@@ -149,7 +196,8 @@ export default function ReviewStep({ auctionId, data, adminPassword, refetch, re
           )}
           <button
             onClick={handleBegin}
-            disabled={beginning}
+            disabled={beginning || incomplete.length > 0}
+            title={incomplete.length > 0 ? "Finish every step above before beginning the auction" : undefined}
             className="btn-vibrant-blue self-start !px-8 !py-3 text-xs disabled:opacity-50"
           >
             {beginning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}

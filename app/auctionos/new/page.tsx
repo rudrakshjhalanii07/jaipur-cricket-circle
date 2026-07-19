@@ -3,11 +3,18 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Check, Copy, Loader2, ShieldAlert, Sparkles } from "lucide-react";
+import { Check, Copy, Loader2, ShieldAlert, Sparkles, Trophy } from "lucide-react";
 import { AuctionOSMark, AuctionOSSeal, HeroBackdrop } from "@/components/auctionos/AuctionOSBrand";
 import { fetchAuctionTemplateBySlug } from "@/lib/auctionos/core/data";
 import LogoUpload from "@/components/auctionos/wizard/LogoUpload";
 import JoinCodeCard from "@/components/auctionos/wizard/JoinCodeCard";
+import {
+  applyJccSeason3Preset,
+  JCC_SEASON_3_LOGO_URL,
+  JCC_SEASON_3_DEFAULT_NAME,
+  jccSeason3DefaultStartsAt,
+  type PresetStepFailure,
+} from "@/components/auctionos/wizard/presets";
 
 // Theme swatches capture `theme_key` (presentational choice, doesn't reskin
 // anything yet per the plan). All three route to the `jcc` template row —
@@ -23,6 +30,25 @@ const THEMES = [
   { key: "classic-jcc", label: "Classic JCC", templateSlug: "jcc", swatch: ["#12233F", "#F3C96A"] },
 ] as const;
 
+// "Start From" — blank (today's behavior: every step entered by hand) vs a
+// preset that provisions Franchises/Wallets/Categories immediately after
+// the draft is created (see components/auctionos/wizard/presets.ts). Only
+// one preset exists today; the type stays a union rather than a boolean so
+// a second season format (a different squad shape, wallet split, etc.) has
+// somewhere to go without a rewrite.
+const START_FROM = [
+  {
+    key: "blank" as const,
+    label: "Blank Auction",
+    description: "Add every franchise, wallet, and category by hand.",
+  },
+  {
+    key: "jcc-season-3" as const,
+    label: "JCC Season 3",
+    description: "Pre-fills the 4 franchises, both wallets, and MVP/Regular/Guest categories.",
+  },
+];
+
 interface DraftResult {
   auction_id: string;
   access_code: string;
@@ -36,10 +62,23 @@ export default function NewAuctionPage() {
   const [startsAt, setStartsAt] = useState("");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [themeKey, setThemeKey] = useState<(typeof THEMES)[number]["key"]>("royal");
+  const [startFrom, setStartFrom] = useState<(typeof START_FROM)[number]["key"]>("blank");
   const [submitting, setSubmitting] = useState(false);
+  const [provisioning, setProvisioning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<DraftResult | null>(null);
+  const [presetFailures, setPresetFailures] = useState<PresetStepFailure[]>([]);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  function handleSelectStartFrom(key: (typeof START_FROM)[number]["key"]) {
+    setStartFrom(key);
+    // Only auto-fill fields still untouched — picking the preset shouldn't
+    // clobber a logo/name/date the organizer already typed in.
+    if (key !== "jcc-season-3") return;
+    if (!logoUrl) setLogoUrl(JCC_SEASON_3_LOGO_URL);
+    if (!name.trim()) setName(JCC_SEASON_3_DEFAULT_NAME);
+    if (!startsAt) setStartsAt(jccSeason3DefaultStartsAt());
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -73,7 +112,24 @@ export default function NewAuctionPage() {
         setSubmitting(false);
         return;
       }
-      setResult(data as DraftResult);
+      const draft = data as DraftResult;
+
+      if (startFrom === "jcc-season-3") {
+        setSubmitting(false);
+        setProvisioning(true);
+        // Sequential POSTs against the wizard's own per-step routes (see
+        // presets.ts) — a partial failure here still leaves a usable draft,
+        // just missing whichever franchise/wallet/category didn't take, so
+        // this doesn't block reaching the result screen (the access code +
+        // admin password are one-time-reveal — losing that screen over a
+        // fixable setup hiccup would be worse than surfacing it as a
+        // dismissible warning instead).
+        const { failures } = await applyJccSeason3Preset(draft.auction_id, draft.admin_password);
+        setPresetFailures(failures);
+        setProvisioning(false);
+      }
+
+      setResult(draft);
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -128,6 +184,34 @@ export default function NewAuctionPage() {
             onSubmit={handleSubmit}
             className="premium-card w-full p-6 sm:p-8 flex flex-col gap-6"
           >
+            <div className="flex flex-col gap-2">
+              <label className="text-jcc-text-muted text-[10px] font-black uppercase tracking-[0.2em]">
+                Start From
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                {START_FROM.map((option) => (
+                  <button
+                    key={option.key}
+                    type="button"
+                    onClick={() => handleSelectStartFrom(option.key)}
+                    className={`flex flex-col items-start gap-1.5 p-4 rounded-xl border text-left transition-colors ${
+                      startFrom === option.key
+                        ? "border-jcc-accent-dark bg-jcc-navy-light"
+                        : "border-jcc-border hover:border-jcc-border-bright"
+                    }`}
+                  >
+                    <span className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-jcc-text-primary">
+                      {option.key === "jcc-season-3" && <Trophy className="w-3.5 h-3.5 text-jcc-accent-dark shrink-0" />}
+                      {option.label}
+                    </span>
+                    <span className="text-jcc-text-muted text-[11px] font-medium leading-snug">
+                      {option.description}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="flex items-start gap-5">
               <LogoUpload value={logoUrl} onChange={setLogoUrl} label="Logo" />
               <div className="flex-1 flex flex-col gap-2">
@@ -206,11 +290,11 @@ export default function NewAuctionPage() {
 
             <button
               type="submit"
-              disabled={submitting || !name.trim()}
+              disabled={submitting || provisioning || !name.trim()}
               className="btn-vibrant-blue justify-center disabled:opacity-50 disabled:pointer-events-none"
             >
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-              Create Auction Draft
+              {submitting || provisioning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              {provisioning ? "Setting Up Franchises & Wallets…" : "Create Auction Draft"}
             </button>
           </motion.form>
         ) : (
@@ -231,6 +315,25 @@ export default function NewAuctionPage() {
                 Save these now — the admin password is shown exactly once and cannot be recovered later.
               </p>
             </div>
+
+            {presetFailures.length > 0 && (
+              <div className="flex flex-col gap-2 px-4 py-3 rounded-xl bg-jcc-navy-light border border-red-500/30">
+                <p className="flex items-center gap-1.5 text-red-500 text-[11px] font-black uppercase tracking-widest">
+                  <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+                  {presetFailures.length} preset step{presetFailures.length === 1 ? "" : "s"} didn&rsquo;t apply
+                </p>
+                <ul className="text-jcc-text-muted text-[11px] font-bold leading-relaxed list-disc pl-4">
+                  {presetFailures.map((f) => (
+                    <li key={f.step}>
+                      {f.step}: {f.error}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-jcc-text-muted text-[11px] font-medium">
+                  Add these from the dashboard&rsquo;s Franchises/Wallets/Categories steps before beginning.
+                </p>
+              </div>
+            )}
 
             <div className="flex flex-col gap-4 items-center">
               <div className="flex flex-col items-center gap-2">

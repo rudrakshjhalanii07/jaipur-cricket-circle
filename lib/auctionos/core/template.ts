@@ -29,7 +29,7 @@
 // long as it fulfils this same prop contract.
 
 import type { ComponentType } from "react";
-import type { Auction, AuctionWallet, AuctionLot, AuctionCategory } from "./types";
+import type { Auction, AuctionWallet, AuctionLot, AuctionCategory, AuctionTeam } from "./types";
 
 export interface BidValidationContext {
   auction: Auction;
@@ -48,6 +48,17 @@ export interface AuctionExperienceProps {
   initialWallets: AuctionWallet[];
   initialLots: AuctionLot[];
   initialCategories: AuctionCategory[];
+  // Wizard-created franchises (public.auction_teams) — a template resolves
+  // wallet/captain team identity from these, not the legacy global `teams`
+  // table (see AuctionWallet/AuctionCaptain's team_id/auction_team_id split).
+  initialTeams: AuctionTeam[];
+  // Whether the current viewer is the organizer (verified admin password)
+  // rather than a plain join-code spectator — see HallAccessGate, which
+  // computes this once from the same sessionStorage check that already
+  // gates hall entry, and passes it down via cloneElement. Defaults to true
+  // so every other caller (the /auctionos/dev mock harness, any future
+  // template that doesn't wire this up) keeps full admin controls.
+  isAdmin?: boolean;
 }
 
 // ── Wallets ────────────────────────────────────────────────────────────
