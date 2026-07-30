@@ -270,7 +270,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6 p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md">
             <div>
                 <h4 className="text-lg font-black text-white mb-1 uppercase tracking-tight">Building the Circle Together</h4>
-                <p className="text-white/77 text-[13px] font-medium">Want to play alongside {member.name.split(" ")[0]} this Sunday?</p>
+                <p className="text-white/77 text-[13px] font-medium">Want to play alongside {member.name.split(" ")[0]} this week?</p>
             </div>
             <Link href="/register" className="btn-vibrant-blue text-[13px]">
                 REGISTER FOR NEXT MATCH

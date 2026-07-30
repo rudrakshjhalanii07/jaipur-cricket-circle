@@ -10,25 +10,43 @@
 //   - wides / no_balls in bowling: always 0 (never null).
 //   - super_over: null for normal matches. Fill it only when is_tie: true
 //     and the match was decided by a super over.
+//   - "caught and bowled" has no separate dismissal_type — use "caught" and
+//     set BOTH dismissed_by and caught_by to the bowler's own name.
+//   - null means "not known yet". Anything a PDF/scorecard extraction can't
+//     find should stay null and be typed into the review form before saving —
+//     never guess a value into the JSON. Only the fields marked REQUIRED below
+//     have to be filled for a save to go through.
+//   - Season fixtures are seeded ahead of time. Pick the week in the import
+//     form; the fixture is identified from team1_id/team2_id, so match_no is
+//     derived for you. The save fills in the seeded row, and re-uploading the
+//     same fixture replaces that scorecard — corrections are just another upload.
+//   - venue stays null: the ground is set per week in Admin → Seasons →
+//     Week Venues. Fill match_info.venue only for a one-off match played
+//     somewhere other than the rest of its week.
 
 export const MATCH_TEMPLATE = {
+  // Optional convenience: a week_no here preselects that week in the import
+  // form. The week is otherwise chosen from the dropdown.
+  series: {
+    week_no: null,
+  },
   match_info: {
-    match_no: 1,
-    stage: "league",
-    match_date: "YYYY-MM-DD",
-    venue: "Ground name, City",
-    team1_id: "mavericks",
-    team2_id: "neurostrikers",
-    toss_winner_id: "mavericks",
-    toss_decision: "bat",
-    team1_captain: "Exact name as in team1 batting lineup",
-    team2_captain: "Exact name as in team2 batting lineup",
-    winner_id: "mavericks",
-    margin_type: "runs",
-    margin_value: 0,
-    is_tie: false,
+    match_no: 1,                  // REQUIRED — fixture number within the week
+    stage: "league",              // REQUIRED — league | eliminator | qualifier | final
+    match_date: null,             // YYYY-MM-DD
+    venue: null,                  // set per week in admin; override only if split
+    team1_id: "mavericks",        // REQUIRED
+    team2_id: "neurostrikers",    // REQUIRED
+    toss_winner_id: null,
+    toss_decision: null,          // bat | bowl
+    team1_captain: null,          // exact name as in team1 batting lineup
+    team2_captain: null,          // exact name as in team2 batting lineup
+    winner_id: null,
+    margin_type: null,            // runs | wickets
+    margin_value: null,
+    is_tie: false,                // REQUIRED
     super_over: null,
-    player_of_match: "Player Name",
+    player_of_match: null,
     match_notes: null,
   },
   innings: [
@@ -52,7 +70,7 @@ export const MATCH_TEMPLATE = {
           batting_order: 1,
           player_name: "Player Name",
           runs: 0,
-          balls_faced: 0,
+          balls_faced: null,
           fours: 0,
           sixes: 0,
           dismissal_type: "not_out",
@@ -63,7 +81,7 @@ export const MATCH_TEMPLATE = {
           batting_order: 2,
           player_name: "Another Player",
           runs: 0,
-          balls_faced: 0,
+          balls_faced: null,
           fours: 0,
           sixes: 0,
           dismissal_type: "bowled",
@@ -72,9 +90,31 @@ export const MATCH_TEMPLATE = {
         },
         {
           batting_order: 3,
+          player_name: "Caught Player",
+          runs: 0,
+          balls_faced: null,
+          fours: 0,
+          sixes: 0,
+          dismissal_type: "caught",
+          dismissed_by: "Bowler Name",
+          caught_by: "Fielder Name",
+        },
+        {
+          batting_order: 4,
+          player_name: "Caught And Bowled Player",
+          runs: 0,
+          balls_faced: null,
+          fours: 0,
+          sixes: 0,
+          dismissal_type: "caught",
+          dismissed_by: "Bowler Name",
+          caught_by: "Bowler Name",
+        },
+        {
+          batting_order: 5,
           player_name: "Squad member who did not bat",
           runs: 0,
-          balls_faced: 0,
+          balls_faced: null,
           fours: 0,
           sixes: 0,
           dismissal_type: "did_not_bat",
@@ -113,7 +153,7 @@ export const MATCH_TEMPLATE = {
           batting_order: 1,
           player_name: "Player Name",
           runs: 0,
-          balls_faced: 0,
+          balls_faced: null,
           fours: 0,
           sixes: 0,
           dismissal_type: "not_out",

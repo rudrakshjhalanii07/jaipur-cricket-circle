@@ -115,6 +115,36 @@
   --color-jcc-border: rgba(212, 175, 55, 0.22);
 }
 
+/* Whole-page dark opt-out — for a page that wants to be Royal Blue
+   navy end-to-end (currently just /seasons), not just a band inside an
+   otherwise light page. Unlike .theme-static-dark above, this ALSO
+   remaps the card-surface tokens (--color-jcc-navy/-light/-deep), so
+   .premium-card-style gradients read as navy cards instead of white
+   ones. Never fold this into .theme-static-dark itself — that class's
+   contract of leaving the surface token alone is relied on by white
+   cards floating on Royal Blue home-page bands; changing it there broke
+   that motif once already (see the note above it). Scope this class to
+   one page's root only. */
+.theme-static-navy {
+  color: #FFFFFF;
+  --color-white: #FFFFFF;
+  --color-jcc-text-primary: #FFFFFF;
+  --color-jcc-text-soft: #FFFFFF;
+  --color-jcc-text-muted: rgba(255, 255, 255, 0.65);
+  --color-jcc-border: rgba(212, 175, 55, 0.22);
+
+  --color-jcc-navy-deep: #0D1728;
+  --color-jcc-navy: #12233F;
+  --color-jcc-navy-light: #1A2E4D;
+
+  --jcc-bg: #0D1728;
+  --jcc-navy: #12233F;
+  --jcc-navy-light: #1A2E4D;
+  --jcc-border: rgba(212, 175, 55, 0.22);
+  --jcc-text-soft: #FFFFFF;
+  --jcc-text-muted: rgba(255, 255, 255, 0.65);
+}
+
 /* Remove browser spin buttons from number inputs — they eat all the
    space in narrow table cells, making values invisible. */
 input[type="number"]::-webkit-outer-spin-button,
@@ -285,6 +315,12 @@ body::before {
 
 .group:hover .portrait-photo {
   filter: grayscale(0.82) contrast(1.17) brightness(1.07) sepia(0.13) saturate(1.06);
+}
+
+/* Same headshot framing, no editorial desaturation — for the small circular
+   faces in scorecards, which need to be recognisable at a glance. */
+.portrait-photo-natural {
+  object-position: center 20%;
 }
 
 /* ---- Editorial Identity Card (Member Directory) ----
@@ -524,6 +560,52 @@ body::before {
   background: radial-gradient(circle at 50% -20%, color-mix(in srgb, var(--color-jcc-accent) 18%, transparent) 0%, transparent 65%);
   position: absolute;
   inset: 0;
+}
+
+/* ============================================================
+   Arena Background — /seasons
+   ------------------------------------------------------------
+   Smooth floodlit-stadium gradient base, plus broad diagonal jersey
+   stripes (.arena-hatch) running the full page height uniformly — no
+   mask, so it reads as one continuous surface top to bottom rather
+   than a textured "zone" in the middle.
+
+   The stripes alternate a light and a dark band instead of drawing
+   light lines on transparency. The base gradient swings from a bright
+   gold floodlight pool at the top to near-black at the bottom, and a
+   light-only stripe washes out against the bright end. Carrying both
+   polarities keeps contrast roughly even over the whole range.
+
+   Band width is deliberately broad (~52px). Hairline stripes alias
+   into moiré banding when the page is zoomed or downscaled, which is
+   what made the earlier 1px/9px hatch look like it only appeared in
+   patches.
+   ============================================================ */
+.arena-bg {
+  background:
+    /* gold floodlight pool spilling from above the roofline */
+    radial-gradient(ellipse 90% 55% at 50% -12%, color-mix(in srgb, var(--color-jcc-accent) 16%, transparent) 0%, transparent 62%),
+    /* team-colour bleed in the lower corners */
+    radial-gradient(ellipse 60% 45% at 6% 104%, rgba(45, 106, 200, 0.18) 0%, transparent 65%),
+    radial-gradient(ellipse 60% 45% at 96% 100%, color-mix(in srgb, var(--color-jcc-accent) 12%, transparent) 0%, transparent 62%),
+    /* the bowl itself — brighter at the pitch, darker toward the stands */
+    radial-gradient(ellipse 120% 80% at 50% 26%, var(--jcc-navy-light) 0%, var(--jcc-navy) 44%, var(--jcc-bg) 78%),
+    linear-gradient(180deg, #0B1424 0%, var(--jcc-bg) 40%, #0A1220 100%);
+}
+
+.arena-hatch {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    58deg,
+    rgba(255, 255, 255, 0.032) 0px,
+    rgba(255, 255, 255, 0.032) 46px,
+    rgba(255, 255, 255, 0.012) 52px,
+    rgba(6, 13, 26, 0.10) 58px,
+    rgba(6, 13, 26, 0.10) 98px,
+    rgba(255, 255, 255, 0.012) 104px
+  );
 }
 
 .stat-pill {
@@ -1262,4 +1344,14 @@ body::before {
 }
 @media (prefers-reduced-motion: reduce) {
   .divider-draw { transform: scaleX(1); transition: none; }
+}
+
+/* Horizontal rails that scroll but shouldn't show a scrollbar
+   (e.g. the season schedule's week tabs). */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }

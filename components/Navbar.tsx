@@ -12,7 +12,7 @@ const navLinks = [
   { href: "/", label: "Home" },
   { href: "/members", label: "Members" },
   { href: "/boundary-banter", label: "Boundary Banter" },
-  { href: "/rivalry", label: "Rivalry" },
+  { href: "/seasons", label: "Seasons" },
   { href: "/about", label: "About" },
 ];
 
@@ -101,7 +101,7 @@ export default function Navbar({ nextMatch }: { nextMatch: TickerMatch | null })
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
           <Link href="/" className="flex items-center gap-2.5 group">
-            <img src="/jcc_logo.png" alt="JCC Logo" width={96} height={96} fetchPriority="high" className="w-11 h-11 sm:w-12 sm:h-12 object-contain group-hover:scale-110 transition-transform duration-300" />
+            <img src="/jcc_logo.png" alt="JCC Logo" width={96} height={96} fetchPriority="high" className="w-14 h-14 sm:w-16 sm:h-16 object-contain group-hover:scale-110 transition-transform duration-300" />
             <div className="flex flex-col">
               <span className="text-sm font-bold italic text-white tracking-wider uppercase" style={{ fontFamily: "var(--font-heading)" }}>Jaipur Cricket Circle</span>
               <span className="text-[10px] text-white/65 tracking-[0.25em] uppercase leading-none font-bold">Est. 2026</span>

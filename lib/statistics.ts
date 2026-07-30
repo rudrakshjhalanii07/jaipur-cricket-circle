@@ -1,17 +1,17 @@
 // Single source of truth for club-wide statistics. Every page that needs a
-// club-wide number (homepage, rivalry, members, admin dashboard) should
+// club-wide number (homepage, seasons, members, admin dashboard) should
 // read it from here instead of recomputing it inline.
 import { unstable_cache } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { computeSundaysPlayed, computePlayersPool, fetchFullSeries } from "@/lib/series";
+import { computeWeeksPlayed, computePlayersPool, fetchFullSeries } from "@/lib/series";
 
 export type ClubStatistics = {
-  /** Count of the Players Pool — everyone who has ever appeared in a recorded scorecard. Matches the /rivalry page's Players Pool figure. */
+  /** Count of the Players Pool — everyone who has ever appeared in a recorded scorecard. Matches the /seasons page's Players Pool figure. */
   activeMembers: number;
-  /** Sum of total_matches_played across every rivalry_seasons row (active + archived) — matches the /rivalry page's Club Stats figure. */
+  /** Sum of total_matches_played across every rivalry_seasons row (active + archived) — matches the /seasons page's Club Stats figure. */
   matchesPlayed: number;
-  /** Founding-Sunday baseline + one per recorded tri-series — matches the /rivalry page's Sundays Played figure. */
-  activeSundays: number;
+  /** Founding-date baseline + one per recorded series — matches the /seasons page's Weeks Played figure. */
+  activeWeeks: number;
 };
 
 async function computeClubStatistics(): Promise<ClubStatistics> {
@@ -29,11 +29,11 @@ async function computeClubStatistics(): Promise<ClubStatistics> {
   return {
     activeMembers: computePlayersPool(fullSeries).length,
     matchesPlayed,
-    activeSundays: computeSundaysPlayed(seriesRes.data ?? []),
+    activeWeeks: computeWeeksPlayed(seriesRes.data ?? []),
   };
 }
 
-// Cached across requests/routes so the homepage, rivalry page, members page,
+// Cached across requests/routes so the homepage, seasons page, members page,
 // etc. all share one computation per revalidation window instead of each
 // re-querying the database independently.
 export const getClubStatistics = unstable_cache(

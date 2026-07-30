@@ -5,12 +5,12 @@ export const revalidate = 300;
 import HeroSection from "@/components/home/HeroSection";
 import HomepageBelowFold from "@/components/home/HomepageBelowFold";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { fallbackRivalrySeasons, type RivalrySeason } from "@/lib/rivalry";
+import { fallbackSeasons, normalizeSeason, seasonScoreline, type Season, type SeasonRow } from "@/lib/seasons";
 import { getTeam, type TeamId } from "@/lib/teams";
 
 // ─── Type aliases used only server-side ──────────────────────────────────────
 
-type SundayMatchRow = {
+type WeeklyMatchRow = {
   id: string;
   match_date: string;
   match_time: string;
@@ -35,8 +35,8 @@ export type RecentMatch = { id: string; winner: string; date: string; result: st
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function buildTickerItems(
-  nextMatch: SundayMatchRow | null,
-  activeSeason: RivalrySeason,
+  nextMatch: WeeklyMatchRow | null,
+  activeSeason: Season,
   articles: ArticleData[],
   activeCount: number,
   totalMatches: number
@@ -55,7 +55,7 @@ function buildTickerItems(
   }
 
   items.push(
-    `🏆 RIVALRY UPDATE: ${activeSeason.title} active! Series score: Mavericks (${activeSeason.mavericks_main_wins}) - (${activeSeason.neurostrikers_main_wins}) NeuroStrikers`
+    `🏆 SEASON UPDATE: ${activeSeason.title} active! Series score: ${seasonScoreline(activeSeason)}`
   );
 
   articles.forEach((art) => {
@@ -90,7 +90,7 @@ async function getHomepageData() {
     ] = await Promise.all([
       supabaseAdmin
         .from("rivalry_seasons")
-        .select("*")
+        .select("*, season_teams(*)")
         .order("status")
         .order("started_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false }),
@@ -119,16 +119,15 @@ async function getHomepageData() {
     ]);
 
     // ── Unwrap results ────────────────────────────────────────────────────────
-    const seasons: RivalrySeason[] =
-      ((seasonsRes.data as RivalrySeason[]) ?? []).length > 0
-        ? (seasonsRes.data as RivalrySeason[])
-        : fallbackRivalrySeasons;
+    const seasonRows = (seasonsRes.data as unknown as SeasonRow[]) ?? [];
+    const seasons: Season[] =
+      seasonRows.length > 0 ? seasonRows.map(normalizeSeason) : fallbackSeasons;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const seriesMatches: any[] = seriesMatchesRes.data ?? [];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rawArticles: any[] = articlesRes.data ?? [];
-    const nextMatch: SundayMatchRow | null =
-      (nextMatchRes.data as SundayMatchRow) ?? null;
+    const nextMatch: WeeklyMatchRow | null =
+      (nextMatchRes.data as WeeklyMatchRow) ?? null;
 
     // ── Derived stats ─────────────────────────────────────────────────────────
     // Fixed marketing figures matching the "Our Journey So Far" flyer, kept
@@ -136,19 +135,19 @@ async function getHomepageData() {
     // statistics (see lib/statistics.ts for the computed equivalents).
     const activePlayerCount = 58;
     const totalMatchesPlayed = 50;
-    const activeSundaysCount = 19;
+    const activeWeeksCount = 19;
     const stats = {
       activePlayers: `${activePlayerCount}+`,
-      sundayGames: `${totalMatchesPlayed}+`,
-      sundaysActive: `${activeSundaysCount}+`,
+      weeklyGames: `${totalMatchesPlayed}+`,
+      weeksActive: `${activeWeeksCount}+`,
       communityLove: "∞",
     };
 
-    // ── Rivalry ───────────────────────────────────────────────────────────────
-    const activeSeason: RivalrySeason =
+    // ── Season ────────────────────────────────────────────────────────────────
+    const activeSeason: Season =
       seasons.find((s) => s.status === "active") ??
       seasons[0] ??
-      fallbackRivalrySeasons[0];
+      fallbackSeasons[0];
 
     const recentMatches: RecentMatch[] = seriesMatches.map((m) => ({
       id: m.id,
@@ -188,7 +187,7 @@ async function getHomepageData() {
 
     return {
       hero: stats,
-      rivalry: {
+      season: {
         activeSeason,
         recentMatches,
         latestMatch: recentMatches[0] ?? null,
@@ -201,17 +200,17 @@ async function getHomepageData() {
   } catch (error) {
     console.error("Homepage data fetch failed:", error);
 
-    const fallback = fallbackRivalrySeasons[0];
+    const fallback = fallbackSeasons[0];
     const fallbackStats = {
       activePlayers: "–",
-      sundayGames: "–",
-      sundaysActive: "–",
+      weeklyGames: "–",
+      weeksActive: "–",
       communityLove: "∞",
     };
 
     return {
       hero: fallbackStats,
-      rivalry: {
+      season: {
         activeSeason: fallback,
         recentMatches: [],
         latestMatch: null,
@@ -219,7 +218,7 @@ async function getHomepageData() {
       chewvana: {
         articles: [],
         tickerItems: [
-          `🏆 RIVALRY UPDATE: ${fallback.title} active! Series score: Mavericks (${fallback.mavericks_main_wins}) - (${fallback.neurostrikers_main_wins}) NeuroStrikers`,
+          `🏆 SEASON UPDATE: ${fallback.title} active! Series score: ${seasonScoreline(fallback)}`,
           "📰 DISPATCH: New dispatch published every Monday post-match",
         ],
       },

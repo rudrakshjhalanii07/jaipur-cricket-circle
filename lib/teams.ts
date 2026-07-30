@@ -41,7 +41,7 @@ export const TEAMS: Record<TeamId, TeamConfig> = {
     name: "NeuroStrikers",
     shortName: "NS",
     logo: "/teams/neurostrikers-logo.webp",
-    captain: "Saurabh",
+    captain: "Saurabh Charan",
     captainShort: "SAURABH",
     jerseyNumber: 1,
     primary: "#3B6FC4",
@@ -100,4 +100,19 @@ export const TEAM_ORDER_ALL: TeamId[] = [
 
 export function getTeam(id: TeamId): TeamConfig {
   return TEAMS[id];
+}
+
+/**
+ * The team a display *name* belongs to — "NeuroStrikers", not "neurostrikers".
+ *
+ * Member records carry the team name rather than the id (see Member["team"]),
+ * and "Unassigned" is a real value there, so this returns null rather than
+ * pretending everyone has a side.
+ */
+export function teamByName(name?: string | null): TeamConfig | null {
+  if (!name) return null;
+  const key = name.trim().toLowerCase();
+  return (
+    Object.values(TEAMS).find((t) => t.name.toLowerCase() === key) ?? null
+  );
 }

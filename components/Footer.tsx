@@ -3,8 +3,8 @@ import Link from "next/link";
 const quickLinks = [
   { href: "/boundary-banter", label: "Boundary Banter" },
   { href: "/members", label: "Members" },
-  { href: "/rivalry", label: "Rivalry" },
-  { href: "/register", label: "Sunday Registration" },
+  { href: "/seasons", label: "Seasons" },
+  { href: "/register", label: "Match Registration" },
   { href: "/about", label: "About Us" },
 ];
 
@@ -42,7 +42,7 @@ export default function Footer() {
               </div>
             </div>
             <p className="text-[14px] text-jcc-text-soft/60 leading-relaxed max-w-xs font-bold uppercase tracking-wider">
-              Where Sundays Hit Different. A community of cricket lovers in
+              Where Matchdays Hit Different. A community of cricket lovers in
               Jaipur, playing hard and building bonds every weekend.
             </p>
           </div>
@@ -96,7 +96,7 @@ export default function Footer() {
             </p>
           </div>
           <p className="text-[12px] text-white/60 font-black uppercase tracking-[0.2em]">
-            Where Sundays Hit Different 🏏
+            Where Matchdays Hit Different 🏏
           </p>
         </div>
       </div>

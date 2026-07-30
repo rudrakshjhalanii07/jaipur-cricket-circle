@@ -342,9 +342,9 @@ export default function NotFound() {
             <span>Return to Crease</span>
           </Link>
           
-          <Link href="/rivalry" className="btn-ghost w-full sm:w-auto min-w-[200px]">
+          <Link href="/seasons" className="btn-ghost w-full sm:w-auto min-w-[200px]">
             <Trophy className="w-4 h-4" />
-            <span>Rivalry Hub</span>
+            <span>Season Hub</span>
           </Link>
           
           <Link href="/register" className="btn-ghost w-full sm:w-auto min-w-[200px]">

@@ -1,9 +1,32 @@
 import { supabase } from "./supabase";
+import type { TeamId } from "./teams";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-export type SeriesTeamId = "mavericks" | "neurostrikers" | "outliers";
-export type MatchStage = "league" | "final";
+// Aliased to TeamId so lib/teams.ts stays the single source of truth: adding a
+// team there is enough, and every standings/leaderboard function below picks it
+// up automatically (they derive teams from match rows, never from a fixed list).
+export type SeriesTeamId = TeamId;
+
+// The final week of a season is a three-round bracket:
+// eliminator (3rd v 4th) -> qualifier (2nd v eliminator winner)
+// -> final (1st v qualifier winner).
+export type MatchStage = "league" | "eliminator" | "qualifier" | "final";
+
+export const PLAYOFF_STAGES: MatchStage[] = ["eliminator", "qualifier", "final"];
+
+export function isPlayoffStage(stage: MatchStage): boolean {
+  return stage !== "league";
+}
+
+// What callers actually want to slice by. "playoffs" spans all three bracket
+// rounds — before the bracket existed this was just the single "final" stage.
+export type StageFilter = "league" | "playoffs";
+
+export function matchesStageFilter(stage: MatchStage, filter?: StageFilter): boolean {
+  if (!filter) return true;
+  return filter === "league" ? stage === "league" : isPlayoffStage(stage);
+}
 export type DismissalType =
   | "bowled" | "caught" | "lbw" | "run_out" | "stumped"
   | "hit_wicket" | "retired_hurt" | "not_out" | "did_not_bat";
@@ -24,6 +47,7 @@ export interface Series {
   id: string;
   name: string;
   series_no: number;
+  week_no: number | null;   // schedule week this series belongs to, when seeded
   season_id: string | null;
   overs_per_innings: number;
   venue: string | null;
@@ -43,13 +67,18 @@ export interface SeriesMatch {
   stage: MatchStage;
   match_date: string | null;
   venue: string | null;
-  team1_id: SeriesTeamId;
-  team2_id: SeriesTeamId;
+  // Null on an unresolved bracket fixture — a qualifier seeded before the
+  // league table settles knows its seed, not yet its team.
+  team1_id: SeriesTeamId | null;
+  team2_id: SeriesTeamId | null;
+  team1_seed: number | null;           // 1-indexed league position
+  team2_seed: number | null;
+  team1_from_match_no: number | null;  // "winner of match N", chains the bracket
+  team2_from_match_no: number | null;
   toss_winner_id: SeriesTeamId | null;
   toss_decision: "bat" | "bowl" | null;
   team1_captain: string | null;
   team2_captain: string | null;
-  squad: { team1: string[]; team2: string[] } | null;
   winner_id: SeriesTeamId | null;
   margin_type: "runs" | "wickets" | null;
   margin_value: number | null;
@@ -187,6 +216,21 @@ export async function fetchAllSeries(): Promise<Series[]> {
   }
 }
 
+/** The fixture rows of one series — seeded schedule entries, played or not. */
+export async function fetchSeriesMatches(seriesId: string): Promise<SeriesMatch[]> {
+  try {
+    const { data, error } = await supabase
+      .from("series_matches")
+      .select("*")
+      .eq("series_id", seriesId)
+      .order("match_no", { ascending: true });
+    if (error) throw error;
+    return (data ?? []) as SeriesMatch[];
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchFullSeries(): Promise<FullSeries[]> {
   try {
     const { data, error } = await supabase
@@ -229,7 +273,7 @@ export async function fetchFullSeries(): Promise<FullSeries[]> {
 
 // ── Stats computation (pure, no I/O) ──────────────────────────────────────────
 
-export function computeLeaderboards(series: FullSeries[], stageFilter?: MatchStage): {
+export function computeLeaderboards(series: FullSeries[], stageFilter?: StageFilter): {
   batting: BattingLeaderRow[];
   bowling: BowlingLeaderRow[];
   allRounders: AllRounderRow[];
@@ -239,7 +283,7 @@ export function computeLeaderboards(series: FullSeries[], stageFilter?: MatchSta
   // not-out / retired-hurt / did-not-bat do NOT count as a dismissal.
   const DISMISSED = new Set(["bowled", "caught", "lbw", "run_out", "stumped", "hit_wicket"]);
   const battingMap = new Map<string, { runs: number; balls: number; innings: number; outs: number; high: number; fours: number; sixes: number; team: SeriesTeamId }>();
-  const bowlingMap = new Map<string, { wickets: number; overs: number; runs: number; innings: number; team: SeriesTeamId }>();
+  const bowlingMap = new Map<string, { wickets: number; balls: number; runs: number; innings: number; team: SeriesTeamId }>();
   const catchMap = new Map<string, number>();
   // Total matches a player appeared in (batted OR bowled) — for the "M" column.
   const playerMatchSet = new Map<string, Set<string>>();
@@ -250,19 +294,14 @@ export function computeLeaderboards(series: FullSeries[], stageFilter?: MatchSta
 
   for (const s of series) {
     for (const m of s.matches) {
-      if (stageFilter && m.stage !== stageFilter) continue;
-      // Squad list is the authoritative source for "matches played" — every named
-      // squad member is credited an appearance even if they didn't bat or bowl.
-      const sq = (m as SeriesMatch).squad;
-      if (sq) {
-        for (const name of [...(sq.team1 ?? []), ...(sq.team2 ?? [])]) {
-          if (name?.trim()) touchMatch(name.trim(), m.id);
-        }
-      }
+      if (!matchesStageFilter(m.stage, stageFilter)) continue;
       for (const inn of m.innings) {
         for (const b of inn.batting) {
           const key = b.player_name;
-          // Squad appearance — counts toward "matches" even for did-not-bat players.
+          // The batting array IS the squad list: lib/match-template.ts requires
+          // every squad member to appear in it, non-batters carrying
+          // dismissal_type "did_not_bat". So this one loop credits an
+          // appearance to everyone who was there, not just those who batted.
           touchMatch(key, m.id);
           // …but did-not-bat does NOT count as a batting innings / stats.
           if (b.dismissal_type === "did_not_bat") continue;
@@ -284,10 +323,10 @@ export function computeLeaderboards(series: FullSeries[], stageFilter?: MatchSta
         for (const bw of inn.bowling) {
           const key = bw.player_name;
           touchMatch(key, m.id);
-          const cur = bowlingMap.get(key) ?? { wickets: 0, overs: 0, runs: 0, innings: 0, team: bw.team_id };
+          const cur = bowlingMap.get(key) ?? { wickets: 0, balls: 0, runs: 0, innings: 0, team: bw.team_id };
           bowlingMap.set(key, {
             wickets: cur.wickets + bw.wickets,
-            overs: cur.overs + bw.overs,
+            balls: cur.balls + Math.round(oversToDecimal(bw.overs) * 6),
             innings: cur.innings + 1,
             runs: cur.runs + bw.runs_conceded,
             team: bw.team_id,
@@ -307,7 +346,7 @@ export function computeLeaderboards(series: FullSeries[], stageFilter?: MatchSta
 
   // Build raw bowling list — most wickets first; ties broken by better (lower)
   // economy, then fewer runs conceded.
-  const econOf = (p: { overs: number; runs: number }) => (p.overs > 0 ? p.runs / p.overs : Infinity);
+  const econOf = (p: { balls: number; runs: number }) => (p.balls > 0 ? p.runs / (p.balls / 6) : Infinity);
   const rawBowling = Array.from(bowlingMap.entries())
     .map(([name, v]) => ({ player_name: name, ...v }))
     .sort((a, b) => b.wickets - a.wickets || econOf(a) - econOf(b) || a.runs - b.runs);
@@ -338,9 +377,9 @@ export function computeLeaderboards(series: FullSeries[], stageFilter?: MatchSta
     matches: playerMatchSet.get(p.player_name)?.size ?? 0,
     innings: p.innings,
     total_wickets: p.wickets,
-    total_overs: p.overs,
+    total_overs: ballsToOvers(p.balls),
     runs_conceded: p.runs,
-    economy: p.overs > 0 ? Math.round((p.runs / p.overs) * 10) / 10 : 0,
+    economy: p.balls > 0 ? Math.round((p.runs / (p.balls / 6)) * 10) / 10 : 0,
     bowling_average: p.wickets > 0 ? Math.round((p.runs / p.wickets) * 100) / 100 : null,
     bowling_score: m === 1 ? 100 : Math.round(((m - 1 - i) / (m - 1)) * 100),
   }));
@@ -374,26 +413,6 @@ export function computeLeaderboards(series: FullSeries[], stageFilter?: MatchSta
   return { batting: battingRows, bowling: bowlingRows, allRounders, fielding };
 }
 
-// ── 3-way scoreline ────────────────────────────────────────────────────────────
-
-export interface TriSeriesScoreline {
-  neurostrikers: number;
-  mavericks: number;
-  outliers: number;
-}
-
-export function computeTriSeriesWins(series: FullSeries[]): TriSeriesScoreline {
-  const wins: TriSeriesScoreline = { neurostrikers: 0, mavericks: 0, outliers: 0 };
-  for (const s of series) {
-    for (const m of s.matches) {
-      if (m.winner_id && m.winner_id in wins) {
-        wins[m.winner_id as keyof TriSeriesScoreline]++;
-      }
-    }
-  }
-  return wins;
-}
-
 // ── Series standings (points table) ───────────────────────────────────────────
 
 export interface SeriesStandingRow {
@@ -403,26 +422,37 @@ export interface SeriesStandingRow {
   lost: number;
   tied: number;
   points: number;
-  win_pct: number;  // 0-100
   nrr: number;      // net run rate; 0 when no innings data available
+}
+
+// IPL ranking order: points first, then net run rate, then wins as a final
+// separator. NRR is only meaningful once computeSeriesNRR has been applied, so
+// computeSeriesStandings sorts on points alone and computeOverallStandings
+// re-sorts through here after attaching it.
+export function sortStandings(rows: SeriesStandingRow[]): SeriesStandingRow[] {
+  return rows.sort(
+    (a, b) => b.points - a.points || b.nrr - a.nrr || b.won - a.won,
+  );
 }
 
 export function computeSeriesStandings(
   matches: SeriesMatch[],
-  stage?: "league" | "final"
+  stage?: StageFilter
 ): SeriesStandingRow[] {
   const map = new Map<SeriesTeamId, SeriesStandingRow>();
 
   const ensure = (id: SeriesTeamId): SeriesStandingRow => {
     if (!map.has(id)) {
-      map.set(id, { team_id: id, played: 0, won: 0, lost: 0, tied: 0, points: 0, win_pct: 0, nrr: 0 });
+      map.set(id, { team_id: id, played: 0, won: 0, lost: 0, tied: 0, points: 0, nrr: 0 });
     }
     return map.get(id)!;
   };
 
   for (const m of matches) {
-    if (stage && m.stage !== stage) continue;
+    if (!matchesStageFilter(m.stage, stage)) continue;
     if (!m.winner_id && !m.is_tie) continue;
+    // Unresolved bracket fixture — seeded but not yet assigned a team.
+    if (!m.team1_id || !m.team2_id) continue;
 
     const t1 = ensure(m.team1_id);
     const t2 = ensure(m.team2_id);
@@ -441,28 +471,29 @@ export function computeSeriesStandings(
     }
   }
 
-  const rows = Array.from(map.values());
-  for (const r of rows) {
-    // Points percentage: points earned ÷ max possible (2 per game).
-    // A tie (1 pt) counts as half a win, so two ties ≠ one win — and the
-    // W/T/L columns still show the real breakdown.
-    r.win_pct = r.played > 0 ? Math.round((r.points / (r.played * 2)) * 100) : 0;
-  }
-  return rows.sort((a, b) => b.win_pct - a.win_pct || b.points - a.points);
+  // NRR is still zero here; computeOverallStandings re-sorts once it's attached.
+  return sortStandings(Array.from(map.values()));
 }
 
-// Convert display overs (9.4 = 9 overs 4 balls) to decimal sixths for NRR math.
-function oversToDecimalSeries(displayOvers: number): number {
+// Convert display overs (9.4 = 9 overs 4 balls) to decimal sixths (9.667) for
+// arithmetic like NRR and economy — dividing directly by the display value
+// (e.g. runs / 0.4) is wrong since "0.4" means 4 balls, not 0.4 of an over.
+export function oversToDecimal(displayOvers: number): number {
   const full = Math.floor(displayOvers);
   const balls = Math.round((displayOvers - full) * 10);
   return full + balls / 6;
+}
+
+// Convert total balls bowled back to display overs notation (e.g. 58 -> 9.4).
+function ballsToOvers(balls: number): number {
+  return Math.floor(balls / 6) + (balls % 6) / 10;
 }
 
 // Compute NRR per team from innings data. Only matches with both innings recorded
 // are included; unrecorded matches contribute NRR = 0.
 export function computeSeriesNRR(
   fullSeries: FullSeries[],
-  stage?: "league" | "final",
+  stage?: StageFilter,
 ): Map<SeriesTeamId, number> {
   type Acc = { runsScored: number; oversConsumed: number; runsConceded: number; oversBowled: number };
   const acc = new Map<SeriesTeamId, Acc>();
@@ -474,15 +505,15 @@ export function computeSeriesNRR(
   for (const s of fullSeries) {
     const overs = s.overs_per_innings;
     for (const m of s.matches) {
-      if (stage && m.stage !== stage) continue;
+      if (!matchesStageFilter(m.stage, stage)) continue;
       if (!m.winner_id && !m.is_tie) continue;
       if (!m.innings || m.innings.length < 2) continue;
       const inn1 = m.innings.find((i) => i.innings_no === 1);
       const inn2 = m.innings.find((i) => i.innings_no === 2);
       if (!inn1 || !inn2) continue;
 
-      const o1 = inn1.all_out ? overs : oversToDecimalSeries(inn1.total_overs);
-      const o2 = inn2.all_out ? overs : oversToDecimalSeries(inn2.total_overs);
+      const o1 = inn1.all_out ? overs : oversToDecimal(inn1.total_overs);
+      const o2 = inn2.all_out ? overs : oversToDecimal(inn2.total_overs);
 
       const t1 = ensure(inn1.batting_team_id);
       t1.runsScored += inn1.total_runs;
@@ -511,11 +542,12 @@ export function computeSeriesNRR(
 }
 
 export function computeOverallStandings(series: FullSeries[]): SeriesStandingRow[] {
-  // League matches only — exhibition/final games never count toward the points table.
+  // League matches only — playoff games never count toward the points table.
   const rows = computeSeriesStandings(series.flatMap((s) => s.matches as SeriesMatch[]), "league");
   const nrrMap = computeSeriesNRR(series, "league");
   for (const r of rows) r.nrr = nrrMap.get(r.team_id) ?? 0;
-  return rows;
+  // Re-sort now that NRR is populated — it's the tiebreaker on level points.
+  return sortStandings(rows);
 }
 
 export interface PlayerPoolRow {
@@ -524,15 +556,16 @@ export interface PlayerPoolRow {
   teams: SeriesTeamId[];
 }
 
-// Every player who has ever appeared in a recorded scorecard — squad list is
-// the authoritative source (credits an appearance even for did-not-bat
-// players), unioned with batting/bowling rows as a defensive fallback for any
-// match missing a squad entry. Sorted alphabetically by name.
+// Every player who appeared in a recorded scorecard of the given series, with
+// the teams he turned out for. The batting array doubles as the squad list —
+// lib/match-template.ts requires non-batters to be listed with
+// dismissal_type "did_not_bat" — so this counts everyone who was there.
+// Sorted alphabetically by name.
 export function computePlayersPool(series: FullSeries[]): PlayerPoolRow[] {
   const matchSet = new Map<string, Set<string>>();
   const teamSet = new Map<string, Set<SeriesTeamId>>();
 
-  const touch = (name: string | null | undefined, matchId: string, team?: SeriesTeamId) => {
+  const touch = (name: string | null | undefined, matchId: string, team?: SeriesTeamId | null) => {
     const key = name?.trim();
     if (!key) return;
     if (!matchSet.has(key)) matchSet.set(key, new Set());
@@ -545,11 +578,7 @@ export function computePlayersPool(series: FullSeries[]): PlayerPoolRow[] {
 
   for (const s of series) {
     for (const m of s.matches) {
-      const sq = (m as SeriesMatch).squad;
-      if (sq) {
-        for (const name of sq.team1 ?? []) touch(name, m.id, m.team1_id);
-        for (const name of sq.team2 ?? []) touch(name, m.id, m.team2_id);
-      }
+      // The batting array carries the whole squad — see computeLeaderboards.
       for (const inn of m.innings) {
         for (const b of inn.batting) touch(b.player_name, m.id, b.team_id);
         for (const bw of inn.bowling) touch(bw.player_name, m.id, bw.team_id);
@@ -566,33 +595,31 @@ export function computePlayersPool(series: FullSeries[]): PlayerPoolRow[] {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// Club founding date — every Sunday from here on is a "club Sunday", whether or
-// not a tri-series was recorded that week.
-const CLUB_FOUNDING_SUNDAY = new Date("2026-03-01T00:00:00Z");
+// Club founding date. The club plays once a week, so every elapsed week counts
+// as a club week whether or not a series was recorded for it. The specific day
+// is deliberately not encoded — it has been Sunday and is now Friday, and the
+// count must survive any future change.
+const CLUB_FOUNDING_DATE = new Date("2026-03-01T00:00:00Z");
 
-function countSundaysBetween(startInclusive: Date, endExclusive: Date): number {
-  let count = 0;
-  const d = new Date(startInclusive);
-  while (d.getUTCDay() !== 0) d.setUTCDate(d.getUTCDate() + 1);
-  while (d < endExclusive) {
-    count++;
-    d.setUTCDate(d.getUTCDate() + 7);
-  }
-  return count;
+const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+
+function countWeeksBetween(startInclusive: Date, endExclusive: Date): number {
+  const ms = endExclusive.getTime() - startInclusive.getTime();
+  return ms <= 0 ? 0 : Math.floor(ms / MS_PER_WEEK);
 }
 
-// Total Sundays played by the club: Sundays elapsed between the founding date
-// and the first tracked tri-series (untracked baseline, assumed played weekly)
-// plus one Sunday for every tri-series recorded since (each new series upload
-// IS that week's Sunday — no separate date math needed going forward).
-export function computeSundaysPlayed(series: { started_at: string | null }[]): number {
+// Total weeks played by the club: weeks elapsed between the founding date and
+// the first tracked series (untracked baseline, assumed played weekly) plus one
+// week for every series recorded since — each series upload IS that week's
+// fixture, so no separate date math is needed going forward.
+export function computeWeeksPlayed(series: { started_at: string | null }[]): number {
   if (series.length === 0) {
-    return countSundaysBetween(CLUB_FOUNDING_SUNDAY, new Date());
+    return countWeeksBetween(CLUB_FOUNDING_DATE, new Date());
   }
   const firstSeriesDate = series
     .map((s) => (s.started_at ? new Date(s.started_at) : null))
     .filter((d): d is Date => d !== null)
     .reduce((a, b) => (b < a ? b : a));
-  const baseline = countSundaysBetween(CLUB_FOUNDING_SUNDAY, firstSeriesDate);
+  const baseline = countWeeksBetween(CLUB_FOUNDING_DATE, firstSeriesDate);
   return baseline + series.length;
 }

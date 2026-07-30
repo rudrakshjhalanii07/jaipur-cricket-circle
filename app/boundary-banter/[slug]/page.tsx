@@ -320,7 +320,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
                <div className="w-12 h-[2px] bg-white/5" />
             </div>
              <p className="text-[10px] text-white/50 font-black uppercase tracking-widest max-w-md mx-auto leading-relaxed">
-                All findings reported here are subject to post-match banter and extreme Sunday morning exaggeration.
+                All findings reported here are subject to post-match banter and extreme morning-after exaggeration.
              </p>
         </div>
       </div>

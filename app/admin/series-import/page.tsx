@@ -1,23 +1,40 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FileJson, X, Save, ChevronDown, ChevronUp,
   Plus, Trash2, CheckCircle, AlertCircle, Loader2, ArrowLeft, ExternalLink,
   RefreshCw, Link2, RotateCcw, Copy, Check,
 } from "lucide-react";
-import { fetchAllSeries, type Series } from "@/lib/series";
-import { fetchRivalrySeasons, type RivalrySeason } from "@/lib/rivalry";
+import {
+  fetchAllSeries,
+  fetchSeriesMatches,
+  oversToDecimal,
+  type Series,
+  type SeriesMatch,
+} from "@/lib/series";
+import { fetchSeasons, type Season } from "@/lib/seasons";
 import { MATCH_TEMPLATE_JSON } from "@/lib/match-template";
+import { TEAMS as TEAM_CONFIG, TEAM_ORDER_ALL } from "@/lib/teams";
 
 // ── Types mirroring the save API body ────────────────────────────────────────
 
-const TEAMS = ["mavericks", "neurostrikers", "outliers"] as const;
-const TEAM_LABELS: Record<string, string> = {
-  mavericks: "Mavericks",
-  neurostrikers: "NeuroStrikers",
-  outliers: "The Outliers",
+// Driven off lib/teams.ts rather than a local copy, so a new team shows up in
+// every dropdown here the moment it's added to the team config.
+const TEAMS = TEAM_ORDER_ALL;
+const TEAM_LABELS: Record<string, string> = Object.fromEntries(
+  TEAM_ORDER_ALL.map((id) => [id, TEAM_CONFIG[id].name]),
+);
+const TEAM_ID_LIST = TEAM_ORDER_ALL.join(" | ");
+
+const STAGES = ["league", "eliminator", "qualifier", "final"] as const;
+const STAGE_LABELS: Record<string, string> = {
+  league: "League",
+  eliminator: "Eliminator",
+  qualifier: "Qualifier",
+  final: "Final",
 };
 const DISMISSAL_TYPES = [
   "bowled", "caught", "lbw", "run_out", "stumped",
@@ -73,7 +90,7 @@ interface InningsForm {
 
 interface MatchForm {
   match_no: number;
-  stage: "league" | "final";
+  stage: (typeof STAGES)[number];
   match_date: string;
   venue: string;
   team1_id: string;
@@ -89,20 +106,6 @@ interface MatchForm {
   player_of_match: string;
   match_notes: string;
   innings: InningsForm[];
-}
-
-interface SeriesForm {
-  mode: "existing" | "new";
-  existing_id: string;
-  name: string;
-  series_no: number;
-  season_id: string;
-  overs_per_innings: number;
-  venue: string;
-  started_at: string;
-  ended_at: string;
-  notes: string;
-  articles: Array<{ title: string; url: string }>;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -293,7 +296,7 @@ function BowlingTable({ rows, onChange }: { rows: BowlerRow[]; onChange: (rows: 
                 <td className="py-0.5 px-1"><Input compact type="number" value={r.maidens} onChange={(e) => update(i, "maidens", +e.target.value)} className="text-center" /></td>
                 <td className="py-0.5 px-1"><Input compact type="number" value={r.runs_conceded} onChange={(e) => update(i, "runs_conceded", +e.target.value)} className="text-center" /></td>
                 <td className="py-0.5 px-1"><Input compact type="number" value={r.wickets} onChange={(e) => update(i, "wickets", +e.target.value)} className="text-center" /></td>
-                <td className="py-0.5 px-1 text-center text-jcc-accent/80 font-black tabular-nums">{r.overs && r.overs > 0 ? (r.runs_conceded / r.overs).toFixed(1) : "—"}</td>
+                <td className="py-0.5 px-1 text-center text-jcc-accent/80 font-black tabular-nums">{r.overs && r.overs > 0 ? (r.runs_conceded / oversToDecimal(r.overs)).toFixed(1) : "—"}</td>
                 <td className="py-0.5 pl-1">
                   <button type="button" onClick={() => remove(i)} className="text-jcc-text-muted/70 hover:text-jcc-danger transition-colors">
                     <X className="w-3.5 h-3.5" />
@@ -370,33 +373,73 @@ export default function SeriesImportPage() {
     }
   };
 
-  // Existing series (for the "Existing Series" dropdown)
-  const [existingSeries, setExistingSeries] = useState<Series[]>([]);
+  // JCC is season-based now: every match belongs to a seeded week of the active
+  // season, so there is nothing to create here — only a week to pick. Series
+  // from earlier eras (the old tri-series) still hold their stats in the DB,
+  // they're just not import targets any more, so they're filtered out below.
+  const [allSeries, setAllSeries] = useState<Series[]>([]);
+  const [seasons, setSeasons] = useState<Season[]>([]);
+  const [weekId, setWeekId] = useState("");
+
   useEffect(() => {
-    fetchAllSeries().then(setExistingSeries).catch(() => {});
+    fetchAllSeries().then(setAllSeries).catch(() => {});
+    fetchSeasons().then(setSeasons).catch(() => {});
   }, []);
 
-  // Rivalry seasons — a new series MUST be linked to one for its wins to
-  // appear in the scoreline. Default to the active season.
-  const [seasons, setSeasons] = useState<RivalrySeason[]>([]);
-  useEffect(() => {
-    fetchRivalrySeasons().then((list) => {
-      setSeasons(list);
-      const active = list.find((s) => s.status === "active");
-      if (active) setSeriesForm((p) => (p.season_id ? p : { ...p, season_id: active.id }));
-    }).catch(() => {});
-  }, []);
-
-  // Series form
-  const [seriesForm, setSeriesForm] = useState<SeriesForm>({
-    mode: "new", existing_id: "", name: "JCC Tri-Series #1", series_no: 1,
-    season_id: "", overs_per_innings: 10, venue: "", started_at: "", ended_at: "",
-    notes: "", articles: [],
-  });
+  const activeSeason = seasons.find((s) => s.status === "active") ?? null;
+  const weeks = allSeries
+    .filter((s) => s.week_no != null && s.season_id === activeSeason?.id)
+    .sort((a, b) => (a.week_no ?? 0) - (b.week_no ?? 0));
+  const selectedWeek = weeks.find((w) => w.id === weekId) ?? null;
 
   // Match form
   const [matchForm, setMatchForm] = useState<MatchForm>(defaultMatch());
   const [showForm, setShowForm] = useState(false);
+
+  // ── Fixture auto-match ──────────────────────────────────────────────────────
+  // Season weeks are seeded with all their fixtures, and a pair of teams meets
+  // at most once in a week — so the two team dropdowns are enough to identify
+  // which seeded fixture this scorecard belongs to. Deriving match_no from the
+  // opponents beats typing it: a wrong number silently overwrites a different
+  // fixture's result.
+  const [seededMatches, setSeededMatches] = useState<SeriesMatch[]>([]);
+
+  useEffect(() => {
+    if (!weekId) {
+      setSeededMatches([]);
+      return;
+    }
+    let cancelled = false;
+    fetchSeriesMatches(weekId)
+      .then((rows) => {
+        if (!cancelled) setSeededMatches(rows);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [weekId]);
+
+  const fixtureCandidates = seededMatches.filter(
+    (m) =>
+      (m.team1_id === matchForm.team1_id && m.team2_id === matchForm.team2_id) ||
+      (m.team1_id === matchForm.team2_id && m.team2_id === matchForm.team1_id),
+  );
+  // An unplayed fixture is the one being imported; a played one means this is a
+  // correction. Prefer the former when a pair somehow appears twice.
+  const matchedFixture =
+    fixtureCandidates.find((m) => !m.winner_id && !m.is_tie) ??
+    fixtureCandidates[0] ??
+    null;
+
+  useEffect(() => {
+    if (!matchedFixture) return;
+    setMatchForm((p) =>
+      p.match_no === matchedFixture.match_no && p.stage === matchedFixture.stage
+        ? p
+        : { ...p, match_no: matchedFixture.match_no, stage: matchedFixture.stage },
+    );
+  }, [matchedFixture]);
 
   // Save
   const [saving, setSaving] = useState(false);
@@ -479,28 +522,12 @@ export default function SeriesImportPage() {
         })),
       }));
 
-      // Pre-fill series form from optional "series" key, falling back to match_info fields
-      const s = d.series;
-      if (s) {
-        setSeriesForm((prev) => ({
-          ...prev,
-          name: s.name || prev.name,
-          series_no: s.series_no || prev.series_no,
-          overs_per_innings: s.overs_per_innings || prev.overs_per_innings,
-          venue: s.venue || info.venue || prev.venue,
-          started_at: s.started_at || info.match_date || prev.started_at,
-          notes: s.notes || prev.notes,
-        }));
-      } else {
-        // Infer what we can from match_info
-        setSeriesForm((prev) => ({
-          ...prev,
-          venue: info.venue || prev.venue,
-          started_at: info.match_date || prev.started_at,
-          overs_per_innings: inningsData[0]?.total_overs
-            ? Math.ceil(inningsData[0].total_overs)
-            : prev.overs_per_innings,
-        }));
+      // A pasted week_no picks the week for you when it matches a seeded one —
+      // otherwise the dropdown stays as-is and the admin chooses.
+      const pastedWeek = d.series?.week_no;
+      if (pastedWeek != null) {
+        const hit = weeks.find((w) => w.week_no === Number(pastedWeek));
+        if (hit) setWeekId(hit.id);
       }
 
       setMatchForm((prev) => ({
@@ -526,7 +553,7 @@ export default function SeriesImportPage() {
     } catch (err) {
       setJsonError(String(err));
     }
-  }, [jsonText]);
+  }, [jsonText, weeks]);
 
   const handleJsonFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -538,25 +565,15 @@ export default function SeriesImportPage() {
   };
 
   const handleSave = async () => {
+    if (!weekId) {
+      setError("Pick the season week this match belongs to.");
+      return;
+    }
     setSaving(true);
     setError("");
     try {
       const body = {
-        ...(seriesForm.mode === "existing"
-          ? { series_id: seriesForm.existing_id }
-          : {
-              new_series: {
-                name: seriesForm.name,
-                series_no: seriesForm.series_no,
-                season_id: seriesForm.season_id || null,
-                overs_per_innings: seriesForm.overs_per_innings,
-                venue: seriesForm.venue || null,
-                started_at: seriesForm.started_at || null,
-                ended_at: seriesForm.ended_at || seriesForm.started_at || null,
-                notes: seriesForm.notes || null,
-                articles: seriesForm.articles,
-              },
-            }),
+        series_id: weekId,
         match_no: matchForm.match_no,
         stage: matchForm.stage,
         match_date: matchForm.match_date || null,
@@ -590,8 +607,7 @@ export default function SeriesImportPage() {
 
       setSaveResult({ match_id: json.match_id, series_id: json.series_id });
 
-      // Refresh the existing-series dropdown so a newly created series shows up immediately.
-      fetchAllSeries().then(setExistingSeries).catch(() => {});
+      fetchAllSeries().then(setAllSeries).catch(() => {});
 
       // Auto-trigger analysis
       setAnalyzing(true);
@@ -656,10 +672,15 @@ export default function SeriesImportPage() {
     setSaveResult(null);
     setAnalysisText("");
     setError("");
-    fetchAllSeries().then(setExistingSeries).catch(() => {}); // keep dropdown in sync
+    fetchAllSeries().then(setAllSeries).catch(() => {}); // keep the week list in sync
     if (saveResult) {
-      setSeriesForm((prev) => ({ ...prev, mode: "existing", existing_id: saveResult.series_id }));
+      // Stay on the same week — the next scorecard is almost always another
+      // fixture from the same night.
+      setWeekId(saveResult.series_id);
       setMatchForm((prev) => ({ ...defaultMatch(), match_no: prev.match_no + 1 }));
+      // The match just saved now has a result — refetch so the next import's
+      // fixture banner doesn't call it unplayed.
+      fetchSeriesMatches(saveResult.series_id).then(setSeededMatches).catch(() => {});
     }
   };
 
@@ -715,9 +736,9 @@ export default function SeriesImportPage() {
             <button onClick={resetForNext} className="px-5 py-3 rounded-xl btn-vibrant-blue font-black text-sm uppercase tracking-widest">
               Import Next Match
             </button>
-            <a href="/rivalry" className="btn-ghost px-5 py-3 rounded-xl font-black text-sm uppercase tracking-widest flex items-center gap-2">
-              View Rivalry Page <ExternalLink className="w-3.5 h-3.5" />
-            </a>
+            <Link href="/seasons" className="btn-ghost px-5 py-3 rounded-xl font-black text-sm uppercase tracking-widest flex items-center gap-2">
+              View Seasons Page <ExternalLink className="w-3.5 h-3.5" />
+            </Link>
           </div>
 
         </div>
@@ -804,14 +825,22 @@ export default function SeriesImportPage() {
 
             <details className="group">
               <summary className="text-[10px] font-black uppercase tracking-widest text-jcc-text-muted hover:text-jcc-blue cursor-pointer select-none">JSON format reference</summary>
+              <div className="mt-2 rounded-lg border border-jcc-border/60 bg-jcc-navy-light/60 px-3 py-2 text-[10px] leading-relaxed text-jcc-text-muted">
+                <span className="font-black uppercase tracking-widest text-jcc-accent-dark">Season fixtures are pre-seeded.</span>{" "}
+                Pick the week in step 2a; the fixture is then identified from the two
+                teams, so <span className="font-mono">match_no</span> fills itself in. The
+                save fills in the seeded row instead of creating a new match, and
+                re-uploading the same fixture replaces that scorecard — a correction is
+                just another upload.
+              </div>
               <pre className="mt-2 p-3 bg-jcc-navy-light rounded-lg text-[10px] text-jcc-text-muted overflow-x-auto leading-relaxed">{JSON.stringify({
                 match_info: {
                   match_no: 1,
-                  stage: "league | final",
+                  stage: STAGES.join(" | "),
                   match_date: "YYYY-MM-DD",
-                  venue: "string",
-                  team1_id: "mavericks | neurostrikers | outliers",
-                  team2_id: "mavericks | neurostrikers | outliers",
+                  venue: "string or null (leave null — venue is set per week in Admin → Seasons)",
+                  team1_id: TEAM_ID_LIST,
+                  team2_id: TEAM_ID_LIST,
                   toss_winner_id: "team_id",
                   team1_captain: "captain name (gets a (C) in scorecard)",
                   team2_captain: "captain name (gets a (C) in scorecard)",
@@ -854,120 +883,81 @@ export default function SeriesImportPage() {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-4"
             >
-              {/* Series */}
-              <CollapsibleSection title="Step 2a — Series">
-                <div className="flex gap-3 mb-4">
-                  {(["new", "existing"] as const).map((mode) => (
-                    <button key={mode} type="button"
-                      onClick={() => setSeriesForm((p) => ({ ...p, mode }))}
-                      className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-colors ${seriesForm.mode === mode ? "bg-jcc-accent/20 text-jcc-accent border border-jcc-accent/40" : "bg-jcc-navy-light text-jcc-text-muted border border-jcc-border"}`}
-                    >
-                      {mode === "new" ? "New Series" : "Existing Series"}
-                    </button>
+              {/* Week */}
+              <CollapsibleSection title="Step 2a — Week">
+                <Label>Season Week</Label>
+                <Select value={weekId} onChange={(e) => setWeekId(e.target.value)}>
+                  <option value="">— Choose a week —</option>
+                  {weeks.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                      {s.venue ? ` — ${s.venue}` : ""}
+                    </option>
                   ))}
-                </div>
-
-                {seriesForm.mode === "new" ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <Label>Series Name</Label>
-                      <Input value={seriesForm.name} onChange={(e) => setSeriesForm((p) => ({ ...p, name: e.target.value }))} />
-                    </div>
-                    <div>
-                      <Label>Series #</Label>
-                      <Input type="number" value={seriesForm.series_no} onChange={(e) => setSeriesForm((p) => ({ ...p, series_no: +e.target.value }))} />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <Label>Rivalry Season (links wins to scoreline)</Label>
-                      <Select value={seriesForm.season_id} onChange={(e) => setSeriesForm((p) => ({ ...p, season_id: e.target.value }))}>
-                        <option value="">— Not linked (won&apos;t appear in scoreline) —</option>
-                        {seasons.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.title}{s.status === "active" ? " (active)" : ""}
-                          </option>
-                        ))}
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Overs / Innings</Label>
-                      <Input type="number" value={seriesForm.overs_per_innings} onChange={(e) => setSeriesForm((p) => ({ ...p, overs_per_innings: +e.target.value }))} />
-                    </div>
-                    <div>
-                      <Label>Venue</Label>
-                      <Input value={seriesForm.venue} onChange={(e) => setSeriesForm((p) => ({ ...p, venue: e.target.value }))} placeholder="Ground name" />
-                    </div>
-                    <div>
-                      <Label>Start Date</Label>
-                      <Input type="date" value={seriesForm.started_at} onChange={(e) => setSeriesForm((p) => ({ ...p, started_at: e.target.value }))} />
-                    </div>
-                    <div>
-                      <Label>End Date</Label>
-                      <Input type="date" value={seriesForm.ended_at} onChange={(e) => setSeriesForm((p) => ({ ...p, ended_at: e.target.value }))} />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <Label>Notes</Label>
-                      <Input value={seriesForm.notes} onChange={(e) => setSeriesForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Any series-level notes" />
-                    </div>
-
-                    {/* Boundary Banter Articles */}
-                    <div className="sm:col-span-2">
-                      <Label>Boundary Banter Articles</Label>
-                      <div className="space-y-2">
-                        {seriesForm.articles.map((a, i) => (
-                          <div key={i} className="flex gap-2">
-                            <Input value={a.title} onChange={(e) => {
-                              const next = [...seriesForm.articles];
-                              next[i] = { ...next[i], title: e.target.value };
-                              setSeriesForm((p) => ({ ...p, articles: next }));
-                            }} placeholder="Article title" className="flex-1" />
-                            <Input value={a.url} onChange={(e) => {
-                              const next = [...seriesForm.articles];
-                              next[i] = { ...next[i], url: e.target.value };
-                              setSeriesForm((p) => ({ ...p, articles: next }));
-                            }} placeholder="https://…" className="flex-1" />
-                            <button type="button" onClick={() => setSeriesForm((p) => ({ ...p, articles: p.articles.filter((_, j) => j !== i) }))} className="text-jcc-text-muted/70 hover:text-jcc-danger transition-colors">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
-                        <button type="button"
-                          onClick={() => setSeriesForm((p) => ({ ...p, articles: [...p.articles, { title: "", url: "" }] }))}
-                          className="text-xs text-jcc-accent/70 hover:text-jcc-accent flex items-center gap-1 transition-colors">
-                          <Plus className="w-3.5 h-3.5" /> Add article
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <Label>Select Series</Label>
-                    <Select value={seriesForm.existing_id} onChange={(e) => setSeriesForm((p) => ({ ...p, existing_id: e.target.value }))}>
-                      <option value="">— Choose a series —</option>
-                      {existingSeries.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          #{s.series_no} — {s.name}
-                        </option>
-                      ))}
-                    </Select>
-                    {existingSeries.length === 0 && (
-                      <p className="text-[10px] text-jcc-text-muted mt-1">No existing series found.</p>
-                    )}
-                  </div>
-                )}
+                </Select>
+                <p className="text-[10px] text-jcc-text-muted mt-1">
+                  {weeks.length === 0
+                    ? `No seeded weeks found for ${activeSeason?.title ?? "the active season"}.`
+                    : selectedWeek
+                      ? `${activeSeason?.title ?? "Active season"} · ${selectedWeek.venue ?? "venue not set — see Admin → Seasons → Week Venues"}`
+                      : "Every match belongs to a seeded week of the active season."}
+                </p>
               </CollapsibleSection>
+
 
               {/* Match Info */}
               <CollapsibleSection title="Step 2b — Match Info">
+                {/* Which seeded fixture the chosen opponents resolve to. */}
+                {seededMatches.length > 0 && (
+                  <div
+                    className={`mb-4 flex items-start gap-2 rounded-lg px-3 py-2 text-xs font-medium ${
+                      !matchedFixture
+                        ? "bg-jcc-danger/10 text-jcc-danger"
+                        : matchedFixture.winner_id || matchedFixture.is_tie
+                          ? "bg-jcc-accent/10 text-jcc-accent-dark"
+                          : "bg-jcc-blue/10 text-jcc-blue"
+                    }`}
+                  >
+                    {matchedFixture ? (
+                      <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    )}
+                    <span>
+                      {!matchedFixture ? (
+                        <>
+                          No fixture in this week is{" "}
+                          <b>{TEAM_LABELS[matchForm.team1_id]} v {TEAM_LABELS[matchForm.team2_id]}</b>.
+                          Check the teams above, or set Match # by hand. This week has:{" "}
+                          {seededMatches
+                            .map((m) => `M${m.match_no} ${TEAM_LABELS[m.team1_id ?? ""] ?? "TBD"} v ${TEAM_LABELS[m.team2_id ?? ""] ?? "TBD"}`)
+                            .join(", ")}
+                          .
+                        </>
+                      ) : matchedFixture.winner_id || matchedFixture.is_tie ? (
+                        <>
+                          Matched <b>M{matchedFixture.match_no}</b>, which already has a
+                          result. Saving <b>replaces</b> its scorecard.
+                        </>
+                      ) : (
+                        <>
+                          Matched seeded fixture <b>M{matchedFixture.match_no}</b> — saving
+                          fills it in rather than creating a new match.
+                        </>
+                      )}
+                    </span>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   <div>
-                    <Label>Match #</Label>
+                    <Label>Match #{matchedFixture ? " (auto)" : ""}</Label>
                     <Input type="number" value={matchForm.match_no} onChange={(e) => setMatchForm((p) => ({ ...p, match_no: +e.target.value }))} />
                   </div>
                   <div>
                     <Label>Stage</Label>
-                    <Select value={matchForm.stage} onChange={(e) => setMatchForm((p) => ({ ...p, stage: e.target.value as "league" | "final" }))}>
-                      <option value="league">League</option>
-                      <option value="final">Final</option>
+                    <Select value={matchForm.stage} onChange={(e) => setMatchForm((p) => ({ ...p, stage: e.target.value as (typeof STAGES)[number] }))}>
+                      {STAGES.map((s) => <option key={s} value={s}>{STAGE_LABELS[s]}</option>)}
                     </Select>
                   </div>
                   <div>

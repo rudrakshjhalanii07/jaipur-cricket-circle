@@ -687,22 +687,22 @@ export default function ProfilePage() {
                   </h1>
 
                   <p className="font-heading italic text-white/70 text-xl sm:text-2xl font-medium mb-6 leading-relaxed normal-case tracking-normal">
-                    The records. The rivalries. The Sundays.
+                    The records. The rivalries. The weeks.
                     <br />
                     Reserved for those inside the Circle.
                   </p>
 
                   <p className="text-sm text-white/50 leading-relaxed max-w-xl mb-10">
-                    Every innings, every rivalry, every Sunday gathering — logged and kept for those who wear the JCC colours. Enter with your registered number, or request an invitation to join the Circle.
+                    Every innings, every season, every weekly gathering — logged and kept for those who wear the JCC colours. Enter with your registered number, or request an invitation to join the Circle.
                   </p>
 
                   {/* Feature rows — what membership unlocks */}
                   <div className="space-y-5 mb-10">
                     {[
-                      { icon: BookOpen, title: "Match Archive", desc: "Every Sunday you've played, kept on record." },
+                      { icon: BookOpen, title: "Match Archive", desc: "Every match you've played, kept on record." },
                       { icon: BarChart3, title: "Career Statistics", desc: "Runs. Wickets. Awards." },
-                      { icon: Swords, title: "Rivalry History", desc: "Every score. Every chapter." },
-                      { icon: CalendarCheck, title: "Registration Priority", desc: "Reserve your Sunday place." },
+                      { icon: Swords, title: "Season History", desc: "Every score. Every chapter." },
+                      { icon: CalendarCheck, title: "Registration Priority", desc: "Reserve your place each week." },
                       { icon: UsersRound, title: "Community Directory", desc: "Meet every member of the Circle." }
                     ].map((item) => {
                       const ItemIcon = item.icon;
@@ -1424,7 +1424,7 @@ export default function ProfilePage() {
                           <textarea
                             maxLength={300}
                             rows={4}
-                            placeholder="Share your cricketing journey, preferred batting positions, iconic shots, or sunday circle achievements..."
+                            placeholder="Share your cricketing journey, preferred batting positions, iconic shots, or circle achievements..."
                             value={bio}
                             onChange={(e) => setBio(e.target.value)}
                             className="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white placeholder-white/20 text-xs font-bold focus:border-jcc-accent/40 focus:bg-white/[0.05] focus:outline-none transition-all duration-300 resize-none shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]"

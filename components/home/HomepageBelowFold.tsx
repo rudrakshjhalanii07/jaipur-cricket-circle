@@ -12,8 +12,8 @@ import type { ArticleData } from "@/app/page";
 interface HomepageBelowFoldProps {
   stats: {
     activePlayers: string;
-    sundayGames: string;
-    sundaysActive: string;
+    weeklyGames: string;
+    weeksActive: string;
     communityLove: string;
   };
   chewvana: {

@@ -379,7 +379,7 @@ export default function MembersClient({ members }: { members: Member[] }) {
 
         <SectionHeading
           title="The Circle"
-          subtitle="Meet the legends who define Sunday cricket in Jaipur."
+          subtitle="Meet the legends who define weekly cricket in Jaipur."
           accentColor="blue"
           priority
         />

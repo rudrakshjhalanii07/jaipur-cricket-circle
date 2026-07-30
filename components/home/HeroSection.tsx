@@ -7,8 +7,8 @@ import { ChevronRight, ChevronDown } from "lucide-react";
 
 interface HeroStats {
   activePlayers: string;
-  sundayGames: string;
-  sundaysActive: string;
+  weeklyGames: string;
+  weeksActive: string;
   communityLove: string;
 }
 
@@ -94,8 +94,8 @@ export default function HeroSection({ stats }: { stats: HeroStats }) {
           <div className="hero-enter hero-enter-d4 mt-10 sm:mt-12 grid grid-cols-4 gap-3 sm:gap-6 max-w-xl mx-auto border-t border-jcc-border pt-6">
             {[
               { value: stats.activePlayers, label: "Players" },
-              { value: stats.sundayGames, label: "Sunday Games" },
-              { value: stats.sundaysActive, label: "Weekends Active" },
+              { value: stats.weeklyGames, label: "Matches Played" },
+              { value: stats.weeksActive, label: "Weeks Active" },
               { value: stats.communityLove, label: "Community Love" },
             ].map((stat) => (
               <div key={stat.label} className="text-center">

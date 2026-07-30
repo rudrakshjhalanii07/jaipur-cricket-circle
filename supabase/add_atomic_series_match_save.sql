@@ -110,10 +110,14 @@ BEGIN
       COALESCE(b.batting_order, b.ord::INT), COALESCE(b.runs, 0), b.balls_faced,
       COALESCE(b.fours, 0), COALESCE(b.sixes, 0),
       NULLIF(b.dismissal_type, ''), NULLIF(b.dismissed_by, ''), NULLIF(b.caught_by, '')
-    FROM jsonb_to_recordset(COALESCE(v_inn->'batting', '[]'::JSONB)) WITH ORDINALITY
-      AS b(player_name TEXT, batting_order INT, runs INT, balls_faced INT,
-           fours INT, sixes INT, dismissal_type TEXT, dismissed_by TEXT,
-           caught_by TEXT, ord INT);
+    FROM ROWS FROM (
+      jsonb_to_recordset(COALESCE(v_inn->'batting', '[]'::JSONB))
+        AS (player_name TEXT, batting_order INT, runs INT, balls_faced INT,
+            fours INT, sixes INT, dismissal_type TEXT, dismissed_by TEXT,
+            caught_by TEXT)
+    ) WITH ORDINALITY
+      AS b(player_name, batting_order, runs, balls_faced,
+           fours, sixes, dismissal_type, dismissed_by, caught_by, ord);
 
     INSERT INTO public.series_bowling (
       innings_id, team_id, player_name, bowling_order, overs, maidens,
@@ -123,9 +127,13 @@ BEGIN
       v_innings_id, v_inn->>'bowling_team_id', w.player_name,
       COALESCE(w.bowling_order, w.ord::INT), COALESCE(w.overs, 0), COALESCE(w.maidens, 0),
       COALESCE(w.runs_conceded, 0), COALESCE(w.wickets, 0), COALESCE(w.wides, 0), COALESCE(w.no_balls, 0)
-    FROM jsonb_to_recordset(COALESCE(v_inn->'bowling', '[]'::JSONB)) WITH ORDINALITY
-      AS w(player_name TEXT, bowling_order INT, overs NUMERIC, maidens INT,
-           runs_conceded INT, wickets INT, wides INT, no_balls INT, ord INT);
+    FROM ROWS FROM (
+      jsonb_to_recordset(COALESCE(v_inn->'bowling', '[]'::JSONB))
+        AS (player_name TEXT, bowling_order INT, overs NUMERIC, maidens INT,
+            runs_conceded INT, wickets INT, wides INT, no_balls INT)
+    ) WITH ORDINALITY
+      AS w(player_name, bowling_order, overs, maidens,
+           runs_conceded, wickets, wides, no_balls, ord);
   END LOOP;
 
   RETURN jsonb_build_object('match_id', v_match_id, 'series_id', v_series_id);

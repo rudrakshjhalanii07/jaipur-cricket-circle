@@ -24,6 +24,13 @@ interface PlayerAvatarProps {
   alt?: string;
   /** Logical display size in px used as next/image width & height hint (default 80). */
   displaySize?: number;
+  /**
+   * Photo treatment. "editorial" (default) applies the site's desaturated
+   * portrait look used across /members and /about; "natural" leaves the
+   * uploaded photo in its original colour, for places like scorecard rows
+   * where the face is small and needs to read at a glance.
+   */
+  treatment?: "editorial" | "natural";
 }
 
 /**
@@ -41,14 +48,18 @@ export default function PlayerAvatar({
   imgClassName = "w-full h-full object-cover",
   alt,
   displaySize = 80,
+  treatment = "editorial",
 }: PlayerAvatarProps) {
   const [photoError, setPhotoError] = useState(false);
   const fallbackUrl = getDiceBearUrl(name, team);
   const displayAlt = alt ?? name;
   const showRealPhoto = !!src && !photoError;
+  const editorial = treatment === "editorial";
+  const frameClass = editorial ? "portrait-frame" : "";
+  const photoClass = editorial ? "portrait-photo" : "portrait-photo-natural";
 
   return (
-    <div className={`portrait-frame bg-white/5 border border-white/10 flex items-center justify-center shrink-0 ${className}`}>
+    <div className={`${frameClass} bg-white/5 border border-white/10 flex items-center justify-center shrink-0 ${className}`}>
       {showRealPhoto ? (
         <Image
           src={src}
@@ -56,7 +67,7 @@ export default function PlayerAvatar({
           width={displaySize}
           height={displaySize}
           loading="lazy"
-          className={`${imgClassName} portrait-photo`}
+          className={`${imgClassName} ${photoClass}`}
           onError={() => setPhotoError(true)}
         />
       ) : (
@@ -64,7 +75,7 @@ export default function PlayerAvatar({
         <img
           src={fallbackUrl}
           alt={displayAlt}
-          className={`${imgClassName} portrait-photo`}
+          className={`${imgClassName} ${photoClass}`}
         />
       )}
     </div>

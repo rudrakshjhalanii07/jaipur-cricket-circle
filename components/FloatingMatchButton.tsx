@@ -133,7 +133,7 @@ export default function FloatingMatchButton({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           whileTap={{ scale: 0.97 }}
-          aria-label="View next Sunday match details"
+          aria-label="View next match details"
           className="theme-static-dark relative flex items-center justify-center rounded-full bg-jcc-blue w-12 h-12 sm:w-14 sm:h-14 shadow-[0_6px_20px_rgba(18,35,63,0.28)] border transition-shadow duration-500 ease-out"
           style={{ borderColor: "color-mix(in srgb, var(--color-jcc-accent) 40%, transparent)" }}
         >
@@ -190,7 +190,7 @@ export default function FloatingMatchButton({
                       Next Match Coming Soon
                     </h3>
                     <p className="text-sm font-medium text-[#12233F]/60 max-w-sm mx-auto leading-relaxed">
-                      The fixture is being set. Hold your Sunday and keep your kit close.
+                      The fixture is being set. Hold the date and keep your kit close.
                     </p>
                   </div>
                 ) : (
@@ -213,7 +213,7 @@ export default function FloatingMatchButton({
                           )}
                         </div>
                         <h3 className="text-xl sm:text-2xl font-black text-[#1A1508] uppercase tracking-tight">
-                          Next Sunday Match
+                          Next Match
                         </h3>
                       </div>
                     </div>
@@ -344,7 +344,7 @@ export default function FloatingMatchButton({
                         className="group/btn inline-flex items-center gap-2.5 btn-vibrant-blue text-[12px] font-black w-full justify-center px-5 py-3 rounded-xl"
                       >
                         <CalendarCheck className="w-4 h-4" />
-                        {isFull ? "JOIN WAITLIST" : "REGISTER FOR SUNDAY"}
+                        {isFull ? "JOIN WAITLIST" : "REGISTER TO PLAY"}
                         <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
                       </Link>
                     )}

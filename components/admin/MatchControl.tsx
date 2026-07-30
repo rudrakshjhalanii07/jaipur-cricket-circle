@@ -535,7 +535,7 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
                       {/* Badge */}
                       <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-jcc-accent/10 border border-jcc-accent/20 text-jcc-accent font-black text-[10px] uppercase tracking-widest">
                         <Trophy className="w-4 h-4" />
-                        {new Date(match?.match_date || "").getDay() === 0 ? "Sunday Match Day" : "Match Day Scheduled"}
+                        Match Day Scheduled
                       </div>
 
                       {/* Main Info */}
@@ -615,7 +615,7 @@ export default function MatchControl({ adminPassword }: { adminPassword?: string
                       <p className="text-[11px] text-white/40 font-black px-1 italic uppercase tracking-widest">
                         {regCounts.confirmed >= (match!.player_limit || 1) 
                           ? "Squad limit reached. New entries added to waitlist." 
-                          : `${(match!.player_limit || 1) - regCounts.confirmed} spots remaining for the Sunday showdown.`}
+                          : `${(match!.player_limit || 1) - regCounts.confirmed} spots remaining for the showdown.`}
                       </p>
                     </div>
                   </div>

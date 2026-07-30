@@ -22,7 +22,7 @@ import {
 import SectionHeading from "@/components/SectionHeading";
 import PlayerAvatar from "@/components/PlayerAvatar";
 import { supabase } from "@/lib/supabase";
-import { fetchRivalrySeasons } from "@/lib/rivalry";
+import { fetchSeasons } from "@/lib/seasons";
 import {
   getGovernanceRoleLabel,
   isCommitteeCaptain,
@@ -126,10 +126,11 @@ function CommitteeMemberCard({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-// Sundays elapsed since the JCC first gathered (March 2026).
-const JCC_FOUNDING_SUNDAY = new Date("2026-03-01");
-function sundaysElapsed(): number {
-  return Math.floor((Date.now() - JCC_FOUNDING_SUNDAY.getTime()) / (7 * 24 * 60 * 60 * 1000));
+// Weeks elapsed since the JCC first gathered (March 2026). The club plays
+// once a week, so this is a plain 7-day count — no weekday is assumed.
+const JCC_FOUNDING_DATE = new Date("2026-03-01");
+function weeksElapsed(): number {
+  return Math.floor((Date.now() - JCC_FOUNDING_DATE.getTime()) / (7 * 24 * 60 * 60 * 1000));
 }
 
 export default function AboutPage() {
@@ -137,7 +138,7 @@ export default function AboutPage() {
   const [stats] = useState({
     activePlayers: "50+",
     matchesPlayed: "40+",
-    sundaysActive: `${sundaysElapsed()}+`,
+    weeksActive: `${weeksElapsed()}+`,
     communityLove: "∞",
   });
 
@@ -366,7 +367,7 @@ export default function AboutPage() {
           {[
             { icon: Users, value: stats.activePlayers, label: "Active Members", color: "text-jcc-accent" },
             { icon: Trophy, value: stats.matchesPlayed, label: "Matches Played", color: "text-jcc-accent" },
-            { icon: Calendar, value: stats.sundaysActive, label: "Sundays Active", color: "text-jcc-accent-dark" },
+            { icon: Calendar, value: stats.weeksActive, label: "Weeks Active", color: "text-jcc-accent-dark" },
             { icon: Heart, value: stats.communityLove, label: "Community Love", color: "text-jcc-ball-red" },
           ].map((stat, i) => (
             <motion.div
@@ -429,7 +430,7 @@ export default function AboutPage() {
             </div>
             <h3 className="text-xl font-black text-white font-[var(--font-heading)] uppercase mb-3">Boundary Banter</h3>
             <p className="text-white/50 text-sm leading-relaxed flex-1 mb-7 font-medium">
-              Our weekly match reports and community chronicle — part journalism, part banter, all heart. Every Sunday&apos;s drama gets captured in the pages of Boundary Banter.
+              Our weekly match reports and community chronicle — part journalism, part banter, all heart. Every week&apos;s drama gets captured in the pages of Boundary Banter.
             </p>
             <Link href="/boundary-banter" className="inline-flex items-center gap-2 text-[11px] text-jcc-accent-dark font-black uppercase tracking-widest group/link">
               Enter the Newsroom <ChevronRight className="w-3.5 h-3.5 group-hover/link:translate-x-1 transition-transform" />
@@ -445,11 +446,11 @@ export default function AboutPage() {
             <div className="w-11 h-11 rounded-2xl bg-jcc-ball-red/10 border border-jcc-ball-red/20 flex items-center justify-center mb-5">
               <Swords className="w-5 h-5 text-jcc-ball-red" />
             </div>
-            <h3 className="text-xl font-black text-white font-[var(--font-heading)] uppercase mb-3">The Rivalry</h3>
+            <h3 className="text-xl font-black text-white font-[var(--font-heading)] uppercase mb-3">The Seasons</h3>
             <p className="text-white/50 text-sm leading-relaxed flex-1 mb-7 font-medium">
-              Three teams. One circle. The competition is structured, the stakes are real, and every Sunday adds a new chapter to a legacy being written in real time.
+              Four teams. One circle. The competition is structured, the stakes are real, and every week adds a new chapter to a legacy being written in real time.
             </p>
-            <Link href="/rivalry" className="inline-flex items-center gap-2 text-[11px] text-jcc-ball-red font-black uppercase tracking-widest group/link">
+            <Link href="/seasons" className="inline-flex items-center gap-2 text-[11px] text-jcc-ball-red font-black uppercase tracking-widest group/link">
               Explore Match History <ChevronRight className="w-3.5 h-3.5 group-hover/link:translate-x-1 transition-transform" />
             </Link>
           </motion.div>

@@ -4,19 +4,20 @@ const EXTRACTION_PROMPT = `You are a cricket scorecard digitizer for JCC (Jaipur
 Extract structured match data from the provided scorecard images/documents.
 
 Team ID mappings (use exactly these strings):
-- "mavericks"     → Mavericks
+- "mavericks"     → Mavericks / Mavs
 - "neurostrikers" → NeuroStrikers / Neuro strikers / Neuro Strikers
 - "outliers"      → The Outliers / Outliers
+- "vikings"       → Vikings / The Vikings
 
 Return ONLY valid JSON matching this exact structure — no markdown, no extra text, no code fences:
 
 {
   "match_info": {
-    "stage": "league",
+    "stage": "league or eliminator or qualifier or final",
     "match_date": "YYYY-MM-DD or null",
-    "venue": "string or null",
-    "team1_id": "mavericks or neurostrikers or outliers",
-    "team2_id": "mavericks or neurostrikers or outliers",
+    "venue": "string or null — leave null unless the scorecard names a ground",
+    "team1_id": "mavericks or neurostrikers or outliers or vikings",
+    "team2_id": "mavericks or neurostrikers or outliers or vikings",
     "toss_winner_id": "team_id or null",
     "toss_decision": "bat or bowl or null",
     "winner_id": "team_id or null",
@@ -45,12 +46,12 @@ Return ONLY valid JSON matching this exact structure — no markdown, no extra t
           "batting_order": 1,
           "player_name": "string",
           "runs": 0,
-          "balls_faced": 0,
+          "balls_faced": "number or null",
           "fours": 0,
           "sixes": 0,
           "dismissal_type": "bowled or caught or lbw or run_out or stumped or hit_wicket or retired_hurt or not_out or did_not_bat",
           "dismissed_by": "bowler name or null",
-          "caught_by": "fielder name or null"
+          "caught_by": "fielder name or null — for caught and bowled, repeat the bowler's name here (see rules)"
         }
       ],
       "bowling": [
@@ -70,11 +71,16 @@ Return ONLY valid JSON matching this exact structure — no markdown, no extra t
 }
 
 Important rules:
+- Anything the scorecard does not state must be null — never guess or infer a
+  value. Missing fields get filled in by hand in the review form afterwards.
 - For overs, use decimal notation: 9 overs 4 balls = 9.4
 - If the toss winner opted to field, toss_decision is "bowl"
 - "retired_hurt" is NOT a wicket — do not count it in total_wickets
 - Include ALL batters and bowlers shown in the scorecard
-- winner_id = the team with more runs; margin = difference in runs`;
+- winner_id = the team with more runs; margin = difference in runs
+- There is no separate dismissal type for "caught and bowled" — use dismissal_type
+  "caught" and set BOTH dismissed_by and caught_by to the bowler's name (e.g. a
+  scorecard line "c & b Sagar" becomes dismissed_by: "Sagar", caught_by: "Sagar")`;
 
 export async function POST(request: Request) {
   try {

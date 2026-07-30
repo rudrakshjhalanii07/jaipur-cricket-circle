@@ -1,0 +1,734 @@
+{
+  "_note": "JCC Season 3 auction results, transcribed from the results graphic. `name` is exactly as printed there; `resolved` is the canonical name, confirmed one by one, and `member` says whether that person has an approved `players` row (true) or exists only in scorecards (false). Prices are in lakhs (1 Cr = 100 L) so they sort and total numerically; `display` keeps the printed form.",
+  "season": "Season 3",
+  "currency": "INR lakh",
+  "teams": [
+    {
+      "team_id": "neurostrikers",
+      "name": "NeuroStrikers",
+      "captain": "Saurabh Charan",
+      "players": [
+        {
+          "no": 1,
+          "name": "Saurabh Charan",
+          "captain": true,
+          "base": 50,
+          "sold": 100,
+          "display": {
+            "base": "50L",
+            "sold": "1Cr."
+          },
+          "resolved": "Saurabh Charan",
+          "member": true
+        },
+        {
+          "no": 2,
+          "name": "Anil Rawat",
+          "base": 100,
+          "sold": 500,
+          "display": {
+            "base": "1Cr.",
+            "sold": "5Cr."
+          },
+          "resolved": "Anil Rawat",
+          "member": true
+        },
+        {
+          "no": 3,
+          "name": "Sagar Sharma",
+          "base": 100,
+          "sold": 640,
+          "display": {
+            "base": "1Cr.",
+            "sold": "6.40Cr."
+          },
+          "resolved": "Sagar Sharma",
+          "member": true
+        },
+        {
+          "no": 4,
+          "name": "Dhruv Paliwal",
+          "base": 50,
+          "sold": 60,
+          "display": {
+            "base": "50L",
+            "sold": "60L"
+          },
+          "resolved": "Dhruv paliwal",
+          "member": true
+        },
+        {
+          "no": 5,
+          "name": "Gaurav",
+          "base": 50,
+          "sold": 60,
+          "display": {
+            "base": "50L",
+            "sold": "60L"
+          },
+          "resolved": "Kunwar Gaurav",
+          "member": true
+        },
+        {
+          "no": 6,
+          "name": "Rahul Kasiwal",
+          "base": 50,
+          "sold": 60,
+          "display": {
+            "base": "50L",
+            "sold": "60L"
+          },
+          "resolved": "Rahul Kasliwal",
+          "member": true,
+          "note": "spelt Kasiwal on the graphic"
+        },
+        {
+          "no": 7,
+          "name": "Vikas",
+          "base": 50,
+          "sold": 60,
+          "display": {
+            "base": "50L",
+            "sold": "60L"
+          },
+          "resolved": "Vikas Majoka",
+          "member": true
+        },
+        {
+          "no": 8,
+          "name": "Sanjeev",
+          "base": 25,
+          "sold": 100,
+          "display": {
+            "base": "25L",
+            "sold": "1Cr."
+          },
+          "resolved": "Sanjeev Meena Brewvana Owner",
+          "member": false,
+          "note": "Brewvana owner"
+        },
+        {
+          "no": 9,
+          "name": "Akshat Pandey",
+          "base": 25,
+          "sold": 30,
+          "display": {
+            "base": "25L",
+            "sold": "30L"
+          },
+          "resolved": "Akshat Pandey",
+          "member": false
+        },
+        {
+          "no": 10,
+          "name": "Ankit Gurgaon",
+          "base": 25,
+          "sold": 100,
+          "display": {
+            "base": "25L",
+            "sold": "1Cr."
+          },
+          "resolved": "Ankit Sharma",
+          "member": false,
+          "note": "appears in Outliers scorecards as Ankit Sharma"
+        },
+        {
+          "no": 11,
+          "name": "Yuvraj Pareek",
+          "base": 25,
+          "sold": 25,
+          "display": {
+            "base": "25L",
+            "sold": "25L"
+          },
+          "resolved": "Yuvraj Pareek",
+          "member": false
+        },
+        {
+          "no": 12,
+          "name": "Devam",
+          "base": 25,
+          "sold": 25,
+          "display": {
+            "base": "25L",
+            "sold": "25L"
+          },
+          "resolved": "Devam Shah",
+          "member": false
+        },
+        {
+          "no": 13,
+          "name": "Aditya Maroo",
+          "base": 25,
+          "sold": 25,
+          "display": {
+            "base": "25L",
+            "sold": "25L"
+          },
+          "resolved": "Aditya Maroo",
+          "member": false
+        }
+      ]
+    },
+    {
+      "team_id": "mavericks",
+      "name": "Mavericks",
+      "captain": "Nitesh Jhurani",
+      "players": [
+        {
+          "no": 1,
+          "name": "Nitesh Jhurani",
+          "captain": true,
+          "base": 50,
+          "sold": 100,
+          "display": {
+            "base": "50L",
+            "sold": "1Cr."
+          },
+          "resolved": "Nitesh Jhurani",
+          "member": true
+        },
+        {
+          "no": 2,
+          "name": "Harish Jangid",
+          "base": 100,
+          "sold": 120,
+          "display": {
+            "base": "1Cr.",
+            "sold": "1.20Cr."
+          },
+          "resolved": "Harish Jangid",
+          "member": true
+        },
+        {
+          "no": 3,
+          "name": "Rahul Rathod",
+          "base": 100,
+          "sold": 100,
+          "display": {
+            "base": "1Cr.",
+            "sold": "1Cr."
+          },
+          "resolved": "Rahul Rathore",
+          "member": false,
+          "note": "spelt Rathod on the graphic"
+        },
+        {
+          "no": 4,
+          "name": "Abhijeet Singh Shekhawat",
+          "base": 50,
+          "sold": 150,
+          "display": {
+            "base": "50L",
+            "sold": "1.50Cr."
+          },
+          "resolved": "Abhijeet Singh Shekhawat",
+          "member": true
+        },
+        {
+          "no": 5,
+          "name": "Jaivardhan",
+          "base": 50,
+          "sold": 150,
+          "display": {
+            "base": "50L",
+            "sold": "1.50Cr."
+          },
+          "resolved": "Jaivardhan Pathak",
+          "member": true
+        },
+        {
+          "no": 6,
+          "name": "Ankit Jain",
+          "base": 50,
+          "sold": 70,
+          "display": {
+            "base": "50L",
+            "sold": "70L"
+          },
+          "resolved": "Ankit Jain",
+          "member": true
+        },
+        {
+          "no": 7,
+          "name": "Lakshya",
+          "base": 50,
+          "sold": 90,
+          "display": {
+            "base": "50L",
+            "sold": "90L"
+          },
+          "resolved": "Lakshya Sharma",
+          "member": true
+        },
+        {
+          "no": 8,
+          "name": "Prateek",
+          "base": 25,
+          "sold": 30,
+          "display": {
+            "base": "25L",
+            "sold": "30L"
+          },
+          "resolved": "Prateek Chatterjee",
+          "member": false
+        },
+        {
+          "no": 9,
+          "name": "Rudra",
+          "base": 25,
+          "sold": 55,
+          "display": {
+            "base": "25L",
+            "sold": "55L"
+          },
+          "resolved": "Rudhra Agrawal",
+          "member": false,
+          "note": "listed as 'Rudra' on the graphic; same person as scorecard name Rudhra Agrawal"
+        },
+        {
+          "no": 10,
+          "name": "Adhip",
+          "base": 25,
+          "sold": 195,
+          "display": {
+            "base": "25L",
+            "sold": "1.95Cr."
+          },
+          "resolved": "Adhip Chaudhary",
+          "member": true
+        },
+        {
+          "no": 11,
+          "name": "Sonu Khan",
+          "base": 25,
+          "sold": 35,
+          "display": {
+            "base": "25L",
+            "sold": "35L"
+          },
+          "resolved": "Sonu",
+          "member": false,
+          "note": "10 career matches as a non-member"
+        },
+        {
+          "no": 12,
+          "name": "Raghav Patodia",
+          "base": 25,
+          "sold": 30,
+          "display": {
+            "base": "25L",
+            "sold": "30L"
+          },
+          "resolved": "Raghav Patodia",
+          "member": false,
+          "note": "9 career matches as a non-member"
+        },
+        {
+          "no": 13,
+          "name": "Madhav",
+          "base": 25,
+          "sold": 25,
+          "display": {
+            "base": "25L",
+            "sold": "25L"
+          },
+          "resolved": "Madhav",
+          "member": false
+        },
+        {
+          "no": 14,
+          "name": "Sarthak",
+          "base": 25,
+          "sold": 25,
+          "display": {
+            "base": "25L",
+            "sold": "25L"
+          },
+          "resolved": "Sarthak S Rathore",
+          "member": true
+        }
+      ]
+    },
+    {
+      "team_id": "outliers",
+      "name": "The Outliers",
+      "captain": "Naman Saini",
+      "players": [
+        {
+          "no": 1,
+          "name": "Naman Saini",
+          "captain": true,
+          "base": 100,
+          "sold": 140,
+          "display": {
+            "base": "1Cr.",
+            "sold": "1.40Cr."
+          },
+          "resolved": "Naman saini",
+          "member": true
+        },
+        {
+          "no": 2,
+          "name": "Siddharth Rao",
+          "base": 100,
+          "sold": 280,
+          "display": {
+            "base": "1Cr.",
+            "sold": "2.80Cr."
+          },
+          "resolved": "Siddharth Rao",
+          "member": true
+        },
+        {
+          "no": 3,
+          "name": "Rudraksh",
+          "base": 50,
+          "sold": 320,
+          "display": {
+            "base": "50L",
+            "sold": "3.20Cr."
+          },
+          "resolved": "Rudraksh Jhalani",
+          "member": true
+        },
+        {
+          "no": 4,
+          "name": "Harnoor",
+          "base": 50,
+          "sold": 120,
+          "display": {
+            "base": "50L",
+            "sold": "1.20Cr."
+          },
+          "resolved": "Harnoor Singh",
+          "member": true
+        },
+        {
+          "no": 5,
+          "name": "Satvik",
+          "base": 50,
+          "sold": 110,
+          "display": {
+            "base": "50L",
+            "sold": "1.10Cr."
+          },
+          "resolved": "Satvik Todwal",
+          "member": true
+        },
+        {
+          "no": 6,
+          "name": "Krishna",
+          "base": 50,
+          "sold": 60,
+          "display": {
+            "base": "50L",
+            "sold": "60L"
+          },
+          "resolved": "Krishna saxena",
+          "member": true
+        },
+        {
+          "no": 7,
+          "name": "Nitin",
+          "base": 50,
+          "sold": 70,
+          "display": {
+            "base": "50L",
+            "sold": "70L"
+          },
+          "resolved": "Nitin Setia",
+          "member": true
+        },
+        {
+          "no": 8,
+          "name": "Yash Rathi",
+          "base": 25,
+          "sold": 30,
+          "display": {
+            "base": "25L",
+            "sold": "30L"
+          },
+          "resolved": "Yash Rathi",
+          "member": false,
+          "note": "not Yash Pareek"
+        },
+        {
+          "no": 9,
+          "name": "Vaibhav",
+          "base": 25,
+          "sold": 35,
+          "display": {
+            "base": "25L",
+            "sold": "35L"
+          },
+          "resolved": "Vaibhav Asudani",
+          "member": true
+        },
+        {
+          "no": 10,
+          "name": "Madhav Sharma",
+          "base": 25,
+          "sold": 30,
+          "display": {
+            "base": "25L",
+            "sold": "30L"
+          },
+          "resolved": "Madhav Sharma",
+          "member": true
+        },
+        {
+          "no": 11,
+          "name": "Rishab",
+          "base": 25,
+          "sold": 30,
+          "display": {
+            "base": "25L",
+            "sold": "30L"
+          },
+          "resolved": "Rishabh Soni",
+          "member": false,
+          "note": "listed as 'Rishab' on the graphic; same person as scorecard name Rishabh Soni"
+        },
+        {
+          "no": 12,
+          "name": "Shrikanth",
+          "base": 25,
+          "sold": 30,
+          "display": {
+            "base": "25L",
+            "sold": "30L"
+          },
+          "resolved": "Shrikant",
+          "member": true,
+          "note": "spelt Shrikanth on the graphic"
+        },
+        {
+          "no": 13,
+          "name": "Naman Mittal",
+          "base": 25,
+          "sold": 30,
+          "display": {
+            "base": "25L",
+            "sold": "30L"
+          },
+          "resolved": "Naman Mittal",
+          "member": true
+        },
+        {
+          "no": 14,
+          "name": "Mohit",
+          "base": 25,
+          "sold": 55,
+          "display": {
+            "base": "25L",
+            "sold": "55L"
+          },
+          "resolved": "Mohit Khurrana",
+          "member": false
+        },
+        {
+          "no": 15,
+          "name": "Gaurang",
+          "base": 25,
+          "sold": 25,
+          "display": {
+            "base": "25L",
+            "sold": "25L"
+          },
+          "resolved": "Gaurang Dixit",
+          "member": true
+        },
+        {
+          "no": 16,
+          "name": "Karandeep",
+          "base": 25,
+          "sold": 25,
+          "display": {
+            "base": "25L",
+            "sold": "25L"
+          },
+          "resolved": "Karandeep Singh Kamboj ",
+          "member": true
+        },
+        {
+          "no": 17,
+          "name": "Sameer Saifi",
+          "base": 25,
+          "sold": 25,
+          "display": {
+            "base": "25L",
+            "sold": "25L"
+          },
+          "resolved": "Sameer Saifi",
+          "member": true
+        }
+      ]
+    },
+    {
+      "team_id": "vikings",
+      "name": "Vikings",
+      "captain": "Bhairav Deep",
+      "players": [
+        {
+          "no": 1,
+          "name": "Bhairav Deep",
+          "captain": true,
+          "base": 100,
+          "sold": 180,
+          "display": {
+            "base": "1Cr.",
+            "sold": "1.80Cr."
+          },
+          "resolved": "BHAIRAV DEEP",
+          "member": true
+        },
+        {
+          "no": 2,
+          "name": "Mahesh Kumar",
+          "base": 100,
+          "sold": 360,
+          "display": {
+            "base": "1Cr.",
+            "sold": "3.60Cr."
+          },
+          "resolved": "Mahesh kumar",
+          "member": true
+        },
+        {
+          "no": 3,
+          "name": "Nishant Gupta",
+          "base": 50,
+          "sold": 120,
+          "display": {
+            "base": "50L",
+            "sold": "1.20Cr."
+          },
+          "resolved": "Nishant Gupta",
+          "member": true
+        },
+        {
+          "no": 4,
+          "name": "Navin Gurjar",
+          "base": 50,
+          "sold": 80,
+          "display": {
+            "base": "50L",
+            "sold": "80L"
+          },
+          "resolved": "navin gurjar",
+          "member": true
+        },
+        {
+          "no": 5,
+          "name": "Yash Pareek",
+          "base": 50,
+          "sold": 70,
+          "display": {
+            "base": "50L",
+            "sold": "70L"
+          },
+          "resolved": "Yash Pareek",
+          "member": true
+        },
+        {
+          "no": 6,
+          "name": "Opal",
+          "base": 50,
+          "sold": 80,
+          "display": {
+            "base": "50L",
+            "sold": "80L"
+          },
+          "resolved": "Opal",
+          "member": true
+        },
+        {
+          "no": 7,
+          "name": "Anagh",
+          "base": 50,
+          "sold": 60,
+          "display": {
+            "base": "50L",
+            "sold": "60L"
+          },
+          "resolved": "Anagh Nandwana",
+          "member": true
+        },
+        {
+          "no": 8,
+          "name": "Prashant",
+          "base": 25,
+          "sold": 155,
+          "display": {
+            "base": "25L",
+            "sold": "1.55Cr."
+          },
+          "resolved": "Prashant Ramchandani",
+          "member": true
+        },
+        {
+          "no": 9,
+          "name": "Nimish",
+          "base": 25,
+          "sold": 60,
+          "display": {
+            "base": "25L",
+            "sold": "60L"
+          },
+          "resolved": "Nimish Rajoria",
+          "member": false
+        },
+        {
+          "no": 10,
+          "name": "Khushal",
+          "base": 25,
+          "sold": 30,
+          "display": {
+            "base": "25L",
+            "sold": "30L"
+          },
+          "resolved": "Khushal Jain",
+          "member": false
+        },
+        {
+          "no": 11,
+          "name": "Imran",
+          "base": 25,
+          "sold": 60,
+          "display": {
+            "base": "25L",
+            "sold": "60L"
+          },
+          "resolved": "imran",
+          "member": true
+        },
+        {
+          "no": 12,
+          "name": "Raghav",
+          "base": 25,
+          "sold": 25,
+          "display": {
+            "base": "25L",
+            "sold": "25L"
+          },
+          "resolved": "Raghav",
+          "member": false,
+          "note": "distinct from Raghav Patodia"
+        },
+        {
+          "no": 13,
+          "name": "Rahul Krishnani",
+          "base": 25,
+          "sold": 25,
+          "display": {
+            "base": "25L",
+            "sold": "25L"
+          },
+          "resolved": "Rahul Krishnani",
+          "member": false
+        }
+      ]
+    }
+  ]
+}

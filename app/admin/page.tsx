@@ -12,19 +12,21 @@ import {
   ArrowRight,
   Loader2,
   Newspaper,
-  FileJson
+  FileJson,
+  History
 } from "lucide-react";
 import MatchControl from "@/components/admin/MatchControl";
 import RegistrationControl from "@/components/admin/RegistrationControl";
 import MemberRoleManagement from "@/components/admin/MemberRoleManagement";
 import MemberControl from "@/components/admin/MemberControl";
 import BoundaryBanterControl from "@/components/admin/BoundaryBanterControl";
+import SeasonTransitionControl from "@/components/admin/SeasonTransitionControl";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminStatCard from "@/components/admin/AdminStatCard";
 import { supabase } from "@/lib/supabase";
 import { HONORARY_GOVERNANCE_MEMBERS } from "@/lib/member-role";
 
-type AdminSection = "dashboard" | "match" | "registrations" | "members" | "roles" | "chewvana";
+type AdminSection = "dashboard" | "match" | "registrations" | "members" | "roles" | "chewvana" | "seasons";
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -202,6 +204,7 @@ export default function AdminPage() {
     { id: "members", label: "Members", icon: Users },
     { id: "roles", label: "Member Roles", icon: ShieldCheck },
     { id: "chewvana", label: "Boundary Banter", icon: Newspaper },
+    { id: "seasons", label: "Seasons", icon: History },
   ];
 
   const externalLinks = [
@@ -276,7 +279,7 @@ export default function AdminPage() {
                     <AdminPageHeader title="Dashboard" subtitle="Circle Administration" />
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <AdminStatCard label="Seasons Played" value={seasonsPlayed} sub="Rivalry seasons" icon={Newspaper} />
+                      <AdminStatCard label="Seasons Played" value={seasonsPlayed} sub="All-time seasons" icon={Newspaper} />
                       <AdminStatCard label="Members" value={memberCount} sub="Approved players" icon={Users} />
                       <AdminStatCard label="Roles" value={committeeCount} sub="Committee members" icon={ShieldCheck} />
                     </div>
@@ -324,6 +327,7 @@ export default function AdminPage() {
                 {activeSection === "members" && <MemberControl adminPassword={password} />}
                 {activeSection === "roles" && <MemberRoleManagement adminPassword={password} />}
                 {activeSection === "chewvana" && <BoundaryBanterControl adminPassword={password} />}
+                {activeSection === "seasons" && <SeasonTransitionControl adminPassword={password} />}
               </motion.div>
             </AnimatePresence>
           </main>

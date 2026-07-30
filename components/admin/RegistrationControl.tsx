@@ -115,7 +115,7 @@ export default function RegistrationControl({ adminPassword }: { adminPassword?:
       <AdminPageHeader title="Match Roster" subtitle="Squad & Standby Management" />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        <AdminStatCard label="Registered" value={confirmed.length} sub="Confirmed for Sunday" icon={CheckCircle2} />
+        <AdminStatCard label="Registered" value={confirmed.length} sub="Confirmed for match day" icon={CheckCircle2} />
         <AdminStatCard label="Waitlist" value={waitlist.length} sub="Awaiting a spot" icon={Wifi} />
       </div>
 
@@ -178,7 +178,7 @@ export default function RegistrationControl({ adminPassword }: { adminPassword?:
           <AdminEmptyState
             icon={ClipboardX}
             title="No registrations yet"
-            description="Players who sign up for the next Sunday match will appear here."
+            description="Players who sign up for the next match will appear here."
           />
         </div>
       )}

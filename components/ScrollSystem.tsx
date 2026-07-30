@@ -7,7 +7,7 @@ export const NAV_ROUTES = [
   { href: "/", label: "Home" },
   { href: "/boundary-banter", label: "Boundary Banter" },
   { href: "/members", label: "Members" },
-  { href: "/rivalry", label: "Rivalry" },
+  { href: "/seasons", label: "Seasons" },
   { href: "/tournament", label: "Tournament" },
   { href: "/register", label: "Register" },
   { href: "/profile", label: "Profile" },

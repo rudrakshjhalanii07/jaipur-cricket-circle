@@ -5,8 +5,8 @@ import { TEAMS } from "@/lib/teams";
 interface StatsSectionProps {
   stats: {
     activePlayers: string;
-    sundayGames: string;
-    sundaysActive: string;
+    weeklyGames: string;
+    weeksActive: string;
     communityLove: string;
   };
 }
@@ -86,7 +86,7 @@ export default function StatsSection({ stats }: StatsSectionProps) {
             The Circle, <span className="text-gradient-cyan">By the Numbers</span>
           </h2>
           <p className="mt-6 text-jcc-blue/60 text-xl max-w-2xl mx-auto font-medium leading-relaxed">
-            From five friends and a Sunday game to a Circle that keeps growing.
+            From five friends and a weekend game to a Circle that keeps growing.
           </p>
         </AnimateIn>
 

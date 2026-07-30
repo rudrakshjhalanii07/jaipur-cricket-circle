@@ -584,17 +584,17 @@ export default function RegisterPage() {
     const timelineSteps = [
       { label: "Fixture Planning", icon: ClipboardList, active: true },
       { label: "Registration Opens", icon: CheckCircle2, active: false },
-      { label: "Sunday Match", icon: Swords, active: false },
+      { label: "Match Day", icon: Swords, active: false },
     ];
 
     const secondaryActions = [
       { href: "https://chat.whatsapp.com/LtuFpx2EcKO4E5yZWP8aue?mode=gi_t", label: "Join WhatsApp Updates", icon: MessageCircle, external: true },
-      { href: "/rivalry", label: "Explore Rivalries", icon: Swords, external: false },
+      { href: "/seasons", label: "Explore Seasons", icon: Swords, external: false },
       { href: "/members", label: "Meet the Members", icon: UsersRound, external: false },
       { href: "/boundary-banter", label: "Read Boundary Banter", icon: Newspaper, external: false },
     ];
 
-    const headlineWords = ["THE", "NEXT", "SUNDAY", "BATTLE", "AWAITS"];
+    const headlineWords = ["THE", "NEXT", "WEEK'S", "BATTLE", "AWAITS"];
 
     return (
       <div className="min-h-screen page-top pb-24 relative overflow-hidden hero-gradient flex items-center justify-center">
@@ -805,7 +805,7 @@ export default function RegisterPage() {
         </div>
 
         <SectionHeading
-          title="Sunday Registration"
+          title="Match Registration"
           subtitle="Reserve your spot for this week's high-stakes encounter."
           accentColor="turf"
           priority
@@ -829,7 +829,7 @@ export default function RegisterPage() {
                 <span className="text-[10px] font-black text-jcc-accent uppercase tracking-[0.3em]">Official Match fixture</span>
               </div>
               <h2 className="text-3xl sm:text-4xl font-black text-white uppercase tracking-tight mb-8 leading-none">
-                JCC Weekly Sunday Clash
+                JCC Weekly Clash
               </h2>
             </div>
 
@@ -965,7 +965,7 @@ export default function RegisterPage() {
               {match.status === "unscheduled" ? (
                 <div className="p-8 rounded-2xl bg-jcc-accent/5 border border-jcc-accent/10 text-center">
                    <Calendar className="w-10 h-10 text-jcc-accent mx-auto mb-4" />
-                   <h4 className="text-lg font-black text-white mb-2 uppercase">No Sunday Match Scheduled Yet</h4>
+                   <h4 className="text-lg font-black text-white mb-2 uppercase">No Match Scheduled Yet</h4>
                    <p className="text-[13px] font-medium text-white/40">Stay tuned — registration will open once the next match is announced.</p>
                 </div>
               ) : match.status === "cancelled" ? (
@@ -987,7 +987,7 @@ export default function RegisterPage() {
                    <h4 className="text-2xl font-black text-white mb-2 uppercase tracking-tight">Request Received!</h4>
                    <p className="text-white/60 text-[14px] mb-8 leading-relaxed font-medium">
                      Your joining request has been sent to admin for approval. <br />
-                     Once approved, you can register for Sunday matches using your phone number.
+                     Once approved, you can register for weekly matches using your phone number.
                    </p>
                    <button 
                     onClick={() => setFormStatus("idle")}
@@ -1112,7 +1112,7 @@ export default function RegisterPage() {
                               ) : (
                                 <>
                                   <CheckCircle2 className="w-5 h-5" />
-                                  <span>CONFIRM SUNDAY SPOT</span>
+                                  <span>CONFIRM YOUR SPOT</span>
                                 </>
                               )}
                             </button>
@@ -1267,7 +1267,7 @@ export default function RegisterPage() {
                     ) : (
                       <>
                         <Send className="w-5 h-5" />
-                        {isMatchFull ? <span>JOIN WAITLIST</span> : <span>CLAIM SUNDAY SPOT</span>}
+                        {isMatchFull ? <span>JOIN WAITLIST</span> : <span>CLAIM YOUR SPOT</span>}
                       </>
                     )}
                   </button>

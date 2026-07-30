@@ -38,7 +38,7 @@ export default function LiveTicker({ match, isNavbarScrolled = false }: LiveTick
             LIVE
           </span>
           <span className="text-[10px] sm:text-[11px] font-mono font-black tracking-[0.18em] text-white/95 uppercase">
-            Next Sunday Match Scheduled
+            Next Match Scheduled
           </span>
           <span className="text-white/20 select-none">✦</span>
           <span className="text-[10px] sm:text-[11px] font-mono font-black tracking-[0.18em] text-jcc-accent uppercase">
@@ -69,7 +69,7 @@ export default function LiveTicker({ match, isNavbarScrolled = false }: LiveTick
             STAY TUNED
           </span>
           <span className="text-[10px] sm:text-[11px] font-mono font-black tracking-[0.18em] text-white/80 uppercase">
-            The next Sunday battle is being prepared
+            The next battle is being prepared
           </span>
           <span className="text-white/20 select-none">✦</span>
           <span className="text-[10px] sm:text-[11px] font-mono font-black tracking-[0.18em] text-jcc-accent uppercase">

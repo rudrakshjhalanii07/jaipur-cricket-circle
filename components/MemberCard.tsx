@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import type { Member } from "@/lib/types";
+import { teamByName } from "@/lib/teams";
 import { getMonogramAvatar } from "@/lib/avatar";
 import type { BattingLeaderRow, BowlingLeaderRow, AllRounderRow, FieldingRow } from "@/lib/series";
 
@@ -32,14 +33,27 @@ export default function MemberCard({
   const isCaptain = member.tags.includes("captain") || member.tags.includes("vice-captain");
   const cardTier = isFounder ? " id-card--founder" : isCaptain ? " id-card--captain" : "";
   const hasPhoto = !!member.image && !photoError;
+  const team = teamByName(member.team);
 
   return (
     <div className="group h-full max-w-77.5 sm:max-w-80 mx-auto w-full transition-transform duration-500 ease-out hover:-translate-y-1.5 will-change-transform">
       <div
         onClick={onClick}
         className={`id-card${cardTier} relative flex flex-col h-full cursor-pointer select-none`}
+        // The member's side, drawn as the card's own edge. Inline so it wins
+        // over the tier border-colour in globals.css — an unassigned member has
+        // no colour to claim and keeps the paper-stock edge.
+        style={
+          team
+            ? {
+                borderColor: team.primary,
+                boxShadow: `0 0 0 3px ${team.primary}22, 0 14px 30px -20px rgba(18, 35, 63, 0.3)`,
+              }
+            : undefined
+        }
       >
-        {/* Portrait fills the whole card; identity details reveal on hover */}
+        {/* Portrait fills the whole card; the identity plate is always visible —
+            a hover-only reveal left the name unreachable on touch. */}
         <div className="portrait-frame relative w-full aspect-4/5 overflow-hidden shrink-0">
           {member.image && !photoError ? (
             <Image
@@ -80,7 +94,7 @@ export default function MemberCard({
             the one .portrait-frame uses for its blue multiply wash (::after).
             Nesting it inside .portrait-frame let that blend mute the text to
             an unreadable navy in some browsers even with a higher z-index. */}
-        <div className={`absolute inset-x-0 bottom-0 z-20 bg-linear-to-t pt-14 pb-4 px-4 sm:px-5 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:opacity-100 group-focus-within:translate-y-0 transition-all duration-300 ease-out ${hasPhoto ? "from-black/70 via-black/40 to-transparent" : "from-[rgba(255,255,255,0.95)] via-[rgba(255,255,255,0.7)] to-transparent"}`}>
+        <div className={`absolute inset-x-0 bottom-0 z-20 bg-linear-to-t pt-14 pb-4 px-4 sm:px-5 ${hasPhoto ? "from-black/70 via-black/40 to-transparent" : "from-[rgba(255,255,255,0.95)] via-[rgba(255,255,255,0.7)] to-transparent"}`}>
           <h3
             className={`font-heading text-xl sm:text-2xl font-black uppercase tracking-tight leading-tight text-center ${hasPhoto ? "text-[#ffffff] drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]" : "text-jcc-blue"}`}
           >

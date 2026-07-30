@@ -194,7 +194,7 @@ export default function MemberRoleManagement({ adminPassword }: { adminPassword?
       <div className="space-y-8">
         <AdminPageHeader title="Match Leadership" subtitle="Command Assignment" />
         <div className="premium-card">
-          <AdminEmptyState icon={ShieldOff} title="No fixture scheduled" description="Set up the next Sunday match to assign captaincy and leadership roles." />
+          <AdminEmptyState icon={ShieldOff} title="No fixture scheduled" description="Set up the next match to assign captaincy and leadership roles." />
         </div>
       </div>
     );

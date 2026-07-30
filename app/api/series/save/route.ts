@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { canonicalPlayerName, canonicalNamesInText } from "@/lib/player-names";
 
 interface NewSeriesInput {
   name: string;
   series_no: number;
+  // Schedule week — the Seasons page renders only series that have one.
+  week_no?: number | string | null;
   season_id: string | null;
   overs_per_innings: number;
   venue?: string;
@@ -53,7 +56,7 @@ interface SaveBody {
   series_id?: string;
   new_series?: NewSeriesInput;
   match_no: number;
-  stage: "league" | "final";
+  stage: "league" | "eliminator" | "qualifier" | "final";
   match_date?: string | null;
   venue?: string | null;
   team1_id: string;
@@ -72,6 +75,33 @@ interface SaveBody {
   innings: InningsInput[];
 }
 
+/** Rewrites every player name in a payload to its canonical spelling. */
+function canonicalizeNames(body: SaveBody): SaveBody {
+  return {
+    ...body,
+    team1_captain: canonicalNamesInText(body.team1_captain ?? null),
+    team2_captain: canonicalNamesInText(body.team2_captain ?? null),
+    player_of_match: canonicalNamesInText(body.player_of_match ?? null),
+    innings: (body.innings ?? []).map((inn) => ({
+      ...inn,
+      fall_of_wickets: (inn.fall_of_wickets ?? []).map((f) => ({
+        ...f,
+        player: canonicalPlayerName(f.player ?? ""),
+      })),
+      batting: (inn.batting ?? []).map((b) => ({
+        ...b,
+        player_name: canonicalPlayerName(b.player_name),
+        dismissed_by: canonicalNamesInText(b.dismissed_by ?? null),
+        caught_by: canonicalNamesInText(b.caught_by ?? null),
+      })),
+      bowling: (inn.bowling ?? []).map((b) => ({
+        ...b,
+        player_name: canonicalPlayerName(b.player_name),
+      })),
+    })),
+  };
+}
+
 export async function POST(request: Request) {
   try {
     const password = request.headers.get("x-admin-password");
@@ -79,10 +109,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json() as SaveBody;
-    if (!body.series_id && !body.new_series) {
+    const raw = await request.json() as SaveBody;
+    if (!raw.series_id && !raw.new_series) {
       return NextResponse.json({ error: "series_id or new_series required" }, { status: 400 });
     }
+
+    // Names are normalized here rather than in the import form, so every path
+    // into the database goes through it — a scorecard posted directly to this
+    // route can't reintroduce a spelling that splits a player's stats in two.
+    const body = canonicalizeNames(raw);
 
     // The entire save (series, match, innings, batting, bowling) runs inside
     // a single Postgres function call, so it's one atomic transaction: any

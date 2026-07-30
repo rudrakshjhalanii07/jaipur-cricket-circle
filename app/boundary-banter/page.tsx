@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import BlogPreviewCard from "@/components/BlogPreviewCard";
 import type { BlogPost } from "@/lib/types";
-import { fallbackRivalrySeasons } from "@/lib/rivalry";
+import { fallbackSeasons, normalizeSeason, seasonScoreline, type SeasonRow } from "@/lib/seasons";
 import { supabase } from "@/lib/supabase";
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -28,16 +28,16 @@ function NewsTicker() {
 
         const sourceArticles = articlesData ?? [];
 
-        // 2. Fetch active rivalry season
-        const { data: rivalryDataDb } = await supabase
+        // 2. Fetch active season
+        const { data: seasonDataDb } = await supabase
           .from("rivalry_seasons")
-          .select("*")
+          .select("*, season_teams(*)")
           .eq("status", "active")
           .limit(1);
 
-        const activeRivalry = (rivalryDataDb && rivalryDataDb.length > 0)
-          ? rivalryDataDb[0]
-          : fallbackRivalrySeasons.find(s => s.status === "active") || fallbackRivalrySeasons[0];
+        const activeSeason = (seasonDataDb && seasonDataDb.length > 0)
+          ? normalizeSeason(seasonDataDb[0] as unknown as SeasonRow)
+          : fallbackSeasons.find(s => s.status === "active") || fallbackSeasons[0];
 
         // 3. Fetch upcoming match
         const todayStr = new Date().toISOString().split("T")[0];
@@ -64,9 +64,9 @@ function NewsTicker() {
           items.push(`🏏 NEXT BATTLE: ${nextMatch.location_name} · ${mDate} @ ${nextMatch.match_time} · REGISTRATION ${nextMatch.status.toUpperCase()}`);
         }
 
-        // Add rivalry update
-        if (activeRivalry) {
-          items.push(`⚡ RIVALRY UPDATE: ${activeRivalry.title} active! Series score: Mavericks (${activeRivalry.mavericks_main_wins}) - (${activeRivalry.neurostrikers_main_wins}) NeuroStrikers`);
+        // Add season update
+        if (activeSeason) {
+          items.push(`⚡ SEASON UPDATE: ${activeSeason.title} active! Series score: ${seasonScoreline(activeSeason)}`);
         }
 
         // Add articles excerpts
@@ -83,11 +83,11 @@ function NewsTicker() {
         });
 
         // Fetch total matches from rivalry_seasons combined
-        const { data: rivalrySeasonsData } = await supabase
+        const { data: seasonsData } = await supabase
           .from("rivalry_seasons")
           .select("total_matches_played");
-        const totalMatchesPlayed = rivalrySeasonsData
-          ? rivalrySeasonsData.reduce((sum: number, s: any) => sum + (s.total_matches_played || 0), 0)
+        const totalMatchesPlayed = seasonsData
+          ? seasonsData.reduce((sum: number, s: any) => sum + (s.total_matches_played || 0), 0)
           : 0;
 
         items.push(`👑 SQUAD STATS: ${totalMatchesPlayed} matches recorded`);
@@ -98,9 +98,9 @@ function NewsTicker() {
         }
       } catch (err) {
         console.error("Error loading ticker data:", err);
-        const fallbackActiveRivalry = fallbackRivalrySeasons.find(s => s.status === "active") || fallbackRivalrySeasons[0];
+        const fallbackActiveSeason = fallbackSeasons.find(s => s.status === "active") || fallbackSeasons[0];
         const fallbackItems: string[] = [
-          `⚡ RIVALRY UPDATE: ${fallbackActiveRivalry.title} active! Series score: Mavericks (${fallbackActiveRivalry.mavericks_main_wins}) - (${fallbackActiveRivalry.neurostrikers_main_wins}) NeuroStrikers`,
+          `⚡ SEASON UPDATE: ${fallbackActiveSeason.title} active! Series score: ${seasonScoreline(fallbackActiveSeason)}`,
           `📰 DISPATCH: New dispatch published every Monday post-match`,
         ];
         setTickerItems(fallbackItems);

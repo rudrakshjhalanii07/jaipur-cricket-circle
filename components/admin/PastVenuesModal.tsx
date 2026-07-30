@@ -80,7 +80,7 @@ export default function PastVenuesModal({ isOpen, onClose, onSelect }: PastVenue
         </div>
         <h3 className="text-xl font-black text-jcc-blue uppercase tracking-tight mb-2">Past Venues</h3>
         <p className="text-[14px] text-jcc-text-muted font-medium mb-6">
-          Reuse venue details from previous Sunday matches.
+          Reuse venue details from previous matches.
         </p>
 
         <div className="admin-search-wrap">
@@ -123,7 +123,7 @@ export default function PastVenuesModal({ isOpen, onClose, onSelect }: PastVenue
             ))}
           </div>
         ) : (
-          <AdminEmptyState icon={MapPin} title="No past venues found" description="Venues used in previous Sunday matches will appear here." />
+          <AdminEmptyState icon={MapPin} title="No past venues found" description="Venues used in previous matches will appear here." />
         )}
       </div>
 
