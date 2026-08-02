@@ -844,8 +844,13 @@ type LeaderEntry = {
 const fmt = (n: number | null | undefined, digits: number) =>
   n != null ? n.toFixed(digits) : "—";
 
-/** Dismissal counts run in halves (a shared run out), so "3" stays "3" but 3.5 shows. */
-const fmtCount = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+/**
+ * Dismissal counts come through as fractions (a run out is split between the
+ * fielders named), so "3" stays "3" while a shared one shows its 3.5 or 3.33.
+ * Two decimals is where a three-way split stops looking like a typo.
+ */
+const fmtCount = (n: number) =>
+  Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
 
 function toEntries(tab: StatsTab, set: LeaderboardSet): LeaderEntry[] {
   switch (tab) {

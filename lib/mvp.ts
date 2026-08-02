@@ -298,20 +298,35 @@ export function computeMVP(series: FullSeries[], stageFilter?: StageFilter): MVP
       player_name,
       team_id: v.team,
       matches: v.matches.size,
-      batting_points: round2(v.bat),
-      bowling_points: round2(v.bowl),
-      fielding_points: round2(v.field),
-      total_points: round2(v.bat + v.bowl + v.field),
+      batting_points: v.bat,
+      bowling_points: v.bowl,
+      fielding_points: v.field,
+      total_points: v.bat + v.bowl + v.field,
       total_runs: v.runs,
       total_wickets: v.wickets,
-      fielding_dismissals: round2(v.dismissals),
+      fielding_dismissals: v.dismissals,
     }))
     // Most points first. Ties go to the bigger all-round contribution — a
-    // player who did it with bat AND ball outranks one who did it with either.
+    // player who did it with bat AND ball outranks one who did it with either
+    // — then most runs, then the name so the order never depends on which
+    // scorecard happened to be imported first.
+    //
+    // Sorted on the full-precision points, rounded only afterwards: two players
+    // a hundredth apart are a real gap, and rounding first would flatten them
+    // into a tie and push the decision down to a weaker key.
     .sort(
       (a, b) =>
         b.total_points - a.total_points ||
         Math.min(b.batting_points, b.bowling_points) - Math.min(a.batting_points, a.bowling_points) ||
-        b.total_runs - a.total_runs,
-    );
+        b.total_runs - a.total_runs ||
+        a.player_name.localeCompare(b.player_name),
+    )
+    .map((r) => ({
+      ...r,
+      batting_points: round2(r.batting_points),
+      bowling_points: round2(r.bowling_points),
+      fielding_points: round2(r.fielding_points),
+      total_points: round2(r.total_points),
+      fielding_dismissals: round2(r.fielding_dismissals),
+    }));
 }

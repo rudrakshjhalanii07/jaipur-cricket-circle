@@ -191,12 +191,13 @@ export interface FieldingRow {
   catches: number;
   stumpings: number;
   /**
-   * Run outs, credited in halves. A direct hit is one name in `caught_by` and
-   * scores a full 1; a throw-and-receive names two and each takes 0.5, because
-   * there is no honest way to say whose half was harder.
+   * Run outs, split evenly between the fielders named. A direct hit is one
+   * name in `caught_by` and scores a full 1; a throw-and-receive names two and
+   * each takes 0.5, because there is no honest way to say whose half was
+   * harder. Unrounded — format at the point of display.
    */
   run_outs: number;
-  /** catches + stumpings + run_outs — what the board ranks on. */
+  /** catches + stumpings + run_outs — what the board ranks on. Unrounded. */
   dismissals: number;
 }
 
@@ -356,19 +357,34 @@ export function computeLeaderboards(series: FullSeries[], stageFilter?: StageFil
   }
 
   // Build raw batting list — most runs first; IPL Orange Cap tie-break: higher
-  // strike rate, then higher average (runs per dismissal).
+  // strike rate, then higher average (runs per dismissal), then the name so the
+  // order is stable. The name also covers two players who never got out, where
+  // avgOf is Infinity on both sides and the subtraction is NaN.
   const srOf = (p: { runs: number; balls: number }) => (p.balls > 0 ? p.runs / p.balls : 0);
   const avgOf = (p: { runs: number; outs: number }) => (p.outs > 0 ? p.runs / p.outs : Infinity);
   const rawBatting = Array.from(battingMap.entries())
     .map(([name, v]) => ({ player_name: name, ...v }))
-    .sort((a, b) => b.runs - a.runs || srOf(b) - srOf(a) || avgOf(b) - avgOf(a));
+    .sort(
+      (a, b) =>
+        b.runs - a.runs ||
+        srOf(b) - srOf(a) ||
+        avgOf(b) - avgOf(a) ||
+        a.player_name.localeCompare(b.player_name),
+    );
 
-  // Build raw bowling list — most wickets first; ties broken by better (lower)
-  // economy, then fewer runs conceded.
+  // Build raw bowling list — most wickets first; IPL Purple Cap tie-break:
+  // better (lower) economy, then fewer runs conceded, then the name. As above,
+  // the name also covers econOf being Infinity on both sides.
   const econOf = (p: { balls: number; runs: number }) => (p.balls > 0 ? p.runs / (p.balls / 6) : Infinity);
   const rawBowling = Array.from(bowlingMap.entries())
     .map(([name, v]) => ({ player_name: name, ...v }))
-    .sort((a, b) => b.wickets - a.wickets || econOf(a) - econOf(b) || a.runs - b.runs);
+    .sort(
+      (a, b) =>
+        b.wickets - a.wickets ||
+        econOf(a) - econOf(b) ||
+        a.runs - b.runs ||
+        a.player_name.localeCompare(b.player_name),
+    );
 
   const n = Math.max(rawBatting.length, 1);
   const m = Math.max(rawBowling.length, 1);
@@ -407,22 +423,28 @@ export function computeLeaderboards(series: FullSeries[], stageFilter?: StageFil
   const mvp = computeMVP(series, stageFilter);
 
   // Fielding. Ranked on total dismissals; ties go to the harder skill first,
-  // run outs over stumpings over catches.
+  // run outs over stumpings over catches, then alphabetically so two players
+  // level on all three don't swap places between renders.
+  //
+  // The shares stay unrounded here. A run out split three ways is 0.333 each,
+  // and rounding it to 0.3 before the sort would make three of those tie with
+  // a player on a clean 0.9 — the formatting belongs at the point of display.
   const fielding: FieldingRow[] = Array.from(fieldMap.entries())
     .map(([name, v]) => ({
       player_name: name,
       team_id: v.team,
       catches: v.catches,
       stumpings: v.stumpings,
-      run_outs: Math.round(v.runOuts * 10) / 10,
-      dismissals: Math.round((v.catches + v.stumpings + v.runOuts) * 10) / 10,
+      run_outs: v.runOuts,
+      dismissals: v.catches + v.stumpings + v.runOuts,
     }))
     .filter((r) => r.dismissals > 0)
     .sort(
       (a, b) =>
         b.dismissals - a.dismissals ||
         b.run_outs - a.run_outs ||
-        b.stumpings - a.stumpings,
+        b.stumpings - a.stumpings ||
+        a.player_name.localeCompare(b.player_name),
     );
 
   return { batting: battingRows, bowling: bowlingRows, mvp, fielding };

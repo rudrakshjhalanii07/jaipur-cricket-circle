@@ -35,6 +35,13 @@ const TEAM_COLORS: Record<string, string> = {
   Unassigned: "#8888aa",
 };
 
+/**
+ * Dismissal counts are fractional — a run out is split between the fielders
+ * named — so whole numbers stay bare and a shared one keeps its decimal.
+ */
+const fmtCount = (n: number) =>
+  Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
+
 /** Headline number — one per panel, the thing the eye lands on first. */
 function HeroStat({
   value,
@@ -253,7 +260,7 @@ export default function PlayerStatsModal({
               { label: "Runs", value: hasBatting ? batting!.total_runs : "—" },
               hasBowling
                 ? { label: "Wickets", value: bowling!.total_wickets }
-                : { label: "Dismissals", value: fielding?.dismissals ?? 0 },
+                : { label: "Dismissals", value: fmtCount(fielding?.dismissals ?? 0) },
             ].map(({ label, value }) => (
               <div key={label} className="flex flex-col items-center py-3">
                 <span className="text-xl font-black text-white tabular-nums leading-none">{value}</span>
@@ -357,12 +364,12 @@ export default function PlayerStatsModal({
             <StatPanel title="Fielding" accentColor={accentColor}>
               <div className="flex items-center gap-4 px-4 pt-2 pb-4">
                 <span className="text-4xl font-black leading-none" style={{ color: accentColor }}>
-                  {fielding!.dismissals}
+                  {fmtCount(fielding!.dismissals)}
                 </span>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">Dismissals</p>
                   <p className="text-[9px] text-white/30 mt-0.5">
-                    {fielding!.catches} ct · {fielding!.stumpings} st · {fielding!.run_outs} ro
+                    {fielding!.catches} ct · {fielding!.stumpings} st · {fmtCount(fielding!.run_outs)} ro
                   </p>
                 </div>
               </div>
