@@ -36,7 +36,7 @@ import {
   type SeriesStandingRow,
   type BattingLeaderRow,
   type BowlingLeaderRow,
-  type AllRounderRow,
+  type MVPRow,
   type FieldingRow,
   type PlayerPoolRow,
   type BattingPerf,
@@ -49,6 +49,7 @@ import {
 } from "@/lib/season-schedule";
 import { TEAMS, type TeamId } from "@/lib/teams";
 import PlayersPoolModal from "@/components/PlayersPoolModal";
+import PlayerCareerCardProvider, { usePlayerClick } from "@/components/PlayerCareerCardProvider";
 
 // ── Date formatting ───────────────────────────────────────────────────────────
 // Intl abbreviations differ between the Node build and browser ICU data
@@ -818,12 +819,12 @@ export function SeriesProgression({ series }: { series: FullSeries[] }) {
 // ── 3-Way Scoreline ───────────────────────────────────────────────────────────
 
 // ── Stats Leaderboards ────────────────────────────────────────────────────────
-type StatsTab = "batting" | "bowling" | "allrounders" | "fielding";
+type StatsTab = "batting" | "bowling" | "mvp" | "fielding";
 
 export type LeaderboardSet = {
   batting: BattingLeaderRow[];
   bowling: BowlingLeaderRow[];
-  allRounders: AllRounderRow[];
+  mvp: MVPRow[];
   fielding: FieldingRow[];
 };
 
@@ -842,6 +843,9 @@ type LeaderEntry = {
 
 const fmt = (n: number | null | undefined, digits: number) =>
   n != null ? n.toFixed(digits) : "—";
+
+/** Dismissal counts run in halves (a shared run out), so "3" stays "3" but 3.5 shows. */
+const fmtCount = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
 function toEntries(tab: StatsTab, set: LeaderboardSet): LeaderEntry[] {
   switch (tab) {
@@ -874,24 +878,30 @@ function toEntries(tab: StatsTab, set: LeaderboardSet): LeaderEntry[] {
           { label: "Runs", value: r.runs_conceded },
         ],
       }));
-    case "allrounders":
-      return set.allRounders.map((r) => ({
+    case "mvp":
+      return set.mvp.map((r) => ({
         name: r.player_name,
         teamId: r.team_id,
-        headline: { label: "Combined", value: r.combined_score },
+        headline: { label: "MVP", value: r.total_points.toFixed(1) },
         stats: [
+          { label: "Bat", value: fmt(r.batting_points, 1) },
+          { label: "Bowl", value: fmt(r.bowling_points, 1) },
+          { label: "Field", value: fmt(r.fielding_points, 1) },
+          { label: "M", value: r.matches },
           { label: "Runs", value: r.total_runs },
           { label: "Wkts", value: r.total_wickets },
-          { label: "Bat", value: r.batting_score },
-          { label: "Bowl", value: r.bowling_score },
-          { label: "M", value: r.matches },
         ],
       }));
     case "fielding":
       return set.fielding.map((r) => ({
         name: r.player_name,
-        headline: { label: "Catches", value: r.catches },
-        stats: [],
+        teamId: r.team_id,
+        headline: { label: "Dismissals", value: fmtCount(r.dismissals) },
+        stats: [
+          { label: "Ct", value: r.catches },
+          { label: "St", value: r.stumpings },
+          { label: "RO", value: fmtCount(r.run_outs) },
+        ],
       }));
   }
 }
@@ -1015,6 +1025,49 @@ function LeaderRow({ entry, rank }: { entry: LeaderEntry; rank: number }) {
   );
 }
 
+/**
+ * What the fielding count is actually made of.
+ *
+ * "8 dismissals" hides the difference between eight catches and a season of
+ * run outs, and the halves in the column need explaining the first time anyone
+ * sees a 3.5 — so the board totals sit under the list with the rule that
+ * produced them.
+ */
+function FieldingBreakdown({ rows }: { rows: FieldingRow[] }) {
+  const total = (pick: (r: FieldingRow) => number) =>
+    rows.reduce((sum, r) => sum + pick(r), 0);
+
+  const parts = [
+    { label: "Catches", value: total((r) => r.catches) },
+    { label: "Stumpings", value: total((r) => r.stumpings) },
+    { label: "Run outs", value: total((r) => r.run_outs) },
+  ];
+
+  return (
+    <div className="mt-5 pt-4 border-t border-white/[0.06] px-2">
+      <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/20 mb-2.5">
+        How the count breaks down
+      </p>
+      <div className="flex flex-wrap gap-x-6 gap-y-2">
+        {parts.map((p) => (
+          <div key={p.label} className="flex items-baseline gap-1.5">
+            <span className="text-base font-black tabular-nums text-[#D4AF37]">
+              {fmtCount(p.value)}
+            </span>
+            <span className="text-[9px] font-black uppercase tracking-widest text-white/35">
+              {p.label}
+            </span>
+          </div>
+        ))}
+      </div>
+      <p className="text-[9px] text-white/25 mt-2.5 leading-relaxed">
+        A run out off one fielder&apos;s throw counts 1. When two combine, they take
+        half each — no one gets to argue the throw was harder than the catch.
+      </p>
+    </div>
+  );
+}
+
 export function StatsLeaderboards({
   season,
   career,
@@ -1037,7 +1090,7 @@ export function StatsLeaderboards({
   const tabs: { id: StatsTab; label: string; short: string }[] = [
     { id: "batting", label: "Batting", short: "Bat" },
     { id: "bowling", label: "Bowling", short: "Bowl" },
-    { id: "allrounders", label: "All-rounders", short: "All-R" },
+    { id: "mvp", label: "MVP", short: "MVP" },
     { id: "fielding", label: "Fielding", short: "Field" },
   ];
 
@@ -1097,11 +1150,12 @@ export function StatsLeaderboards({
               ))}
             </div>
           )}
-          {tab === "allrounders" && (
+          {tab === "mvp" && (
             <p className="text-[9px] text-white/25 uppercase tracking-widest mt-5 px-2">
-              Combined score = avg of batting rank + bowling rank (ICC method)
+              MVP points · 10 runs = 1 pt · wickets priced by the batter taken · fielding counted
             </p>
           )}
+          {tab === "fielding" && <FieldingBreakdown rows={set.fielding} />}
         </div>
       )}
     </div>
@@ -1496,6 +1550,7 @@ function oversToBalls(overs: number | string): number {
  */
 function ScorecardDetails({ match }: { match: FullSeries["matches"][0] }) {
   const [showAnalysis, setShowAnalysis] = useState(false);
+  const onPlayerClick = usePlayerClick();
 
   const captainOf = (teamId: string) =>
     teamId === match.team1_id
@@ -1600,7 +1655,11 @@ function ScorecardDetails({ match }: { match: FullSeries["matches"][0] }) {
                         className="border-b border-white/[0.03] last:border-0 align-top"
                       >
                         <td className="py-2 pr-2">
-                          <div className="flex items-center gap-2 min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => onPlayerClick(b.player_name)}
+                            className="flex items-center gap-2 min-w-0 text-left"
+                          >
                             <ScorecardFace
                               name={b.player_name}
                               teamId={inn.batting_team_id}
@@ -1613,7 +1672,7 @@ function ScorecardDetails({ match }: { match: FullSeries["matches"][0] }) {
                                 {dismissalText(b)}
                               </span>
                             </div>
-                          </div>
+                          </button>
                         </td>
                         <td className="py-2 text-right font-black text-white tabular-nums">
                           {b.runs}
@@ -1696,7 +1755,11 @@ function ScorecardDetails({ match }: { match: FullSeries["matches"][0] }) {
                         className="border-b border-white/[0.03] last:border-0"
                       >
                         <td className="py-2 pr-2">
-                          <div className="flex items-center gap-2 min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => onPlayerClick(bw.player_name)}
+                            className="flex items-center gap-2 min-w-0 text-left"
+                          >
                             <ScorecardFace
                               name={bw.player_name}
                               teamId={inn.bowling_team_id}
@@ -1704,7 +1767,7 @@ function ScorecardDetails({ match }: { match: FullSeries["matches"][0] }) {
                             <span className="font-black text-white/85 truncate">
                               {withCaptain(bw.player_name, inn.bowling_team_id)}
                             </span>
-                          </div>
+                          </button>
                         </td>
                         <td className="py-2 text-right text-white/45 tabular-nums">
                           {bw.overs}
@@ -1736,7 +1799,11 @@ function ScorecardDetails({ match }: { match: FullSeries["matches"][0] }) {
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 rounded-xl border border-[#D4AF37]/20 border-l-[3px] border-l-[#D4AF37] bg-[#D4AF37]/[0.06] pl-4 pr-6 py-3">
         <span className="text-sm font-black text-white">{result}</span>
         {match.player_of_match && (
-          <div className="flex items-center gap-3 min-w-0">
+          <button
+            type="button"
+            onClick={() => onPlayerClick(match.player_of_match!)}
+            className="flex items-center gap-3 min-w-0 text-left"
+          >
             <ScorecardFace
               name={match.player_of_match}
               teamId={match.winner_id}
@@ -1752,7 +1819,7 @@ function ScorecardDetails({ match }: { match: FullSeries["matches"][0] }) {
                 {match.player_of_match}
               </span>
             </div>
-          </div>
+          </button>
         )}
       </div>
 
@@ -2698,6 +2765,7 @@ export default function SeasonsPageClient({
   const activeSeasonStandings = computeOverallStandings(activeSeasonSeries);
 
   return (
+    <PlayerCareerCardProvider clubRoster={clubRoster} careerLeaderboards={careerLeaderboards}>
     <PlayerPhotoContext.Provider value={playerPhotos}>
     <div className="min-h-screen page-top pb-20 relative overflow-hidden arena-bg theme-static-navy">
       <div className="arena-hatch z-0" />
@@ -2828,7 +2896,7 @@ export default function SeasonsPageClient({
         {fullSeries.length > 0 && (
           <div className="mb-16">
             <SectionHeading
-              eyebrow="Batting · Bowling · All-rounders · Fielding"
+              eyebrow="Batting · Bowling · MVP · Fielding"
               title="Player Stats"
             />
             <motion.div
@@ -2922,5 +2990,6 @@ export default function SeasonsPageClient({
       />
     </div>
     </PlayerPhotoContext.Provider>
+    </PlayerCareerCardProvider>
   );
 }

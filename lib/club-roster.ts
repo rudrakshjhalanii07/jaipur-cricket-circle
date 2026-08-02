@@ -22,6 +22,11 @@ export interface ClubRosterRow {
   image_url: string | null;
   team: string | null;
   role: string | null;
+  /** Career-card fields — populated only where the roster feeds a player-profile lookup (see fetchClubRoster). */
+  batting_style?: string | null;
+  bowling_style?: string | null;
+  short_bio?: string | null;
+  joined_date?: string | null;
 }
 
 /** One row of the players pool, member or not. */

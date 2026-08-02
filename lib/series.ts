@@ -1,5 +1,24 @@
 import { supabase } from "./supabase";
 import type { TeamId } from "./teams";
+import { computeMVP, parseFielders } from "./mvp";
+import type { MVPRow } from "./mvp";
+import {
+  ballsToOvers,
+  matchesStageFilter,
+  oversToDecimal,
+} from "./cricket-format";
+import type { MatchStage, StageFilter } from "./cricket-format";
+
+// Re-exported so the many callers that import these from "@/lib/series" keep
+// working; lib/cricket-format.ts is where they actually live now.
+export type { MVPRow } from "./mvp";
+export {
+  PLAYOFF_STAGES,
+  isPlayoffStage,
+  matchesStageFilter,
+  oversToDecimal,
+} from "./cricket-format";
+export type { MatchStage, StageFilter } from "./cricket-format";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -8,25 +27,6 @@ import type { TeamId } from "./teams";
 // up automatically (they derive teams from match rows, never from a fixed list).
 export type SeriesTeamId = TeamId;
 
-// The final week of a season is a three-round bracket:
-// eliminator (3rd v 4th) -> qualifier (2nd v eliminator winner)
-// -> final (1st v qualifier winner).
-export type MatchStage = "league" | "eliminator" | "qualifier" | "final";
-
-export const PLAYOFF_STAGES: MatchStage[] = ["eliminator", "qualifier", "final"];
-
-export function isPlayoffStage(stage: MatchStage): boolean {
-  return stage !== "league";
-}
-
-// What callers actually want to slice by. "playoffs" spans all three bracket
-// rounds — before the bracket existed this was just the single "final" stage.
-export type StageFilter = "league" | "playoffs";
-
-export function matchesStageFilter(stage: MatchStage, filter?: StageFilter): boolean {
-  if (!filter) return true;
-  return filter === "league" ? stage === "league" : isPlayoffStage(stage);
-}
 export type DismissalType =
   | "bowled" | "caught" | "lbw" | "run_out" | "stumped"
   | "hit_wicket" | "retired_hurt" | "not_out" | "did_not_bat";
@@ -185,20 +185,19 @@ export interface BowlingLeaderRow {
   bowling_score: number;  // 0-100 normalized rank
 }
 
-export interface AllRounderRow {
-  player_name: string;
-  team_id: SeriesTeamId;
-  matches: number;
-  total_runs: number;
-  total_wickets: number;
-  batting_score: number;
-  bowling_score: number;
-  combined_score: number;
-}
-
 export interface FieldingRow {
   player_name: string;
+  team_id?: SeriesTeamId;
   catches: number;
+  stumpings: number;
+  /**
+   * Run outs, credited in halves. A direct hit is one name in `caught_by` and
+   * scores a full 1; a throw-and-receive names two and each takes 0.5, because
+   * there is no honest way to say whose half was harder.
+   */
+  run_outs: number;
+  /** catches + stumpings + run_outs — what the board ranks on. */
+  dismissals: number;
 }
 
 // ── Fetch functions ────────────────────────────────────────────────────────────
@@ -276,7 +275,7 @@ export async function fetchFullSeries(): Promise<FullSeries[]> {
 export function computeLeaderboards(series: FullSeries[], stageFilter?: StageFilter): {
   batting: BattingLeaderRow[];
   bowling: BowlingLeaderRow[];
-  allRounders: AllRounderRow[];
+  mvp: MVPRow[];
   fielding: FieldingRow[];
 } {
   // A batter counts as dismissed (for ICC average) for any mode of out;
@@ -284,7 +283,16 @@ export function computeLeaderboards(series: FullSeries[], stageFilter?: StageFil
   const DISMISSED = new Set(["bowled", "caught", "lbw", "run_out", "stumped", "hit_wicket"]);
   const battingMap = new Map<string, { runs: number; balls: number; innings: number; outs: number; high: number; fours: number; sixes: number; team: SeriesTeamId }>();
   const bowlingMap = new Map<string, { wickets: number; balls: number; runs: number; innings: number; team: SeriesTeamId }>();
-  const catchMap = new Map<string, number>();
+  type FieldAcc = { catches: number; stumpings: number; runOuts: number; team?: SeriesTeamId };
+  const fieldMap = new Map<string, FieldAcc>();
+  const field = (name: string, team: SeriesTeamId): FieldAcc => {
+    let cur = fieldMap.get(name);
+    if (!cur) {
+      cur = { catches: 0, stumpings: 0, runOuts: 0, team };
+      fieldMap.set(name, cur);
+    }
+    return cur;
+  };
   // Total matches a player appeared in (batted OR bowled) — for the "M" column.
   const playerMatchSet = new Map<string, Set<string>>();
   const touchMatch = (key: string, id: string) => {
@@ -316,8 +324,19 @@ export function computeLeaderboards(series: FullSeries[], stageFilter?: StageFil
             sixes: cur.sixes + (b.sixes ?? 0),
             team: b.team_id,
           });
-          if (b.dismissal_type === "caught" && b.caught_by) {
-            catchMap.set(b.caught_by, (catchMap.get(b.caught_by) ?? 0) + 1);
+          // Fielding credit. `caught_by` is free text holding one name, or two
+          // slash-joined for a combined run out (see parseFielders). The
+          // fielder is always on the side that was bowling.
+          if (b.caught_by) {
+            const fielders = parseFielders(b.caught_by);
+            if (b.dismissal_type === "caught") {
+              for (const f of fielders) field(f, inn.bowling_team_id).catches += 1;
+            } else if (b.dismissal_type === "stumped") {
+              for (const f of fielders) field(f, inn.bowling_team_id).stumpings += 1;
+            } else if (b.dismissal_type === "run_out" && fielders.length > 0) {
+              const share = 1 / fielders.length;
+              for (const f of fielders) field(f, inn.bowling_team_id).runOuts += share;
+            }
           }
         }
         for (const bw of inn.bowling) {
@@ -384,33 +403,29 @@ export function computeLeaderboards(series: FullSeries[], stageFilter?: StageFil
     bowling_score: m === 1 ? 100 : Math.round(((m - 1 - i) / (m - 1)) * 100),
   }));
 
-  // All-rounders: must appear in both leaderboards, min 1 wicket
-  const batMap = new Map(battingRows.map((r) => [r.player_name, r]));
-  const bowMap = new Map(bowlingRows.map((r) => [r.player_name, r]));
+  // MVP — bat, ball and field on one scale. See lib/mvp.ts for the pricing.
+  const mvp = computeMVP(series, stageFilter);
 
-  const allRounders: AllRounderRow[] = [];
-  for (const [name, bat] of batMap.entries()) {
-    const bow = bowMap.get(name);
-    if (!bow || bow.total_wickets < 1) continue;
-    allRounders.push({
+  // Fielding. Ranked on total dismissals; ties go to the harder skill first,
+  // run outs over stumpings over catches.
+  const fielding: FieldingRow[] = Array.from(fieldMap.entries())
+    .map(([name, v]) => ({
       player_name: name,
-      team_id: bat.team_id,
-      matches: bat.matches,
-      total_runs: bat.total_runs,
-      total_wickets: bow.total_wickets,
-      batting_score: bat.batting_score,
-      bowling_score: bow.bowling_score,
-      combined_score: Math.round((bat.batting_score + bow.bowling_score) / 2),
-    });
-  }
-  allRounders.sort((a, b) => b.combined_score - a.combined_score);
+      team_id: v.team,
+      catches: v.catches,
+      stumpings: v.stumpings,
+      run_outs: Math.round(v.runOuts * 10) / 10,
+      dismissals: Math.round((v.catches + v.stumpings + v.runOuts) * 10) / 10,
+    }))
+    .filter((r) => r.dismissals > 0)
+    .sort(
+      (a, b) =>
+        b.dismissals - a.dismissals ||
+        b.run_outs - a.run_outs ||
+        b.stumpings - a.stumpings,
+    );
 
-  // Fielding
-  const fielding: FieldingRow[] = Array.from(catchMap.entries())
-    .map(([name, catches]) => ({ player_name: name, catches }))
-    .sort((a, b) => b.catches - a.catches);
-
-  return { batting: battingRows, bowling: bowlingRows, allRounders, fielding };
+  return { batting: battingRows, bowling: bowlingRows, mvp, fielding };
 }
 
 // ── Series standings (points table) ───────────────────────────────────────────
@@ -475,19 +490,6 @@ export function computeSeriesStandings(
   return sortStandings(Array.from(map.values()));
 }
 
-// Convert display overs (9.4 = 9 overs 4 balls) to decimal sixths (9.667) for
-// arithmetic like NRR and economy — dividing directly by the display value
-// (e.g. runs / 0.4) is wrong since "0.4" means 4 balls, not 0.4 of an over.
-export function oversToDecimal(displayOvers: number): number {
-  const full = Math.floor(displayOvers);
-  const balls = Math.round((displayOvers - full) * 10);
-  return full + balls / 6;
-}
-
-// Convert total balls bowled back to display overs notation (e.g. 58 -> 9.4).
-function ballsToOvers(balls: number): number {
-  return Math.floor(balls / 6) + (balls % 6) / 10;
-}
 
 // Compute NRR per team from innings data. Only matches with both innings recorded
 // are included; unrecorded matches contribute NRR = 0.

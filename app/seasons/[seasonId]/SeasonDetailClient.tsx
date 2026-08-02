@@ -20,6 +20,7 @@ import {
   type LeaderboardSet,
 } from "../SeasonsPageClient";
 import PlayersPoolModal from "@/components/PlayersPoolModal";
+import PlayerCareerCardProvider from "@/components/PlayerCareerCardProvider";
 import { type PlayerPhotoMap } from "@/lib/player-photos";
 import { type ClubRosterRow } from "@/lib/club-roster";
 
@@ -55,6 +56,7 @@ export default function SeasonDetailClient({
   const [poolOpen, setPoolOpen] = useState(false);
 
   return (
+    <PlayerCareerCardProvider clubRoster={clubRoster} careerLeaderboards={careerLeaderboards}>
     <PlayerPhotoContext.Provider value={playerPhotos}>
     <div className="min-h-screen page-top pb-20 relative overflow-hidden arena-bg theme-static-navy">
       <div className="arena-hatch z-0" />
@@ -133,7 +135,7 @@ export default function SeasonDetailClient({
 
         {/* ── Player Stats ── */}
         <div className="mb-16">
-          <SectionHeading eyebrow="Batting · Bowling · All-rounders · Fielding" title="Player Stats" />
+          <SectionHeading eyebrow="Batting · Bowling · MVP · Fielding" title="Player Stats" />
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
             <StatsLeaderboards
               season={seasonLeaderboards}
@@ -201,5 +203,6 @@ export default function SeasonDetailClient({
       />
     </div>
     </PlayerPhotoContext.Provider>
+    </PlayerCareerCardProvider>
   );
 }

@@ -5,12 +5,12 @@ import Image from "next/image";
 import type { Member } from "@/lib/types";
 import { teamByName } from "@/lib/teams";
 import { getMonogramAvatar } from "@/lib/avatar";
-import type { BattingLeaderRow, BowlingLeaderRow, AllRounderRow, FieldingRow } from "@/lib/series";
+import type { BattingLeaderRow, BowlingLeaderRow, MVPRow, FieldingRow } from "@/lib/series";
 
 export type PlayerStats = {
   batting?: BattingLeaderRow;
   bowling?: BowlingLeaderRow;
-  allRounder?: AllRounderRow;
+  mvp?: MVPRow;
   fielding?: FieldingRow;
 };
 
