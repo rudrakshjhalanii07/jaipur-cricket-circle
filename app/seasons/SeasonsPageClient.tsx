@@ -840,6 +840,23 @@ type LeaderEntry = {
   headline: { label: string; value: React.ReactNode };
   /** Supporting stats, most interesting first (the list only shows a few). */
   stats: { label: string; value: React.ReactNode }[];
+  /**
+   * The ranked-on number, kept numeric so the board can spot level players.
+   * The headline is already formatted for display and no use for comparing.
+   */
+  tieKey: number;
+};
+
+/**
+ * How each board separates players level on the headline number, in the order
+ * it tries them. Shown on the tie badge, because a reader looking at two rows
+ * both saying "4" deserves to know what put one above the other.
+ */
+const TIEBREAK_RULE: Record<StatsTab, string> = {
+  batting: "strike rate, then average, then name",
+  bowling: "economy, then runs conceded, then name",
+  mvp: "all-round balance, then runs, then name",
+  fielding: "run outs, then stumpings, then name",
 };
 
 const fmt = (n: number | null | undefined, digits: number) =>
@@ -860,6 +877,7 @@ function toEntries(tab: StatsTab, set: LeaderboardSet): LeaderEntry[] {
         name: r.player_name,
         teamId: r.team_id,
         headline: { label: "Runs", value: r.total_runs },
+        tieKey: r.total_runs,
         stats: [
           { label: "SR", value: fmt(r.strike_rate, 1) },
           { label: "Avg", value: fmt(r.batting_average, 2) },
@@ -875,6 +893,7 @@ function toEntries(tab: StatsTab, set: LeaderboardSet): LeaderEntry[] {
         name: r.player_name,
         teamId: r.team_id,
         headline: { label: "Wickets", value: r.total_wickets },
+        tieKey: r.total_wickets,
         stats: [
           { label: "Econ", value: r.economy },
           { label: "Avg", value: fmt(r.bowling_average, 2) },
@@ -889,6 +908,7 @@ function toEntries(tab: StatsTab, set: LeaderboardSet): LeaderEntry[] {
         name: r.player_name,
         teamId: r.team_id,
         headline: { label: "MVP", value: r.total_points.toFixed(1) },
+        tieKey: r.total_points,
         stats: [
           { label: "Bat", value: fmt(r.batting_points, 1) },
           { label: "Bowl", value: fmt(r.bowling_points, 1) },
@@ -903,12 +923,31 @@ function toEntries(tab: StatsTab, set: LeaderboardSet): LeaderEntry[] {
         name: r.player_name,
         teamId: r.team_id,
         headline: { label: "Dismissals", value: fmtCount(r.dismissals) },
+        tieKey: r.dismissals,
         stats: [
           { label: "Ct", value: r.catches },
           { label: "St", value: r.stumpings },
           // Head count, not credit: a fielder who combined on two run outs was
-          // in on 2, even though the headline only pays him 0.5 for each.
-          { label: "RO", value: r.run_outs_involved },
+          // in on 2, even though the headline only pays him 0.5 for each. The
+          // dagger marks that gap — without it Kunwar Gaurav reads "RO 2" on a
+          // headline of 5 and the missing point looks like a bug.
+          {
+            label: "RO",
+            value:
+              r.run_outs_involved - r.run_outs > 0.001 ? (
+                <>
+                  {r.run_outs_involved}
+                  <span
+                    className="text-[#D4AF37]/70 align-super text-[0.6em] ml-px"
+                    title={`${fmtCount(r.run_outs)} credited — the rest were shared`}
+                  >
+                    †
+                  </span>
+                </>
+              ) : (
+                r.run_outs_involved
+              ),
+          },
         ],
       }));
   }
@@ -943,8 +982,34 @@ function TeamTag({ teamId }: { teamId?: string }) {
 
 const PODIUM_ORDER = ["#D4AF37", "#C8D2E0", "#B87333"] as const;
 
+/**
+ * "Tied" pill — the visible half of the tiebreak. Two rows both reading 4 look
+ * like the board is picking an order at random; this says they are level on the
+ * headline and names the rule that separated them.
+ */
+function TieBadge({ tab, value }: { tab: StatsTab; value: number }) {
+  return (
+    <span
+      title={`Level on ${fmtCount(value)} — separated by ${TIEBREAK_RULE[tab]}`}
+      className="shrink-0 rounded-full border border-white/15 bg-white/[0.06] px-1.5 py-px text-[7px] font-black uppercase tracking-[0.15em] text-white/45"
+    >
+      Tied
+    </span>
+  );
+}
+
 /** Ranks 1–3, as portrait cards. The leader sits raised and gold-ringed. */
-function PodiumCard({ entry, rank }: { entry: LeaderEntry; rank: number }) {
+function PodiumCard({
+  entry,
+  rank,
+  tab,
+  tied,
+}: {
+  entry: LeaderEntry;
+  rank: number;
+  tab: StatsTab;
+  tied: boolean;
+}) {
   const color = PODIUM_ORDER[rank - 1];
   const lead = rank === 1;
   return (
@@ -963,7 +1028,7 @@ function PodiumCard({ entry, rank }: { entry: LeaderEntry; rank: number }) {
           className="shrink-0 grid place-items-center w-6 h-6 rounded-full text-[10px] font-black text-jcc-blue sm:absolute sm:-top-3 sm:left-1/2 sm:-translate-x-1/2 sm:w-7 sm:h-7 sm:text-[11px]"
           style={{ background: color }}
         >
-          {rank}
+          {tied ? `${rank}=` : rank}
         </span>
         <ScorecardFace
           name={entry.name}
@@ -975,7 +1040,10 @@ function PodiumCard({ entry, rank }: { entry: LeaderEntry; rank: number }) {
           <p className="font-black text-white text-sm leading-tight truncate">
             {entry.name}
           </p>
-          <TeamTag teamId={entry.teamId} />
+          <div className="flex items-center gap-1.5 sm:justify-center">
+            <TeamTag teamId={entry.teamId} />
+            {tied && <TieBadge tab={tab} value={entry.tieKey} />}
+          </div>
         </div>
         <div className="shrink-0 text-right sm:mt-3 sm:text-center">
           <p className="font-black tabular-nums leading-none text-2xl sm:text-[28px] text-[#D4AF37]">
@@ -998,11 +1066,21 @@ function PodiumCard({ entry, rank }: { entry: LeaderEntry; rank: number }) {
 }
 
 /** Ranks 4 and below — one dense row each, no horizontal scrolling. */
-function LeaderRow({ entry, rank }: { entry: LeaderEntry; rank: number }) {
+function LeaderRow({
+  entry,
+  rank,
+  tab,
+  tied,
+}: {
+  entry: LeaderEntry;
+  rank: number;
+  tab: StatsTab;
+  tied: boolean;
+}) {
   return (
     <div className="flex items-center gap-3 py-2.5 px-2 rounded-xl border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] transition-colors">
       <span className="w-5 shrink-0 text-right font-black tabular-nums text-white/20 text-xs">
-        {rank}
+        {tied ? `${rank}=` : rank}
       </span>
       <ScorecardFace
         name={entry.name}
@@ -1014,7 +1092,10 @@ function LeaderRow({ entry, rank }: { entry: LeaderEntry; rank: number }) {
         <p className="font-black text-white text-[13px] leading-tight truncate">
           {entry.name}
         </p>
-        <TeamTag teamId={entry.teamId} />
+        <div className="flex items-center gap-1.5">
+          <TeamTag teamId={entry.teamId} />
+          {tied && <TieBadge tab={tab} value={entry.tieKey} />}
+        </div>
       </div>
       <div className="hidden sm:flex items-center gap-5 shrink-0">
         {entry.stats.slice(0, 4).map((s) => (
@@ -1072,7 +1153,9 @@ function FieldingBreakdown({ rows }: { rows: FieldingRow[] }) {
         The RO column counts every run out a fielder was in on. The dismissals
         total pays for them: one off a single throw counts 1, and when two
         combine they take half each — no one gets to argue the throw was harder
-        than the catch. That is why a fielder can show 2 RO and still be on 1.
+        than the catch. <span className="text-[#D4AF37]/70">†</span> marks a
+        fielder whose run outs were shared, so his RO count runs ahead of what
+        the total credits him; the halves show up as a .5 down the table.
       </p>
     </div>
   );
@@ -1096,6 +1179,16 @@ export function StatsLeaderboards({
   const entries = toEntries(tab, set).slice(0, 10);
   const podium = entries.slice(0, 3);
   const rest = entries.slice(3);
+
+  // Who shares their headline number with someone else on the board. Counted
+  // across the whole top 10, not just the slice being drawn, so a player on the
+  // podium level with someone in the chasing pack is still marked tied.
+  const tiedKeys = new Set(
+    entries
+      .map((e) => e.tieKey)
+      .filter((k, i, all) => all.indexOf(k) !== i),
+  );
+  const isTied = (e: LeaderEntry) => tiedKeys.has(e.tieKey);
 
   const tabs: { id: StatsTab; label: string; short: string }[] = [
     { id: "batting", label: "Batting", short: "Bat" },
@@ -1147,7 +1240,13 @@ export function StatsLeaderboards({
         <div className="p-4 sm:p-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 sm:pt-3">
             {podium.map((e, i) => (
-              <PodiumCard key={e.name} entry={e} rank={i + 1} />
+              <PodiumCard
+                key={e.name}
+                entry={e}
+                rank={i + 1}
+                tab={tab}
+                tied={isTied(e)}
+              />
             ))}
           </div>
           {rest.length > 0 && (
@@ -1156,7 +1255,13 @@ export function StatsLeaderboards({
                 Chasing pack
               </p>
               {rest.map((e, i) => (
-                <LeaderRow key={e.name} entry={e} rank={i + 4} />
+                <LeaderRow
+                  key={e.name}
+                  entry={e}
+                  rank={i + 4}
+                  tab={tab}
+                  tied={isTied(e)}
+                />
               ))}
             </div>
           )}
