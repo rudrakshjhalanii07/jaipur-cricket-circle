@@ -229,7 +229,13 @@ function BattingTable({ rows, onChange }: {
           <tbody className="space-y-1">
             {rows.map((r, i) => {
               const noWkt = ["not_out", "did_not_bat", "retired_hurt"].includes(r.dismissal_type);
-              const noCatch = r.dismissal_type !== "caught";
+              // A run out has no bowler, but it does have fielders — and they
+              // are the only ones who earn anything for it. Locking this column
+              // to catches is what sent them into the bowler field instead, so
+              // stumpings and run outs open it too.
+              const isRunOut = r.dismissal_type === "run_out";
+              const noCatch = !["caught", "stumped", "run_out"].includes(r.dismissal_type);
+              const fielderHint = isRunOut ? "Fielder / Fielder" : "Fielder";
               return (
               <tr key={i} className="group">
                 <td className="py-0.5 pr-2 text-jcc-text-muted/70">{i + 1}</td>
@@ -244,8 +250,8 @@ function BattingTable({ rows, onChange }: {
                     {DISMISSAL_TYPES.map((d) => <option key={d} value={d}>{d.replace("_", " ")}</option>)}
                   </Select>
                 </td>
-                <td className="py-0.5 px-1"><Input value={r.dismissed_by} onChange={(e) => update(i, "dismissed_by", e.target.value)} placeholder="Bowler" disabled={noWkt} className={noWkt ? "opacity-20 cursor-not-allowed" : ""} /></td>
-                <td className="py-0.5 px-1"><Input value={r.caught_by} onChange={(e) => update(i, "caught_by", e.target.value)} placeholder="Fielder" disabled={noCatch} className={noCatch ? "opacity-20 cursor-not-allowed" : ""} /></td>
+                <td className="py-0.5 px-1"><Input value={r.dismissed_by} onChange={(e) => update(i, "dismissed_by", e.target.value)} placeholder="Bowler" disabled={noWkt || isRunOut} className={noWkt || isRunOut ? "opacity-20 cursor-not-allowed" : ""} /></td>
+                <td className="py-0.5 px-1"><Input value={r.caught_by} onChange={(e) => update(i, "caught_by", e.target.value)} placeholder={fielderHint} disabled={noCatch} className={noCatch ? "opacity-20 cursor-not-allowed" : ""} /></td>
                 <td className="py-0.5 pl-1">
                   <button type="button" onClick={() => remove(i)} className="text-jcc-text-muted/70 hover:text-jcc-danger transition-colors">
                     <X className="w-3.5 h-3.5" />

@@ -128,6 +128,26 @@ export function parseFielders(raw: string | null): string[] {
     .filter(Boolean);
 }
 
+/**
+ * The fielders on a run out, from whichever column the scorer reached for.
+ *
+ * `caught_by` is the right home for them, but the import screen disabled that
+ * input for every dismissal except a catch, so most run outs went into
+ * `dismissed_by` instead — 25 of the first 34 recorded. Reading both is not a
+ * migration we can skip past: the column a name landed in depended only on
+ * which build of the form was live that evening.
+ *
+ * Safe to conflate, because a run out has no bowler to credit — nothing else
+ * reads `dismissed_by` on these rows.
+ */
+export function runOutFielders(b: {
+  caught_by: string | null;
+  dismissed_by: string | null;
+}): string[] {
+  const fromCatch = parseFielders(b.caught_by);
+  return fromCatch.length > 0 ? fromCatch : parseFielders(b.dismissed_by);
+}
+
 // ── Result shape ──────────────────────────────────────────────────────────────
 
 export interface MVPRow {
@@ -217,7 +237,7 @@ export function computeMVP(series: FullSeries[], stageFilter?: StageFilter): MVP
           if (b.dismissal_type === "run_out") {
             // No bowler earns anything. The fielders take the whole wicket —
             // in full for a direct hit, halved when two of them combined.
-            const fielders = parseFielders(b.caught_by);
+            const fielders = runOutFielders(b);
             if (fielders.length > 0) {
               const share = 1 / fielders.length;
               for (const f of fielders) {

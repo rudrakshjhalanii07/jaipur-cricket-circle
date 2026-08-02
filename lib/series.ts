@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 import type { TeamId } from "./teams";
-import { computeMVP, parseFielders } from "./mvp";
+import { computeMVP, parseFielders, runOutFielders } from "./mvp";
 import type { MVPRow } from "./mvp";
 import {
   ballsToOvers,
@@ -324,19 +324,19 @@ export function computeLeaderboards(series: FullSeries[], stageFilter?: StageFil
             sixes: cur.sixes + (b.sixes ?? 0),
             team: b.team_id,
           });
-          // Fielding credit. `caught_by` is free text holding one name, or two
-          // slash-joined for a combined run out (see parseFielders). The
-          // fielder is always on the side that was bowling.
-          if (b.caught_by) {
-            const fielders = parseFielders(b.caught_by);
-            if (b.dismissal_type === "caught") {
-              for (const f of fielders) field(f, inn.bowling_team_id).catches += 1;
-            } else if (b.dismissal_type === "stumped") {
-              for (const f of fielders) field(f, inn.bowling_team_id).stumpings += 1;
-            } else if (b.dismissal_type === "run_out" && fielders.length > 0) {
-              const share = 1 / fielders.length;
-              for (const f of fielders) field(f, inn.bowling_team_id).runOuts += share;
-            }
+          // Fielding credit. The fielder is always on the side that was
+          // bowling. Names are free text: one, or two slash-joined when a run
+          // out took a throw and a receive (see parseFielders).
+          if (b.dismissal_type === "caught" && b.caught_by) {
+            for (const f of parseFielders(b.caught_by)) field(f, inn.bowling_team_id).catches += 1;
+          } else if (b.dismissal_type === "stumped" && b.caught_by) {
+            for (const f of parseFielders(b.caught_by)) field(f, inn.bowling_team_id).stumpings += 1;
+          } else if (b.dismissal_type === "run_out") {
+            // runOutFielders, not caught_by — most run outs on record named
+            // their fielders in dismissed_by instead.
+            const fielders = runOutFielders(b);
+            const share = 1 / fielders.length;
+            for (const f of fielders) field(f, inn.bowling_team_id).runOuts += share;
           }
         }
         for (const bw of inn.bowling) {

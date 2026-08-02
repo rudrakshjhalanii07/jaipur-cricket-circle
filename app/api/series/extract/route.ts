@@ -51,7 +51,7 @@ Return ONLY valid JSON matching this exact structure — no markdown, no extra t
           "sixes": 0,
           "dismissal_type": "bowled or caught or lbw or run_out or stumped or hit_wicket or retired_hurt or not_out or did_not_bat",
           "dismissed_by": "bowler name or null",
-          "caught_by": "fielder name or null — for caught and bowled, repeat the bowler's name here (see rules)"
+          "caught_by": "fielder name(s) or null — the catcher, the keeper on a stumping, or the fielders on a run out (see rules)"
         }
       ],
       "bowling": [
@@ -80,7 +80,13 @@ Important rules:
 - winner_id = the team with more runs; margin = difference in runs
 - There is no separate dismissal type for "caught and bowled" — use dismissal_type
   "caught" and set BOTH dismissed_by and caught_by to the bowler's name (e.g. a
-  scorecard line "c & b Sagar" becomes dismissed_by: "Sagar", caught_by: "Sagar")`;
+  scorecard line "c & b Sagar" becomes dismissed_by: "Sagar", caught_by: "Sagar")
+- A run out has NO bowler: dismissed_by is null, and the fielders go in
+  caught_by. One name is a direct hit; two go in slash-separated, thrower
+  first, e.g. "run out (Vikas / Kunwar Gaurav)" becomes
+  caught_by: "Vikas / Kunwar Gaurav". These are the only credit a fielder gets
+  for a run out, so never drop them.
+- On a stumping, caught_by is the keeper and dismissed_by is the bowler`;
 
 export async function POST(request: Request) {
   try {
