@@ -982,6 +982,9 @@ function TeamTag({ teamId }: { teamId?: string }) {
 
 const PODIUM_ORDER = ["#D4AF37", "#C8D2E0", "#B87333"] as const;
 
+/** Rows a page of the leaderboard shows. First entry is the default. */
+const PAGE_SIZES = [10, 15, 25] as const;
+
 /**
  * "Tied" pill — the visible half of the tiebreak. Two rows both reading 4 look
  * like the board is picking an order at random; this says they are level on the
@@ -1061,6 +1064,76 @@ function PodiumCard({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Page size and page controls, shown under every leaderboard. The board opens
+ * on the top 10 and the whole squad is a click away, so a player outside the
+ * podium can still find himself.
+ */
+function Pagination({
+  total,
+  page,
+  pageSize,
+  pageCount,
+  onPageSize,
+  onPage,
+}: {
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+  onPageSize: (n: number) => void;
+  onPage: (n: number) => void;
+}) {
+  const first = total === 0 ? 0 : page * pageSize + 1;
+  const last = Math.min(total, (page + 1) * pageSize);
+  const arrow =
+    "grid place-items-center w-7 h-7 rounded-full border border-white/[0.08] text-white/50 transition-colors enabled:hover:text-[#D4AF37] enabled:hover:border-[#D4AF37]/40 disabled:opacity-25";
+
+  return (
+    <div className="mt-5 pt-4 border-t border-white/[0.06] flex flex-wrap items-center justify-between gap-3 px-2">
+      <div className="flex items-center gap-2">
+        <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/25">
+          Show
+        </span>
+        {PAGE_SIZES.map((n) => (
+          <button
+            key={n}
+            onClick={() => onPageSize(n)}
+            className={`px-2 py-0.5 rounded-full text-[10px] font-black tabular-nums transition-all ${
+              n === pageSize
+                ? "bg-[#D4AF37] text-jcc-blue"
+                : "text-white/35 bg-white/[0.04] border border-white/[0.08] hover:text-white/60"
+            }`}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="text-[10px] font-bold tabular-nums text-white/35">
+          {first}–{last} of {total}
+        </span>
+        <button
+          onClick={() => onPage(page - 1)}
+          disabled={page === 0}
+          aria-label="Previous page"
+          className={arrow}
+        >
+          ‹
+        </button>
+        <button
+          onClick={() => onPage(page + 1)}
+          disabled={page >= pageCount - 1}
+          aria-label="Next page"
+          className={arrow}
+        >
+          ›
+        </button>
+      </div>
     </div>
   );
 }
@@ -1175,20 +1248,35 @@ export function StatsLeaderboards({
 }) {
   const [tab, setTab] = useState<StatsTab>("batting");
   const [scope, setScope] = useState<"season" | "career">("season");
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZES[0]);
+  const [page, setPage] = useState(0);
   const set = scope === "season" ? season : career;
-  const entries = toEntries(tab, set).slice(0, 10);
-  const podium = entries.slice(0, 3);
-  const rest = entries.slice(3);
+  const all = toEntries(tab, set);
 
-  // Who shares their headline number with someone else on the board. Counted
-  // across the whole top 10, not just the slice being drawn, so a player on the
-  // podium level with someone in the chasing pack is still marked tied.
+  // Who shares their headline number with someone else. Computed over the whole
+  // list before any slicing — a player level with someone two pages down is
+  // still tied, and paging through must not change who is marked.
   const tiedKeys = new Set(
-    entries
-      .map((e) => e.tieKey)
-      .filter((k, i, all) => all.indexOf(k) !== i),
+    all.map((e) => e.tieKey).filter((k, i, keys) => keys.indexOf(k) !== i),
   );
   const isTied = (e: LeaderEntry) => tiedKeys.has(e.tieKey);
+
+  const pageCount = Math.max(1, Math.ceil(all.length / pageSize));
+  // Guards a stale page after switching to a tab with fewer players.
+  const current = Math.min(page, pageCount - 1);
+  const start = current * pageSize;
+  const entries = all.slice(start, start + pageSize);
+
+  // The podium is the top three of the board, not of the page — deeper pages
+  // are all one-line rows.
+  const podium = current === 0 ? entries.slice(0, 3) : [];
+  const rest = entries.slice(podium.length);
+
+  // Any control that reshapes the list sends you back to the front of it.
+  const reset = <T,>(apply: (v: T) => void) => (v: T) => {
+    apply(v);
+    setPage(0);
+  };
 
   const tabs: { id: StatsTab; label: string; short: string }[] = [
     { id: "batting", label: "Batting", short: "Bat" },
@@ -1203,7 +1291,7 @@ export function StatsLeaderboards({
         {(["season", "career"] as const).map((s) => (
           <button
             key={s}
-            onClick={() => setScope(s)}
+            onClick={() => reset(setScope)(s)}
             className={`px-4 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-full transition-all ${
               scope === s
                 ? "bg-[#D4AF37] text-jcc-blue shadow-[0_0_12px_rgba(212,175,55,0.3)]"
@@ -1223,7 +1311,7 @@ export function StatsLeaderboards({
         {tabs.map((t) => (
           <button
             key={t.id}
-            onClick={() => setTab(t.id)}
+            onClick={() => reset(setTab)(t.id)}
             className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${tab === t.id ? "text-[#D4AF37] border-b-2 border-[#D4AF37]" : "text-white/30 hover:text-white/50"}`}
           >
             <span className="hidden sm:inline">{t.label}</span>
@@ -1238,6 +1326,7 @@ export function StatsLeaderboards({
         </p>
       ) : (
         <div className="p-4 sm:p-6">
+          {podium.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 sm:pt-3">
             {podium.map((e, i) => (
               <PodiumCard
@@ -1249,16 +1338,17 @@ export function StatsLeaderboards({
               />
             ))}
           </div>
+          )}
           {rest.length > 0 && (
-            <div className="mt-6">
+            <div className={podium.length > 0 ? "mt-6" : ""}>
               <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/20 px-2 mb-1">
-                Chasing pack
+                {podium.length > 0 ? "Chasing pack" : `Ranks ${start + 1}–${start + rest.length}`}
               </p>
               {rest.map((e, i) => (
                 <LeaderRow
                   key={e.name}
                   entry={e}
-                  rank={i + 4}
+                  rank={start + podium.length + i + 1}
                   tab={tab}
                   tied={isTied(e)}
                 />
@@ -1271,6 +1361,14 @@ export function StatsLeaderboards({
             </p>
           )}
           {tab === "fielding" && <FieldingBreakdown rows={set.fielding} />}
+          <Pagination
+            total={all.length}
+            page={current}
+            pageSize={pageSize}
+            pageCount={pageCount}
+            onPageSize={(n) => reset(setPageSize)(n)}
+            onPage={setPage}
+          />
         </div>
       )}
     </div>
