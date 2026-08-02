@@ -17,6 +17,11 @@
 // looping/forced allotment) needs a big enough pool to actually exercise
 // its loop/allot/blocked paths, not just the exact minimum.
 //
+// The hardcoded name lists below are now only the FALLBACK pool. When the
+// dev page passes in the club roster (approved `players` rows), seedLots/
+// seedCaptains build the auction out of real registered members and their
+// real profile photos instead — see rosterLotSeed.
+//
 // Captains are seeded only into the MVP category (the graphic doesn't
 // define a captain module at all — this is an addition to exercise
 // mockEngine's captain-valuation recalc), so Regular/Guest sales
@@ -24,6 +29,7 @@
 // every lot needing one.
 
 import { TEAM_ORDER_ALL, TEAMS, type TeamId } from "@/lib/teams";
+import { createRosterMatcher, type ClubRosterRow } from "@/lib/club-roster";
 import type {
   Auction,
   AuctionWallet,
@@ -203,18 +209,25 @@ const CAPTAIN_CATEGORY_BY_TEAM: Record<TeamId, string> = {
   vikings: MOCK_CATEGORY_MVP_ID,
 };
 
-export function seedCaptains(): AuctionCaptain[] {
-  return TEAM_ORDER_ALL.map((teamId) => ({
-    id: `mock-captain-${teamId}`,
-    auction_id: MOCK_AUCTION_ID,
-    team_id: teamId,
-    auction_team_id: null,
-    category_id: CAPTAIN_CATEGORY_BY_TEAM[teamId],
-    external_ref: null,
-    display_name: TEAMS[teamId].captain,
-    metadata: {},
-    created_at: now(),
-  }));
+export function seedCaptains(roster?: ClubRosterRow[]): AuctionCaptain[] {
+  const match = roster?.length ? createRosterMatcher(roster) : null;
+  return TEAM_ORDER_ALL.map((teamId) => {
+    const captainName = TEAMS[teamId].captain;
+    // A captain who is also a registered member gets their real profile
+    // photo and roster id, same as any lot built from the roster below.
+    const member = match?.find(captainName) ?? null;
+    return {
+      id: `mock-captain-${teamId}`,
+      auction_id: MOCK_AUCTION_ID,
+      team_id: teamId,
+      auction_team_id: null,
+      category_id: CAPTAIN_CATEGORY_BY_TEAM[teamId],
+      external_ref: member?.id ?? null,
+      display_name: captainName,
+      metadata: member?.image_url ? { image: member.image_url } : {},
+      created_at: now(),
+    };
+  });
 }
 
 // 4 teams x min_required 2 = 8 MVP slots, 5 x 4 = 20 Regular slots (see
@@ -306,20 +319,95 @@ function shuffled<T>(items: T[]): T[] {
   return arr;
 }
 
-function buildLotSeed(): Array<{ name: string; role: string; categoryId: string; basePrice: number }> {
+interface LotSeed {
+  name: string;
+  role: string;
+  categoryId: string;
+  basePrice: number;
+  /** Real member photo — null falls back to the DiceBear illustration in the UI. */
+  image: string | null;
+  /** `players.id` when this lot is a registered member, else null. */
+  memberId: string | null;
+}
+
+const CATEGORY_SEED = {
+  mvp: { role: "MVP Player", categoryId: MOCK_CATEGORY_MVP_ID, basePrice: 100 },
+  regular: { role: "Regular Player", categoryId: MOCK_CATEGORY_REGULAR_ID, basePrice: 50 },
+  guest: { role: "Guest Player", categoryId: MOCK_CATEGORY_GUEST_ID, basePrice: 25 },
+} as const;
+
+// Category sizes when the pool comes from the real club roster. The two
+// mandatory tiers have to clear their own quota (4 teams x min_required:
+// 8 MVP, 20 Regular) or the auction can never fill a squad — MVP is given
+// two spare so there's still real competition before the quota's forced-
+// allotment path kicks in, and whatever is left over becomes the Guest
+// pool. Below the sum of the mandatory tiers the roster simply isn't a
+// usable pool, and seedLots falls back to the hardcoded names.
+const ROSTER_MVP_COUNT = 10;
+const ROSTER_REGULAR_COUNT = 20;
+const ROSTER_MIN_POOL = ROSTER_MVP_COUNT + ROSTER_REGULAR_COUNT;
+
+function hardcodedLotSeed(): LotSeed[] {
+  const build = (names: string[], tier: keyof typeof CATEGORY_SEED) =>
+    shuffled(names).map((name) => ({ name, image: null, memberId: null, ...CATEGORY_SEED[tier] }));
   return [
-    ...shuffled(MVP_PLAYERS).map((name) => ({ name, role: "MVP Player", categoryId: MOCK_CATEGORY_MVP_ID, basePrice: 100 })),
-    ...shuffled(REGULAR_PLAYERS).map((name) => ({ name, role: "Regular Player", categoryId: MOCK_CATEGORY_REGULAR_ID, basePrice: 50 })),
-    ...shuffled(GUEST_PLAYERS).map((name) => ({ name, role: "Guest Player", categoryId: MOCK_CATEGORY_GUEST_ID, basePrice: 25 })),
+    ...build(MVP_PLAYERS, "mvp"),
+    ...build(REGULAR_PLAYERS, "regular"),
+    ...build(GUEST_PLAYERS, "guest"),
   ];
 }
 
-export function seedLots(): AuctionLot[] {
-  return buildLotSeed().map((p, i) => ({
+// The club roster (approved `players` rows — the same faces /members shows)
+// as an auction pool, so the harness runs on real names and real profile
+// photos instead of invented names with DiceBear illustrations.
+//
+// The four team captains are removed first: a captain occupies a squad slot
+// with no purchase behind it (see seedCaptains), so leaving them in the pool
+// would put a player up for sale who is already on a team sheet.
+//
+// Tiering has no roster field behind it — nothing in `players` says "MVP" —
+// so founding members/captains-by-role seed the MVP tier (the closest thing
+// the roster has to a marquee signal) and the rest is shuffled into Regular
+// and then Guest.
+function rosterLotSeed(roster: ClubRosterRow[]): LotSeed[] | null {
+  const match = createRosterMatcher(roster);
+  const captainIds = new Set(
+    TEAM_ORDER_ALL.map((teamId) => match.find(TEAMS[teamId].captain)?.id).filter((id): id is string => !!id)
+  );
+  const available = roster.filter((r) => !captainIds.has(r.id));
+  if (available.length < ROSTER_MIN_POOL) return null;
+
+  const isMarquee = (r: ClubRosterRow) => /found|captain/i.test(r.role ?? "");
+  const ordered = [
+    ...shuffled(available.filter(isMarquee)),
+    ...shuffled(available.filter((r) => !isMarquee(r))),
+  ];
+
+  const tierOf = (i: number): keyof typeof CATEGORY_SEED =>
+    i < ROSTER_MVP_COUNT ? "mvp" : i < ROSTER_MIN_POOL ? "regular" : "guest";
+
+  // Re-shuffled per tier so draw order inside a category isn't the marquee
+  // ordering above — same guarantee shuffled() gives the hardcoded pool.
+  return (["mvp", "regular", "guest"] as const).flatMap((tier) =>
+    shuffled(ordered.filter((_, i) => tierOf(i) === tier)).map((r) => ({
+      name: r.name,
+      image: r.image_url,
+      memberId: r.id,
+      ...CATEGORY_SEED[tier],
+    }))
+  );
+}
+
+function buildLotSeed(roster?: ClubRosterRow[]): LotSeed[] {
+  return (roster?.length ? rosterLotSeed(roster) : null) ?? hardcodedLotSeed();
+}
+
+export function seedLots(roster?: ClubRosterRow[]): AuctionLot[] {
+  return buildLotSeed(roster).map((p, i) => ({
     id: `mock-lot-${i + 1}`,
     auction_id: MOCK_AUCTION_ID,
     category_id: p.categoryId,
-    external_ref: null,
+    external_ref: p.memberId,
     display_name: p.name,
     lot_order: i + 1,
     base_price: p.basePrice,
@@ -330,7 +418,7 @@ export function seedLots(): AuctionLot[] {
     sold_wallet_id: null,
     sold_at: null,
     version: 0,
-    metadata: { role: p.role },
+    metadata: { role: p.role, image: p.image },
     created_at: now(),
     updated_at: now(),
   }));

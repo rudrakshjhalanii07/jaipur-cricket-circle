@@ -31,6 +31,7 @@ import type {
   CaptainValuation,
 } from "@/lib/auctionos/core/types";
 import type { AuctionEngine, AuctionSnapshot } from "./engine";
+import type { ClubRosterRow } from "@/lib/club-roster";
 import { violatesReserve, withCaptainBonus } from "@/lib/auctionos/core/reserve";
 import { getNextBidIncrement } from "./rules";
 import {
@@ -54,14 +55,14 @@ interface MockStore {
   teams: AuctionTeam[];
 }
 
-function freshStore(): MockStore {
+function freshStore(roster?: ClubRosterRow[]): MockStore {
   return {
     auction: seedAuction(),
     wallets: seedWallets(),
     walletKinds: seedWalletKinds(),
-    lots: seedLots(),
+    lots: seedLots(roster),
     categories: seedCategories(),
-    captains: seedCaptains(),
+    captains: seedCaptains(roster),
     captainValuations: [],
     teams: seedTeams(),
   };
@@ -82,7 +83,17 @@ function snapshotOf(store: MockStore): AuctionSnapshot {
 
 // Returns both the mutable engine and a reset() escape hatch the dev page
 // uses to restart the mock auction from lot 1 without a page reload.
-export function createMockEngine(): { engine: AuctionEngine; reset: () => void } {
+//
+// `roster` (the club's approved members, fetched server-side by the dev
+// page) is threaded straight through to the seed so the engine's store and
+// the props the page renders are built from the same pool — passing it to
+// one and not the other would leave the UI showing lots the engine has
+// never heard of.
+export function createMockEngine(roster?: ClubRosterRow[]): {
+  engine: AuctionEngine;
+  reset: () => void;
+  snapshot: () => AuctionSnapshot;
+} {
   let nextValuationId = 1;
 
   // Mirrors _auctionos_charge_regular_captains: a Regular-category
@@ -111,7 +122,7 @@ export function createMockEngine(): { engine: AuctionEngine; reset: () => void }
     return { ...base, wallets, captainValuations: [...valuations, ...base.captainValuations] };
   }
 
-  let store = chargeRegularCaptains(freshStore());
+  let store = chargeRegularCaptains(freshStore(roster));
 
   // Mirrors _auctionos_recalc_captain_valuation: MVP-only now — Regular
   // captains are charged once up front (see chargeRegularCaptains) and
@@ -462,7 +473,13 @@ export function createMockEngine(): { engine: AuctionEngine; reset: () => void }
     engine,
     reset: () => {
       nextValuationId = 1;
-      store = chargeRegularCaptains(freshStore());
+      store = chargeRegularCaptains(freshStore(roster));
     },
+    // Synchronous read of the current store, for the dev page's initial
+    // props. `engine.refresh()` returns the same thing but as a Promise
+    // (it mirrors the live engine's network read) — the page needs the
+    // seeded lots/teams during the first render, not an effect later, or
+    // the hall would flash empty before the pool arrives.
+    snapshot: () => snapshotOf(store),
   };
 }
