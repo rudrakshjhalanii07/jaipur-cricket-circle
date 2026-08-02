@@ -197,6 +197,14 @@ export interface FieldingRow {
    * harder. Unrounded — format at the point of display.
    */
   run_outs: number;
+  /**
+   * How many run outs the player had a hand in, counting a shared one whole.
+   * This is the honest answer to "how many run outs did he get?" — Kunwar
+   * Gaurav was in on two, even though they pay him 0.5 each — so it is what
+   * the RO column shows. It never feeds the ranking; `run_outs` does, because
+   * two players cannot both be credited a full wicket for the same dismissal.
+   */
+  run_outs_involved: number;
   /** catches + stumpings + run_outs — what the board ranks on. Unrounded. */
   dismissals: number;
 }
@@ -284,12 +292,20 @@ export function computeLeaderboards(series: FullSeries[], stageFilter?: StageFil
   const DISMISSED = new Set(["bowled", "caught", "lbw", "run_out", "stumped", "hit_wicket"]);
   const battingMap = new Map<string, { runs: number; balls: number; innings: number; outs: number; high: number; fours: number; sixes: number; team: SeriesTeamId }>();
   const bowlingMap = new Map<string, { wickets: number; balls: number; runs: number; innings: number; team: SeriesTeamId }>();
-  type FieldAcc = { catches: number; stumpings: number; runOuts: number; team?: SeriesTeamId };
+  type FieldAcc = {
+    catches: number;
+    stumpings: number;
+    /** Credit — a combined run out pays each fielder a share. */
+    runOuts: number;
+    /** Head count — run outs the player had a hand in, shared or not. */
+    runOutsInvolved: number;
+    team?: SeriesTeamId;
+  };
   const fieldMap = new Map<string, FieldAcc>();
   const field = (name: string, team: SeriesTeamId): FieldAcc => {
     let cur = fieldMap.get(name);
     if (!cur) {
-      cur = { catches: 0, stumpings: 0, runOuts: 0, team };
+      cur = { catches: 0, stumpings: 0, runOuts: 0, runOutsInvolved: 0, team };
       fieldMap.set(name, cur);
     }
     return cur;
@@ -337,7 +353,11 @@ export function computeLeaderboards(series: FullSeries[], stageFilter?: StageFil
             // their fielders in dismissed_by instead.
             const fielders = runOutFielders(b);
             const share = 1 / fielders.length;
-            for (const f of fielders) field(f, inn.bowling_team_id).runOuts += share;
+            for (const f of fielders) {
+              const a = field(f, inn.bowling_team_id);
+              a.runOuts += share;
+              a.runOutsInvolved += 1;
+            }
           }
         }
         for (const bw of inn.bowling) {
@@ -436,6 +456,7 @@ export function computeLeaderboards(series: FullSeries[], stageFilter?: StageFil
       catches: v.catches,
       stumpings: v.stumpings,
       run_outs: v.runOuts,
+      run_outs_involved: v.runOutsInvolved,
       dismissals: v.catches + v.stumpings + v.runOuts,
     }))
     .filter((r) => r.dismissals > 0)

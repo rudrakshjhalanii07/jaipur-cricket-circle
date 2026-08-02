@@ -42,6 +42,7 @@ import {
   type BattingPerf,
   type FallOfWicket,
 } from "@/lib/series";
+import { runOutFielders } from "@/lib/mvp";
 import {
   resolveBracket,
   resolveVenue,
@@ -905,7 +906,9 @@ function toEntries(tab: StatsTab, set: LeaderboardSet): LeaderEntry[] {
         stats: [
           { label: "Ct", value: r.catches },
           { label: "St", value: r.stumpings },
-          { label: "RO", value: fmtCount(r.run_outs) },
+          // Head count, not credit: a fielder who combined on two run outs was
+          // in on 2, even though the headline only pays him 0.5 for each.
+          { label: "RO", value: r.run_outs_involved },
         ],
       }));
   }
@@ -1066,8 +1069,10 @@ function FieldingBreakdown({ rows }: { rows: FieldingRow[] }) {
         ))}
       </div>
       <p className="text-[9px] text-white/25 mt-2.5 leading-relaxed">
-        A run out off one fielder&apos;s throw counts 1. When two combine, they take
-        half each — no one gets to argue the throw was harder than the catch.
+        The RO column counts every run out a fielder was in on. The dismissals
+        total pays for them: one off a single throw counts 1, and when two
+        combine they take half each — no one gets to argue the throw was harder
+        than the catch. That is why a fielder can show 2 RO and still be on 1.
       </p>
     </div>
   );
@@ -1519,8 +1524,12 @@ function dismissalText(b: BattingPerf): string {
       return "did not bat";
     case "caught":
       return `c ${b.caught_by ?? "?"} b ${out}`;
-    case "run_out":
-      return `run out (${b.dismissed_by ?? "?"})`;
+    // The fielders live in caught_by since the backfill, but older rows still
+    // carry them in dismissed_by — runOutFielders reads whichever was used.
+    case "run_out": {
+      const fielders = runOutFielders(b);
+      return `run out (${fielders.length > 0 ? fielders.join(" / ") : "?"})`;
+    }
     case "stumped":
       return `st ${b.caught_by ?? "?"} b ${out}`;
     case "lbw":

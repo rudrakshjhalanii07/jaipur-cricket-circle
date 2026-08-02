@@ -369,7 +369,7 @@ export default function PlayerStatsModal({
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">Dismissals</p>
                   <p className="text-[9px] text-white/30 mt-0.5">
-                    {fielding!.catches} ct · {fielding!.stumpings} st · {fmtCount(fielding!.run_outs)} ro
+                    {fielding!.catches} ct · {fielding!.stumpings} st · {fielding!.run_outs_involved} ro
                   </p>
                 </div>
               </div>
