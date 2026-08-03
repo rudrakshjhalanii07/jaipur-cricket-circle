@@ -1031,7 +1031,7 @@ function PodiumCard({
           className="shrink-0 grid place-items-center w-6 h-6 rounded-full text-[10px] font-black text-jcc-blue sm:absolute sm:-top-3 sm:left-1/2 sm:-translate-x-1/2 sm:w-7 sm:h-7 sm:text-[11px]"
           style={{ background: color }}
         >
-          {tied ? `${rank}=` : rank}
+          {rank}
         </span>
         <ScorecardFace
           name={entry.name}
@@ -1153,7 +1153,7 @@ function LeaderRow({
   return (
     <div className="flex items-center gap-3 py-2.5 px-2 rounded-xl border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] transition-colors">
       <span className="w-5 shrink-0 text-right font-black tabular-nums text-white/20 text-xs">
-        {tied ? `${rank}=` : rank}
+        {rank}
       </span>
       <ScorecardFace
         name={entry.name}
@@ -1261,6 +1261,16 @@ export function StatsLeaderboards({
   );
   const isTied = (e: LeaderEntry) => tiedKeys.has(e.tieKey);
 
+  // Dense ranking: everyone level on the headline holds the same rank, and the
+  // next number along is the next distinct score rather than the next row. Six
+  // players tied behind a 1st and a 2nd are all 3rd, and whoever follows is
+  // 4th — no gaps. The list is already sorted, so distinct keys come in order.
+  const rankByKey = new Map<number, number>();
+  for (const e of all) {
+    if (!rankByKey.has(e.tieKey)) rankByKey.set(e.tieKey, rankByKey.size + 1);
+  }
+  const rankOf = (e: LeaderEntry) => rankByKey.get(e.tieKey)!;
+
   const pageCount = Math.max(1, Math.ceil(all.length / pageSize));
   // Guards a stale page after switching to a tab with fewer players.
   const current = Math.min(page, pageCount - 1);
@@ -1328,11 +1338,11 @@ export function StatsLeaderboards({
         <div className="p-4 sm:p-6">
           {podium.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 sm:pt-3">
-            {podium.map((e, i) => (
+            {podium.map((e) => (
               <PodiumCard
                 key={e.name}
                 entry={e}
-                rank={i + 1}
+                rank={rankOf(e)}
                 tab={tab}
                 tied={isTied(e)}
               />
@@ -1342,13 +1352,15 @@ export function StatsLeaderboards({
           {rest.length > 0 && (
             <div className={podium.length > 0 ? "mt-6" : ""}>
               <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/20 px-2 mb-1">
-                {podium.length > 0 ? "Chasing pack" : `Ranks ${start + 1}–${start + rest.length}`}
+                {podium.length > 0
+                  ? "Chasing pack"
+                  : `Players ${start + 1}–${start + rest.length}`}
               </p>
-              {rest.map((e, i) => (
+              {rest.map((e) => (
                 <LeaderRow
                   key={e.name}
                   entry={e}
-                  rank={start + podium.length + i + 1}
+                  rank={rankOf(e)}
                   tab={tab}
                   tied={isTied(e)}
                 />
