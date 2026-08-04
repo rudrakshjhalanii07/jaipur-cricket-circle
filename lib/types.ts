@@ -26,6 +26,12 @@ export interface Member {
   bowlingStyle: string;
   shortBio: string;
   joinedDate: string;
+  /**
+   * Cap number, printed on the ID card. Handed out in the order members
+   * registered — cap 001 is the first person to sign up — so it belongs to the
+   * person for good and does not move when the directory is sorted or filtered.
+   */
+  capNumber?: number;
   /** Career appearances, summed from every scorecard spelling of the name. */
   matchesPlayed?: number;
   /** Standing in the club, highest the person holds — orders the directory. */

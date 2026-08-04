@@ -28,7 +28,9 @@ export default function MemberCard({
 }) {
   const [photoError, setPhotoError] = useState(false);
   const monogram = getMonogramAvatar(member.name);
-  const memberNo = String(index + 1).padStart(3, "0");
+  // His cap number, not his place in the grid — see Member.capNumber. The grid
+  // position is only a fallback for a caller that has no roster to number.
+  const memberNo = String(member.capNumber ?? index + 1).padStart(3, "0");
   const isFounder = member.tags.includes("founding-member");
   const isCaptain = member.tags.includes("captain") || member.tags.includes("vice-captain");
   const cardTier = isFounder ? " id-card--founder" : isCaptain ? " id-card--captain" : "";
@@ -119,7 +121,7 @@ export default function MemberCard({
 
           <div className={`flex items-center justify-between text-[8px] sm:text-[9px] font-bold uppercase tracking-[0.15em] mt-3 pt-2 ${hasPhoto ? "text-[rgba(255,255,255,0.5)] border-t border-[rgba(255,255,255,0.2)]" : "text-jcc-blue/30 border-t border-jcc-blue/15"}`}>
             <span>Est. 2026</span>
-            <span>No. {memberNo}</span>
+            <span>Cap {memberNo}</span>
             <span>JCC</span>
           </div>
         </div>

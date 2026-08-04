@@ -254,6 +254,12 @@ interface SquadMember {
   matches: number;
   /** Bought into the 25L guest tier — see GUEST_BASE. */
   guest: boolean;
+  /**
+   * False for a signing the transcript settled as a non-member. Several are
+   * first-name-only people who are NOT the similarly named member ("Madhav"
+   * vs "Madhav Sharma"), so they must not be given his face.
+   */
+  member?: boolean;
   /** Leads the side — listed first, whatever his match count. */
   captain?: boolean;
   /** Boards this player tops this season — see seasonHonours. */
@@ -516,6 +522,7 @@ function seasonSquads(
       name: s.name,
       matches: played.get(s.name) ?? 0,
       guest: s.guest,
+      member: s.member,
       captain: s.captain,
       honours: honours.get(s.name),
     }));
@@ -836,6 +843,7 @@ export function SeasonHeader({
                               <ScorecardFace
                                 name={m.name}
                                 teamId={newcomers ? null : (squad.id as TeamId)}
+                                photo={m.member !== false}
                                 size={96}
                                 className="w-10 h-10 shrink-0 rounded-full overflow-hidden"
                               />
@@ -3043,17 +3051,24 @@ function ScorecardFace({
   teamId,
   size = 48,
   className = "w-7 h-7 shrink-0 rounded-full overflow-hidden",
+  photo = true,
 }: {
   name: string;
   teamId: string | null;
   /** next/image width hint — raise it wherever the face is rendered large. */
   size?: number;
   className?: string;
+  /**
+   * Set false when the name is known NOT to belong to any `players` row. The
+   * lookup falls back to a lone first name, so a non-member called "Madhav"
+   * would otherwise wear Madhav Sharma's face.
+   */
+  photo?: boolean;
 }) {
   const photos = useContext(PlayerPhotoContext);
   return (
     <PlayerAvatar
-      src={photoFor(photos, name)}
+      src={photo ? photoFor(photos, name) : null}
       name={name}
       team={teamId ? (TEAMS[teamId as keyof typeof TEAMS]?.name ?? null) : null}
       displaySize={size}

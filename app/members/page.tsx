@@ -59,6 +59,24 @@ const getMembers = unstable_cache(
 
     if (error || !data) return [];
 
+    // Cap numbers, handed out in registration order — earliest sign-up is 001.
+    // They are worked out over the whole approved roster here rather than from
+    // a card's position on the page, so a member keeps his number whatever the
+    // directory is sorted or filtered by. A row with no timestamp sorts last,
+    // and the id breaks a tie so the run is stable between renders.
+    const registeredAt = (p: { created_at?: string | null; approved_at?: string | null }) =>
+      p.created_at || p.approved_at || null;
+    const capNumbers = new Map<string, number>(
+      [...data]
+        .sort((a, b) => {
+          const [x, y] = [registeredAt(a), registeredAt(b)];
+          if (x && y && x !== y) return x < y ? -1 : 1;
+          if (!x !== !y) return x ? -1 : 1;
+          return String(a.id).localeCompare(String(b.id));
+        })
+        .map((p, i) => [p.id as string, i + 1]),
+    );
+
     return data.map((p) => {
       // Captaincy is stripped out of the admin record here and re-applied from
       // the active season in MembersPage — `group_role` still names whoever led
@@ -95,6 +113,7 @@ const getMembers = unstable_cache(
         bowlingStyle: p.bowling_style || "N/A",
         shortBio: p.short_bio || p.bio || "A valued member of the circle.",
         joinedDate: p.approved_at || p.created_at || new Date().toISOString(),
+        capNumber: capNumbers.get(p.id),
         standing,
       } as Member;
     });
