@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
+import { AUCTION_SIGNINGS } from "@/lib/auction-squads";
+import { createRosterMatcher } from "@/lib/club-roster";
+import { TEAMS, TEAM_ORDER_ALL } from "@/lib/teams";
 import {
   UserPlus, Search, Edit2,
   Activity, Loader2, Save, Clock,
-  CheckCircle2, BarChart3, Crown, ArrowRight,
+  CheckCircle2, ArrowRight,
   Users as UsersIcon, ShieldCheck, UserCheck
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -35,8 +38,8 @@ interface Player {
 
 /* Team-identity dossier themes — each JCC team gets its own card
    material (FIFA Ultimate Team-style) instead of one flat surface.
-   Captain badge stays gold-filled across every theme so the strongest
-   status signal reads identically no matter which team it sits on. */
+   The card is the only place a member's side is stated now — the Team row
+   was dropped from the dossier — so the theme has to carry it alone. */
 const TEAM_THEMES: Record<string, {
   card: string;
   name: string;
@@ -63,18 +66,20 @@ const TEAM_THEMES: Record<string, {
     actionHover: "group-hover:text-jcc-accent-dark",
     hair: "bg-jcc-accent-dark/25",
   },
+  // Light stock like the Mavericks card, tinted with the side's own blue
+  // (TEAMS.neurostrikers.primary #3B6FC4) instead of gold.
   NeuroStrikers: {
-    card: "bg-gradient-to-br from-[#0E1D38] to-[#13284A] border-jcc-accent/35",
-    name: "text-jcc-navy",
-    label: "text-jcc-navy/40",
-    value: "text-jcc-navy/70",
-    divider: "via-jcc-accent/60",
-    glow: "hover:shadow-[0_20px_44px_-14px_rgba(212,175,55,0.5)]",
-    badgeOutline: "border-jcc-accent/50 text-jcc-accent-highlight",
-    photoRing: "ring-jcc-accent/45",
-    action: "text-jcc-navy/45",
-    actionHover: "group-hover:text-jcc-accent-highlight",
-    hair: "bg-jcc-accent/35",
+    card: "bg-gradient-to-br from-[#FBFCFF] to-[#E2EAF8] border-[#3B6FC4]/35",
+    name: "text-jcc-blue",
+    label: "text-jcc-blue/40",
+    value: "text-jcc-blue/75",
+    divider: "via-[#3B6FC4]/50",
+    glow: "hover:shadow-[0_20px_44px_-14px_rgba(59,111,196,0.42)]",
+    badgeOutline: "border-[#3B6FC4]/45 text-[#2A5299]",
+    photoRing: "ring-[#3B6FC4]/35",
+    action: "text-jcc-blue/50",
+    actionHover: "group-hover:text-[#2A5299]",
+    hair: "bg-[#3B6FC4]/25",
   },
   "The Outliers": {
     card: "bg-gradient-to-br from-[#0A2E24] to-[#0F3D30] border-jcc-accent-dark/30",
@@ -88,6 +93,20 @@ const TEAM_THEMES: Record<string, {
     action: "text-jcc-navy/45",
     actionHover: "group-hover:text-jcc-accent-highlight",
     hair: "bg-jcc-accent-dark/30",
+  },
+  // Fjord teal and bronze, the crest's own colours — see TEAMS.vikings.
+  Vikings: {
+    card: "bg-gradient-to-br from-[#0B1620] to-[#12384A] border-[#BB7E42]/35",
+    name: "text-jcc-navy",
+    label: "text-jcc-navy/40",
+    value: "text-jcc-navy/70",
+    divider: "via-[#BB7E42]/60",
+    glow: "hover:shadow-[0_20px_44px_-14px_rgba(187,126,66,0.45)]",
+    badgeOutline: "border-[#BB7E42]/50 text-[#E0A844]",
+    photoRing: "ring-[#BB7E42]/45",
+    action: "text-jcc-navy/45",
+    actionHover: "group-hover:text-[#E0A844]",
+    hair: "bg-[#BB7E42]/35",
   },
   Unassigned: {
     card: "bg-gradient-to-br from-jcc-navy to-jcc-navy-light border-jcc-blue/15",
@@ -106,6 +125,48 @@ const TEAM_THEMES: Record<string, {
 
 function getTeamTheme(team: string) {
   return TEAM_THEMES[team] || TEAM_THEMES.Unassigned;
+}
+
+/** The team names the edit form offers — all four sides, drawn from TEAMS. */
+const TEAM_NAMES = TEAM_ORDER_ALL.map((id) => TEAMS[id].name);
+
+interface Squad {
+  /** Display name of the side he was bought into. */
+  team: string;
+  captain: boolean;
+}
+
+/**
+ * Who is on which side *this season*, read off the auction sheet.
+ *
+ * `players.team` predates the auction — it carries last season's side where it
+ * is filled in at all — so the panel would otherwise show a member under the
+ * team he left. /members already resolves this the same way (see teamsByMember
+ * in app/members/page.tsx, where the auction outranks the stored column); this
+ * is that rule applied to the admin list, so both agree on the same answer.
+ *
+ * Matching is the loose matcher /members uses, and `member` is trusted over it:
+ * a signing flagged as a non-member is never folded onto a similarly named
+ * roster row (see lib/auction-squads.ts).
+ */
+function squadsFromAuction(players: Player[]): Map<string, Squad> {
+  const matcher = createRosterMatcher(
+    players.map((p) => ({
+      id: p.id,
+      name: p.name,
+      image_url: p.image_url ?? null,
+      team: p.team ?? null,
+      role: p.cricket_role ?? null,
+    })),
+  );
+
+  const squads = new Map<string, Squad>();
+  for (const s of AUCTION_SIGNINGS) {
+    if (!s.member) continue;
+    const row = matcher.find(s.name);
+    if (row) squads.set(row.id, { team: TEAMS[s.teamId].name, captain: s.captain });
+  }
+  return squads;
 }
 
 export default function MemberControl({ adminPassword }: { adminPassword?: string }) {
@@ -237,27 +298,46 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
     }
   };
 
+  const squads = useMemo(() => squadsFromAuction(players), [players]);
+  const teamOf = (p: Player) => squads.get(p.id)?.team || p.team || "Unassigned";
+  // Captaincy comes from the auction sheet alone. `group_role` still holds the
+  // captains and vice-captains of earlier seasons — it was set by hand and
+  // never cleared — so counting it would badge people who no longer lead a side.
+  const isCaptainOf = (p: Player) => squads.get(p.id)?.captain === true;
+
   const pendingPlayers = players.filter(p => p.approval_status === "pending");
   const approvedPlayers = players.filter(p => p.approval_status === "approved");
 
-  const filteredPlayers = (view === "all" ? approvedPlayers : pendingPlayers).filter(p => 
-    p.name.toLowerCase().includes(search.toLowerCase()) || 
-    p.phone.includes(search)
+  // The box says "role or team", so it searches those too — and on the team the
+  // card actually shows, not the stale stored one.
+  const query = search.trim().toLowerCase();
+  const filteredPlayers = (view === "all" ? approvedPlayers : pendingPlayers).filter(p =>
+    !query ||
+    p.name.toLowerCase().includes(query) ||
+    p.phone.includes(query) ||
+    teamOf(p).toLowerCase().includes(query) ||
+    (p.cricket_role ?? "").replace(/-/g, " ").toLowerCase().includes(query) ||
+    (p.group_role ?? "").replace(/-/g, " ").toLowerCase().includes(query)
   );
 
+  // Standing first — founders, then the committee, then this season's captains
+  // — and inside a tier the longest-registered member leads. `created_at` is
+  // the registration date: the row is written when the person registers, and
+  // the approval flow updates `approval_status` rather than re-creating it.
+  const standingRank = (p: Player) => {
+    if (p.member_tag === "founding-member") return 0;
+    if (p.is_exec_committee) return 1;
+    if (isCaptainOf(p)) return 2;
+    return 3;
+  };
+
   const sortedPlayers = [...filteredPlayers].sort((a, b) => {
-    const getRolePriority = (role?: string) => {
-      if (role === "captain") return 1;
-      if (role === "vice-captain") return 2;
-      return 3;
-    };
-    const aPriority = getRolePriority(a.group_role);
-    const bPriority = getRolePriority(b.group_role);
-    if (aPriority !== bPriority) return aPriority - bPriority;
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    const byStanding = standingRank(a) - standingRank(b);
+    if (byStanding !== 0) return byStanding;
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
   });
 
-  const captainCount = approvedPlayers.filter(p => p.group_role === "captain" || p.group_role === "vice-captain").length;
+  const captainCount = approvedPlayers.filter(isCaptainOf).length;
 
   return (
     <div className="space-y-8">
@@ -266,7 +346,7 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <AdminStatCard label="Active Members" value={approvedPlayers.length} sub="Approved players" icon={UsersIcon} />
         <AdminStatCard label="Pending" value={pendingPlayers.length} sub="Awaiting approval" icon={UserCheck} />
-        <AdminStatCard label="Captaincy" value={captainCount} sub="Captains & vice-captains" icon={ShieldCheck} />
+        <AdminStatCard label="Captaincy" value={captainCount} sub="Season captains" icon={ShieldCheck} />
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -317,9 +397,9 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
         {sortedPlayers.map((player, index) => {
           const isFounder = player.member_tag === "founding-member";
           const inExec = isFounder || player.is_exec_committee;
-          const isCaptain = player.group_role === "captain" || player.group_role === "vice-captain";
           const roleLabel = player.cricket_role?.replace(/-/g, " ") || "—";
-          const theme = getTeamTheme(player.team);
+          const team = teamOf(player);
+          const theme = getTeamTheme(team);
           const nameParts = player.name.trim().split(/\s+/);
           const firstName = nameParts[0];
           const lastName = nameParts.slice(1).join(" ");
@@ -341,12 +421,12 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
               <div className="relative shrink-0 w-28 h-28 sm:w-32 sm:h-32 rounded-xl overflow-hidden shadow-md">
                 <div className={`absolute inset-0 rounded-xl ring-2 ${theme.photoRing} pointer-events-none z-10`} />
                 <img
-                  src={player.image_url || getDiceBearUrl(player.name, player.team)}
+                  src={player.image_url || getDiceBearUrl(player.name, team)}
                   alt={player.name}
                   className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                   onError={(e) => {
                     const img = e.currentTarget;
-                    const fallback = getDiceBearUrl(player.name, player.team);
+                    const fallback = getDiceBearUrl(player.name, team);
                     if (img.src !== fallback) img.src = fallback;
                   }}
                 />
@@ -368,22 +448,14 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
                 </h3>
 
                 <div className={`mt-2.5 grid grid-cols-[auto_1fr] gap-x-2.5 gap-y-1 text-[11px] ${!lastName ? 'mt-1' : ''}`}>
-                  <span className={`uppercase tracking-widest font-bold ${theme.label}`}>Team</span>
-                  <span className={`font-semibold truncate ${theme.value}`}>{player.team || "Unassigned"}</span>
                   <span className={`uppercase tracking-widest font-bold ${theme.label}`}>Role</span>
                   <span className={`font-semibold capitalize truncate ${theme.value}`}>{roleLabel}</span>
                   <span className={`uppercase tracking-widest font-bold ${theme.label}`}>Phone</span>
                   <span className={`font-semibold truncate ${theme.value}`}>{player.phone}</span>
                 </div>
 
-                {(isCaptain || isFounder || inExec || player.approval_status === "rejected") && (
+                {(isFounder || inExec || player.approval_status === "rejected") && (
                   <div className="flex flex-wrap items-center gap-1.5 mt-3">
-                    {isCaptain && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-jcc-accent text-jcc-seam text-[10px] font-black uppercase tracking-wider shadow-[0_2px_8px_-2px_rgba(212,175,55,0.6)]">
-                        <Crown className="w-3 h-3" />
-                        {player.group_role === "vice-captain" ? "Vice Captain" : "Captain"}
-                      </span>
-                    )}
                     {isFounder && (
                       <span className={`px-2.5 py-1 rounded-full border text-[10px] font-bold uppercase tracking-wider ${theme.badgeOutline}`}>
                         Founding Member
@@ -434,21 +506,14 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
                     <div className="absolute inset-y-0 left-0 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       <button
                         title="Edit"
-                        onClick={() => { setEditingPlayer(player); setIsAdding(false); }}
+                        /* Seeded with the team the card shows, not the stored
+                           one — otherwise saving any other field would quietly
+                           write last season's side back over the auction's. */
+                        onClick={() => { setEditingPlayer({ ...player, team }); setIsAdding(false); }}
                         className={`flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider ${theme.action} ${theme.actionHover} transition-colors`}
                       >
                         <Edit2 className="w-3.5 h-3.5" /> Edit
                       </button>
-                      <span className={`w-px h-3 ${theme.hair}`} />
-                      <a
-                        title="Statistics"
-                        href={`/members/${player.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider ${theme.action} ${theme.actionHover} transition-colors`}
-                      >
-                        <BarChart3 className="w-3.5 h-3.5" /> Stats
-                      </a>
                       <span className={`w-px h-3 ${theme.hair}`} />
                       <button
                         title={player.is_active ? "Deactivate" : "Activate"}
@@ -539,9 +604,9 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
                           onChange={e => setEditingPlayer(prev => prev ? {...prev, team: e.target.value} : null)}
                         >
                           <option value="Unassigned">Unassigned</option>
-                          <option value="Mavericks">Mavericks</option>
-                          <option value="NeuroStrikers">NeuroStrikers</option>
-                          <option value="The Outliers">The Outliers</option>
+                          {TEAM_NAMES.map((name) => (
+                            <option key={name} value={name}>{name}</option>
+                          ))}
                         </select>
                       </div>
                       <div>

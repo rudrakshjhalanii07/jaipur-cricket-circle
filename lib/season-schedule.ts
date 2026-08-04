@@ -94,19 +94,21 @@ export const SEASON_3_LEAGUE_MATCH_COUNT = LEAGUE_WEEKS.flat().length;      // 4
 export const SEASON_3_TOTAL_MATCH_COUNT =
   SEASON_3_LEAGUE_MATCH_COUNT + PLAYOFF_FIXTURES.length;                     // 45
 
-// ── Venue resolution ────────────────────────────────────────────────────────
-// A week is always played at a single ground, so the venue lives on the week
-// (`series.venue`) and a match only carries one when that week was split.
-// Weeks are booked a few days out, so most upcoming weeks have no venue yet —
-// rather than showing a blank, those fall back to the club's usual ground and
-// are flagged provisional so nobody treats an unbooked week as confirmed.
+// ── Venue and start-time resolution ─────────────────────────────────────────
+// A week is always played at a single ground in one unbroken block, so both the
+// venue (`series.venue`) and the first match's slot (`series.start_time`) live
+// on the week; a match only carries its own venue when that week was split.
+//
+// Weeks are booked a few days out, so most upcoming ones have neither yet. An
+// unbooked week says TBC rather than borrowing the club's usual ground or a
+// habitual start time: a default that looks like a fact is worse than an
+// admitted blank, because a member reads it as one and turns up.
 
-export const DEFAULT_VENUE = "Jai Club";
-
-export type VenueStatus = "confirmed" | "provisional";
+export type VenueStatus = "confirmed" | "tbc";
 
 export interface ResolvedVenue {
-  name: string;
+  /** Null until the week is booked — render as TBC. */
+  name: string | null;
   status: VenueStatus;
 }
 
@@ -116,7 +118,39 @@ export function resolveVenue(
 ): ResolvedVenue {
   const booked = matchVenue?.trim() || weekVenue?.trim();
   if (booked) return { name: booked, status: "confirmed" };
-  return { name: DEFAULT_VENUE, status: "provisional" };
+  return { name: null, status: "tbc" };
+}
+
+/** Minutes between one match's start and the next, within a week. */
+export const MATCH_SLOT_MINUTES = 55;
+
+/**
+ * When a given match of the week starts, or null while the week has no slot.
+ *
+ * The week stores only its first start time; the rest of the card follows it
+ * back to back, so match 3 of a week starting 07:30 PM is 09:20 PM. Times are
+ * derived rather than stored per match because that is how they are actually
+ * decided — one booking, one running order.
+ */
+export function resolveMatchTime(
+  weekStart: string | null | undefined,
+  matchNo: number,
+): string | null {
+  const parts = weekStart?.trim().match(/^(\d{1,2}):(\d{2})/);
+  if (!parts) return null;
+  const h = Number(parts[1]);
+  const m = Number(parts[2]);
+  if (h > 23 || m > 59) return null;
+
+  const total =
+    h * 60 + m + (Math.max(matchNo, 1) - 1) * MATCH_SLOT_MINUTES;
+  // Wrapped, so a week long enough to run past midnight still reads as a time
+  // rather than as "25:15".
+  const h24 = Math.floor(total / 60) % 24;
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  return `${String(h12).padStart(2, "0")}:${String(total % 60).padStart(2, "0")} ${
+    h24 < 12 ? "AM" : "PM"
+  }`;
 }
 
 // ── Bracket resolution ──────────────────────────────────────────────────────

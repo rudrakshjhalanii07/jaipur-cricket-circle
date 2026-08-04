@@ -905,7 +905,7 @@ export default function SeriesImportPage() {
                   {weeks.length === 0
                     ? `No seeded weeks found for ${activeSeason?.title ?? "the active season"}.`
                     : selectedWeek
-                      ? `${activeSeason?.title ?? "Active season"} · ${selectedWeek.venue ?? "venue not set — see Admin → Seasons → Week Venues"}`
+                      ? `${activeSeason?.title ?? "Active season"} · ${selectedWeek.venue ?? "venue not set — see Admin → Seasons → Week Venues &amp; Timings"}`
                       : "Every match belongs to a seeded week of the active season."}
                 </p>
               </CollapsibleSection>

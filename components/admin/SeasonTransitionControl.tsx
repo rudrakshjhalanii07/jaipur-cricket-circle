@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { History, Trophy, ArrowRight, Loader2, Plus, X, MapPin, Check } from "lucide-react";
 import { fetchSeasons, type Season } from "@/lib/seasons";
 import { fetchAllSeries, type Series } from "@/lib/series";
-import { DEFAULT_VENUE } from "@/lib/season-schedule";
+import { MATCH_SLOT_MINUTES } from "@/lib/season-schedule";
 import { TEAMS, TEAM_ORDER_ALL, type TeamId } from "@/lib/teams";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminStatCard from "@/components/admin/AdminStatCard";
@@ -32,11 +32,36 @@ const EMPTY_FORM: NewSeasonForm = {
   started_at: new Date().toISOString().slice(0, 10),
 };
 
-// ── Week venues ──────────────────────────────────────────────────────────────
+// ── Week venues and start times ──────────────────────────────────────────────
 // Grounds are booked a few days out, so this is the one place the schedule's
-// venues get finalized — the scorecard import form only reaches a match after
-// it has been played, which is too late to be useful to members.
-function WeekVenuePanel({
+// venue and slot get finalized — the scorecard import form only reaches a match
+// after it has been played, which is too late to be useful to members.
+//
+// The time entered is the FIRST match's; the rest of the week follows it
+// automatically, MATCH_SLOT_MINUTES apart.
+
+/**
+ * What is still unknown about a week, in the words the row shows.
+ *
+ * Naming the missing half matters: a booked ground sitting under a bare "TBC"
+ * reads as though the ground itself were unconfirmed, when it is only the slot
+ * that has not been set.
+ */
+function weekStatus(w: Series): string {
+  if (w.venue && w.start_time) return "Confirmed";
+  if (w.venue) return "Time TBC";
+  if (w.start_time) return "Venue TBC";
+  return "TBC";
+}
+
+/** What the admin is editing for one week, before it is saved. */
+interface WeekDraft {
+  venue: string;
+  /** 24h "HH:MM", as <input type="time"> wants it. */
+  start_time: string;
+}
+
+function WeekSchedulePanel({
   seasonId,
   adminPassword,
 }: {
@@ -44,11 +69,14 @@ function WeekVenuePanel({
   adminPassword?: string;
 }) {
   const [weeks, setWeeks] = useState<Series[]>([]);
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [drafts, setDrafts] = useState<Record<string, WeekDraft>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const draftFor = (w: Series): WeekDraft =>
+    drafts[w.id] ?? { venue: w.venue ?? "", start_time: w.start_time ?? "" };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,7 +85,14 @@ function WeekVenuePanel({
       .filter((s) => s.season_id === seasonId && s.week_no != null)
       .sort((a, b) => (a.week_no ?? 0) - (b.week_no ?? 0));
     setWeeks(mine);
-    setDrafts(Object.fromEntries(mine.map((s) => [s.id, s.venue ?? ""])));
+    setDrafts(
+      Object.fromEntries(
+        mine.map((s) => [
+          s.id,
+          { venue: s.venue ?? "", start_time: s.start_time ?? "" },
+        ]),
+      ),
+    );
     setLoading(false);
   }, [seasonId]);
 
@@ -70,7 +105,8 @@ function WeekVenuePanel({
     setSavedId(null);
     setError(null);
     try {
-      const res = await fetch("/api/admin/seasons/week-venue", {
+      const draft = draftFor(series);
+      const res = await fetch("/api/admin/seasons/week-schedule", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -78,18 +114,27 @@ function WeekVenuePanel({
         },
         body: JSON.stringify({
           series_id: series.id,
-          venue: drafts[series.id] ?? "",
+          venue: draft.venue,
+          start_time: draft.start_time,
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Could not save venue");
+      if (!res.ok) throw new Error(data.error || "Could not save week");
 
       setWeeks((prev) =>
-        prev.map((w) => (w.id === series.id ? { ...w, venue: data.series.venue } : w)),
+        prev.map((w) =>
+          w.id === series.id
+            ? {
+                ...w,
+                venue: data.series.venue,
+                start_time: data.series.start_time,
+              }
+            : w,
+        ),
       );
       setSavedId(series.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save venue");
+      setError(err instanceof Error ? err.message : "Could not save week");
     } finally {
       setSavingId(null);
     }
@@ -101,53 +146,92 @@ function WeekVenuePanel({
   return (
     <div className="premium-card p-8 mb-8">
       <p className="text-[11px] font-black uppercase tracking-[0.25em] text-jcc-accent-dark mb-1">
-        Week Venues
+        Week Venues &amp; Timings
       </p>
       <p className="text-sm text-jcc-text-muted font-medium mb-6">
-        A week with no venue shows as &ldquo;{DEFAULT_VENUE} · TBC&rdquo; on the public
-        schedule. Set one here to confirm it. Clear the field to go back to TBC.
+        Anything left blank shows as TBC on the public schedule — nothing is
+        assumed. The time is the FIRST match&rsquo;s; the rest of that week
+        follow it {MATCH_SLOT_MINUTES} minutes apart. Edit a row and press Save;
+        clear a field to put it back to TBC.
       </p>
 
       <div className="space-y-2">
-        {weeks.map((w) => (
-          <div
-            key={w.id}
-            className="flex items-center gap-3 rounded-lg border border-jcc-border/60 bg-white/[0.02] px-3 py-2"
-          >
-            <span className="w-28 shrink-0 text-xs font-black uppercase tracking-wide">
-              {w.name}
-            </span>
-            <span
-              className={`shrink-0 text-[10px] font-black uppercase tracking-widest ${
-                w.venue ? "text-jcc-accent-dark" : "text-jcc-text-muted"
-              }`}
+        {weeks.map((w) => {
+          const draft = draftFor(w);
+          const dirty =
+            draft.venue !== (w.venue ?? "") ||
+            draft.start_time !== (w.start_time ?? "");
+          const status = weekStatus(w);
+          return (
+            // `.admin-input` is unlayered CSS and hardcodes width:100%, which
+            // beats any Tailwind width utility put on the input itself. So the
+            // grid sizes the CELLS and each input simply fills the one it is in.
+            <div
+              key={w.id}
+              className="grid grid-cols-1 items-center gap-2 rounded-lg border border-jcc-border/60 bg-white/[0.02] px-3 py-2.5 sm:grid-cols-[9rem_minmax(0,1fr)_8.5rem_auto] sm:gap-3"
             >
-              {w.venue ? "Confirmed" : "TBC"}
-            </span>
-            <input
-              type="text"
-              className="admin-input flex-1 mt-0!"
-              placeholder={`${DEFAULT_VENUE} (default)`}
-              value={drafts[w.id] ?? ""}
-              onChange={(e) => setDrafts({ ...drafts, [w.id]: e.target.value })}
-            />
-            <button
-              type="button"
-              disabled={savingId === w.id || (drafts[w.id] ?? "") === (w.venue ?? "")}
-              onClick={() => save(w)}
-              className="shrink-0 p-2 rounded text-jcc-text-muted hover:text-jcc-accent-dark disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
-              title="Save venue"
-            >
-              {savingId === w.id ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : savedId === w.id ? (
-                <Check className="w-4 h-4 text-jcc-accent-dark" />
-              ) : (
-                <MapPin className="w-4 h-4" />
-              )}
-            </button>
-          </div>
-        ))}
+              <div className="flex items-baseline gap-2 min-w-0">
+                <span className="text-xs font-black uppercase tracking-wide">
+                  {w.name}
+                </span>
+                {/* Names what is actually missing. A row reading "TBC" beside a
+                    booked ground made the ground look unconfirmed. */}
+                <span
+                  className={`truncate text-[10px] font-black uppercase tracking-widest ${
+                    status === "Confirmed"
+                      ? "text-jcc-accent-dark"
+                      : "text-jcc-text-muted"
+                  }`}
+                >
+                  {status}
+                </span>
+              </div>
+              <input
+                type="text"
+                className="admin-input mt-0!"
+                placeholder="Venue — TBC"
+                value={draft.venue}
+                onChange={(e) =>
+                  setDrafts({
+                    ...drafts,
+                    [w.id]: { ...draft, venue: e.target.value },
+                  })
+                }
+              />
+              <input
+                type="time"
+                // An unset week shows midnight rather than a blank dial. It is
+                // only what the picker opens on — the week stays TBC until the
+                // time is actually changed and saved.
+                value={draft.start_time || "00:00"}
+                className="admin-input mt-0! px-3! text-center"
+                aria-label={`${w.name} first match start time`}
+                onChange={(e) =>
+                  setDrafts({
+                    ...drafts,
+                    [w.id]: { ...draft, start_time: e.target.value },
+                  })
+                }
+              />
+              <button
+                type="button"
+                disabled={savingId === w.id || !dirty}
+                onClick={() => save(w)}
+                className="inline-flex items-center justify-center gap-1.5 rounded-[14px] border border-jcc-accent-dark/40 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-jcc-accent-dark transition-colors hover:bg-jcc-accent-dark/10 disabled:cursor-not-allowed disabled:border-jcc-border/60 disabled:text-jcc-text-muted disabled:opacity-40"
+                title="Save this week's venue and start time"
+              >
+                {savingId === w.id ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : savedId === w.id && !dirty ? (
+                  <Check className="w-3.5 h-3.5" />
+                ) : (
+                  <MapPin className="w-3.5 h-3.5" />
+                )}
+                {savedId === w.id && !dirty ? "Saved" : "Save"}
+              </button>
+            </div>
+          );
+        })}
       </div>
 
       {error && (
@@ -259,7 +343,7 @@ export default function SeasonTransitionControl({ adminPassword }: { adminPasswo
       </div>
 
       {activeSeason && (
-        <WeekVenuePanel seasonId={activeSeason.id} adminPassword={adminPassword} />
+        <WeekSchedulePanel seasonId={activeSeason.id} adminPassword={adminPassword} />
       )}
 
       {!activeSeason ? (

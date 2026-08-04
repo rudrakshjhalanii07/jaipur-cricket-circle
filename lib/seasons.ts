@@ -15,6 +15,11 @@ export interface SeasonTeam {
   // Frozen pre-import seed values — used only for the overall standings merge.
   initial_wins: number;
   initial_exh_wins: number;
+  // Free-text caveat shown under the team's win count on the archive card, for
+  // when the raw count would mislead: a side that entered a season late has
+  // fewer wins because it played fewer matches, not because it was worse.
+  // Optional everywhere — most teams have nothing to explain.
+  note?: string | null;
 }
 
 export interface Season {
@@ -76,13 +81,16 @@ export const fallbackSeasons: Season[] = [
   },
   {
     id: "rawat-sharma-2026",
-    title: "The Sagar-Anil-Rudraksh Era",
+    title: "JCC Season 2",
     season_label: "Season 2",
     status: "archived",
     teams: [
       team("neurostrikers", "Sagar Sharma", 0, 1),
       team("mavericks", "Anil Rawat", 1, 1),
-      team("outliers", "Rudraksh Jhalani", 2, 0),
+      {
+        ...team("outliers", "Rudraksh Jhalani", 2, 0),
+        note: "Entered mid-season — about half the fixtures of the other two.",
+      },
     ],
     total_matches_played: 2,
     started_at: "2026-05-17",
@@ -93,7 +101,7 @@ export const fallbackSeasons: Season[] = [
   },
   {
     id: "setia-chaudhary-legacy",
-    title: "The Opal-Nitin Era",
+    title: "JCC Season 1",
     season_label: "Legacy Season",
     status: "archived",
     teams: [

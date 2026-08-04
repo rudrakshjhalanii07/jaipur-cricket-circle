@@ -51,6 +51,8 @@ export interface Series {
   season_id: string | null;
   overs_per_innings: number;
   venue: string | null;
+  /** First match's slot, 24h "HH:MM". Null = TBC — see resolveMatchTime. */
+  start_time: string | null;
   started_at: string | null;
   ended_at: string | null;
   status: "upcoming" | "in_progress" | "completed";

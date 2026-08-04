@@ -22,7 +22,25 @@ export interface Signing {
   teamId: TeamId;
   /** True when an approved `players` row exists for this person. */
   member: boolean;
+  /** Base price in lakhs — 100, 50 or 25. See GUEST_BASE. */
+  base: number;
+  /** Bought for, in lakhs. */
+  sold: number;
+  /** Bought into the 25L guest tier rather than the main squad. */
+  guest: boolean;
+  /** Leads this team — flagged on the results graphic, one per side. */
+  captain: boolean;
 }
+
+/**
+ * The base price that marks a guest.
+ *
+ * The auction ran three tiers — 1Cr (8 players), 50L (20) and 25L (29). The
+ * bottom tier is the guest pool: a squad player is one of the first two. This
+ * is a property of the sheet, not of who has turned out since, so it does not
+ * move when a match is played.
+ */
+export const GUEST_BASE = 25;
 
 /** The season these squads were drafted for — see `season` in the JSON. */
 export const AUCTION_SEASON: string = auction.season;
@@ -32,5 +50,9 @@ export const AUCTION_SIGNINGS: Signing[] = auction.teams.flatMap((t) =>
     name: (p.resolved ?? p.name).trim(),
     teamId: t.team_id as TeamId,
     member: p.member === true,
+    base: p.base,
+    sold: p.sold,
+    guest: p.base === GUEST_BASE,
+    captain: p.captain === true,
   })),
 );

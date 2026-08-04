@@ -98,7 +98,12 @@ export default function SeasonDetailClient({
 
         {/* ── Season Scoreboard (final tally) ── */}
         <div className="mb-16">
-          <SeasonHeader season={season} archived />
+          <SeasonHeader
+            season={season}
+            archived
+            players={playersPool}
+            leaders={seasonLeaderboards}
+          />
         </div>
 
         {/* ── Final League Table ── */}
