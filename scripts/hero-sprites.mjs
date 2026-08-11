@@ -49,7 +49,11 @@ async function cut(name, left, top, width, height) {
   }
 
   await sharp(out, { raw: { width: info.width, height: info.height, channels: 4 } })
-    .png({ compressionLevel: 9, palette: false })
+    // Palettised: these four ship to the browser, and ink-on-transparency holds
+    // few enough distinct colours that a 256-entry palette costs ~2/255 average
+    // channel error for two thirds off the wire. Quality stays at 100 — the
+    // default 90 triples the error and bands the soft alpha along the linework.
+    .png({ palette: true, quality: 100, compressionLevel: 9, effort: 10 })
     .toFile(`public/hero-art/${name}.png`);
   console.log(name, `${width}x${height}`, 'ink', (inked / n * 100).toFixed(1) + '%');
 }
