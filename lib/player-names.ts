@@ -36,6 +36,23 @@ export const PLAYER_NAME_ALIASES: Record<string, string> = {
   // supabase/merge_ankit_to_ankit_jain.sql, which resolves those per innings).
   // If Sharma bowls again, write him out in full on the scorecard.
   ankit: "Ankit Jain",
+
+  // Confirmed with the club, 11 Aug 2026. The NeuroStrikers Gaurav, under his
+  // day job. Both spellings appear — the fielding credits carry the full stop.
+  "dr gaurav": "Kunwar Gaurav",
+  "dr. gaurav": "Kunwar Gaurav",
+
+  // Deliberately NOT here: bare "Madhav" → "Madhav Sharma". Two Madhavs were
+  // auctioned for Season 3 — Sharma (The Outliers) and a bare "Madhav"
+  // (Mavericks) — and this map is what createSigningMatcher indexes the auction
+  // sheet by, so aliasing the short name collapses the two signings onto one
+  // key. Neither then resolves: both read "yet to play" on their team sheets
+  // and Sharma's own scorecards land in the newcomers list.
+  //
+  // The Week 3 rows were renamed in the data instead (see
+  // supabase/merge_player_name_variants_aug.sql). Bare "Madhav" on a future
+  // scorecard needs the same treatment by hand — decide from the team on the
+  // row, then write it out in full.
 };
 
 /**
