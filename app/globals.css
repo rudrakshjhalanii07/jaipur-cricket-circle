@@ -635,9 +635,9 @@ body::before {
 .jcc-luxury-hero {
   isolation: isolate;
   background:
-    radial-gradient(ellipse at 50% 34%, rgba(255, 255, 255, 0.92) 0%, rgba(252, 248, 238, 0.78) 42%, rgba(245, 239, 225, 0.56) 100%),
+    radial-gradient(ellipse at 50% 34%, rgba(255, 253, 247, 0.78) 0%, rgba(250, 244, 233, 0.6) 42%, rgba(243, 234, 218, 0.42) 100%),
     radial-gradient(ellipse at 50% 115%, rgba(214, 170, 67, 0.08) 0%, transparent 58%),
-    linear-gradient(180deg, #fffdf7 0%, #fcfbf8 50%, #f6f1e6 100%);
+    linear-gradient(180deg, #f8f2e6 0%, #f4ecdd 50%, #eee2d2 100%);
 }
 
 .jcc-luxury-hero::before,
@@ -669,12 +669,48 @@ body::before {
 .jcc-luxury-hero::after {
   inset: 0;
   z-index: 1;
+  /* Soft vignette and a broad diagonal sheen. No grain of its own — the paper
+     texture lives in the backdrop artwork underneath. */
   background:
-    radial-gradient(ellipse at center, transparent 42%, rgba(18, 35, 63, 0.08) 100%),
-    repeating-radial-gradient(circle at 18% 24%, rgba(18, 35, 63, 0.035) 0 0.7px, transparent 0.9px 3.8px),
-    repeating-conic-gradient(from 18deg at 50% 50%, rgba(255, 255, 255, 0.02) 0deg 7deg, rgba(18, 35, 63, 0.018) 8deg 11deg, transparent 12deg 17deg);
-  opacity: 0.42;
+    radial-gradient(ellipse at center, transparent 46%, rgba(18, 35, 63, 0.1) 100%),
+    linear-gradient(114deg, transparent 0%, rgba(214, 170, 67, 0.07) 38%, transparent 66%);
+  opacity: 0.55;
   mix-blend-mode: multiply;
+}
+
+/* The hero's drawn corner art. It sits under every other hero layer; the
+   sprites carry their own tone, so this layer adds no wash of its own.
+
+   Each sprite is a rectangular crop, so its two inner edges are faded out —
+   the drawing already thins toward the middle of the plate, and without the
+   fade any residual tone stops on a straight line and reads as a seam. */
+.hero-corner-art {
+  z-index: 0;
+}
+
+.hero-corner-art img {
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+
+.hero-art-tl {
+  mask-image: linear-gradient(to right, #000 62%, transparent 100%),
+    linear-gradient(to bottom, #000 62%, transparent 100%);
+}
+
+.hero-art-tr {
+  mask-image: linear-gradient(to left, #000 62%, transparent 100%),
+    linear-gradient(to bottom, #000 62%, transparent 100%);
+}
+
+.hero-art-bl {
+  mask-image: linear-gradient(to right, #000 74%, transparent 100%),
+    linear-gradient(to top, #000 80%, transparent 100%);
+}
+
+.hero-art-br {
+  mask-image: linear-gradient(to left, #000 74%, transparent 100%),
+    linear-gradient(to top, #000 80%, transparent 100%);
 }
 
 .luxury-hero-rays {

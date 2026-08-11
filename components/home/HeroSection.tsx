@@ -5,6 +5,8 @@ import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import Link from "next/link";
 import { ChevronRight, ChevronDown } from "lucide-react";
 
+import HeroCornerArt from "./HeroCornerArt";
+
 interface HeroStats {
   activePlayers: string;
   weeklyGames: string;
@@ -51,6 +53,7 @@ export default function HeroSection({ stats }: { stats: HeroStats }) {
       onMouseLeave={handleMouseLeave}
       className="jcc-luxury-hero relative min-h-[92vh] flex items-center justify-center overflow-hidden bg-jcc-navy-deep"
     >
+      <HeroCornerArt />
       <div className="luxury-hero-rays absolute inset-0 pointer-events-none z-0" />
       <div className="luxury-hero-dust absolute inset-0 pointer-events-none z-0" />
 
