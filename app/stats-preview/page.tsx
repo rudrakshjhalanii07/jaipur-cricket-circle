@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { buildCardData, computeScorecardDashboard } from "@/lib/scorecard-dashboard/compute";
+import { fetchPlayerPhotos } from "@/lib/player-photos.server";
 import StatsPreviewClient from "./StatsPreviewClient";
 
 // Temporary review page for the CricHeroes scorecard export (Seasons 2 + 3).
@@ -9,7 +10,8 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function StatsPreviewPage() {
+export default async function StatsPreviewPage() {
   const scopes = computeScorecardDashboard();
-  return <StatsPreviewClient scopes={scopes} cardData={buildCardData()} />;
+  const photos = await fetchPlayerPhotos();
+  return <StatsPreviewClient scopes={scopes} cardData={buildCardData()} photos={photos} />;
 }

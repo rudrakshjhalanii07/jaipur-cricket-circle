@@ -90,12 +90,16 @@ export default function Navbar({ nextMatch }: { nextMatch: TickerMatch | null })
 
   const isMenuActive = menuLinks.some((link) => link.href === pathname);
 
+  // /stats-preview has its own sticky section capsule, so the site bar
+  // scrolls away with the page there instead of staying pinned.
+  const pinned = !pathname.startsWith("/stats-preview");
+
   return (
     <motion.nav
       variants={fadeDown}
       initial="hidden"
       animate="visible"
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 border-b ${scrolled ? "bg-jcc-navy/90 backdrop-blur-xl border-jcc-accent/30 shadow-[0_4px_24px_rgba(18,35,63,0.08)]" : "bg-jcc-navy border-jcc-accent/15"}`}
+      className={`${pinned ? "fixed" : "absolute"} top-0 left-0 right-0 z-50 transition-all duration-500 border-b ${scrolled ? "bg-jcc-navy/90 backdrop-blur-xl border-jcc-accent/30 shadow-[0_4px_24px_rgba(18,35,63,0.08)]" : "bg-jcc-navy border-jcc-accent/15"}`}
     >
       <LiveTicker match={nextMatch} isNavbarScrolled={scrolled} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -1,5 +1,6 @@
 "use client";
 
+import { Avatar } from "./Avatar";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { X, ChevronLeft, ChevronRight, Link2, ClipboardCopy } from "lucide-react";
 import {
@@ -894,7 +895,7 @@ export default function PlayerDeck({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex flex-col overflow-hidden bg-[#0D1728]/80 px-2 pb-3 pt-3 backdrop-blur-sm sm:px-4"
+      className="fixed inset-0 z-[60] flex flex-col overflow-hidden bg-[#0D1728]/90 px-2 pb-3 pt-3 backdrop-blur-md sm:px-4"
       role="dialog"
       aria-modal="true"
       aria-label={`${pr.name} player cards`}
@@ -902,7 +903,10 @@ export default function PlayerDeck({
     >
       <div className="mx-auto mb-2 flex w-full max-w-4xl items-center gap-2 text-[#FCFBF8]">
         <DeckButton onClick={() => onNavigate(order[pos - 1], current?.id)} disabled={pos <= 0} label="Previous player"><ChevronLeft size={16} /><span className="hidden sm:inline">Prev</span></DeckButton>
-        <div className="min-w-0 flex-1 truncate text-center text-sm font-semibold sm:text-left">{pr.name}</div>
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-2.5 sm:justify-start">
+          <Avatar name={pr.name} size={30} ring="rgba(212,175,55,0.8)" />
+          <span className="truncate text-sm font-semibold">{pr.name}</span>
+        </div>
         <DeckButton onClick={() => copy(summary(), "Summary copied, ready to paste")} label="Copy summary"><ClipboardCopy size={15} /><span className="hidden sm:inline">Summary</span></DeckButton>
         <DeckButton onClick={() => copy(link(), "Link copied")} label="Copy link"><Link2 size={15} /><span className="hidden sm:inline">Link</span></DeckButton>
         <DeckButton onClick={() => onNavigate(order[pos + 1], current?.id)} disabled={pos < 0 || pos >= order.length - 1} label="Next player"><span className="hidden sm:inline">Next</span><ChevronRight size={16} /></DeckButton>
@@ -916,7 +920,7 @@ export default function PlayerDeck({
             role="tab"
             aria-selected={i === idx}
             onClick={() => go(i)}
-            className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold transition ${i === idx ? "border-jcc-accent bg-jcc-accent text-jcc-seam" : "border-white/20 text-white/75 hover:text-[#FCFBF8]"}`}
+            className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold transition ${i === idx ? "border-jcc-accent bg-jcc-accent text-jcc-seam shadow-[0_6px_18px_-6px_rgba(212,175,55,0.7)]" : "border-[#FCFBF8]/25 bg-[#FCFBF8]/[0.06] text-[#FCFBF8]/85 hover:border-[#FCFBF8]/50 hover:bg-[#FCFBF8]/[0.12] hover:text-[#FCFBF8]"}`}
           >
             {c.tab}
           </button>
@@ -965,7 +969,7 @@ export default function PlayerDeck({
         <DeckButton onClick={() => go(idx - 1)} disabled={idx === 0} label="Previous card"><ChevronLeft size={16} /></DeckButton>
         <div className="flex flex-wrap justify-center gap-1.5">
           {cards.map((c, i) => (
-            <button key={c.id} aria-label={c.tab} onClick={() => go(i)} className={`h-1.5 rounded-full transition-all ${i === idx ? "w-5 bg-jcc-accent" : "w-1.5 bg-white/30"}`} />
+            <button key={c.id} aria-label={c.tab} onClick={() => go(i)} className={`h-1.5 rounded-full transition-all ${i === idx ? "w-5 bg-jcc-accent" : "w-1.5 bg-[#FCFBF8]/40 hover:bg-[#FCFBF8]/70"}`} />
           ))}
         </div>
         <DeckButton onClick={() => go(idx + 1)} disabled={idx === cards.length - 1} label="Next card"><ChevronRight size={16} /></DeckButton>
@@ -992,7 +996,7 @@ function DeckButton({ children, onClick, disabled, label }: { children: ReactNod
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      className="inline-flex h-9 min-w-9 items-center justify-center gap-1 rounded-full border border-white/20 bg-white/[0.08] px-3 text-[13px] font-semibold text-[#FCFBF8] transition hover:bg-white/15 disabled:cursor-default disabled:opacity-35"
+      className="inline-flex h-9 min-w-9 items-center justify-center gap-1 rounded-full border border-[#FCFBF8]/25 bg-[#FCFBF8]/[0.08] px-3 text-[13px] font-semibold text-[#FCFBF8] transition hover:border-[#FCFBF8]/50 hover:bg-[#FCFBF8]/15 disabled:cursor-default disabled:opacity-40"
     >
       {children}
     </button>

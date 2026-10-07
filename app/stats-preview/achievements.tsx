@@ -48,6 +48,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { BADGE_CATALOG, type Badge, type BadgeTone } from "@/lib/scorecard-dashboard/profile";
+import { Avatar } from "./Avatar";
+import { usePill } from "./motion";
 import { teamByName } from "@/lib/teams";
 
 // ─── Rarity ──────────────────────────────────────────────────────────────────
@@ -67,10 +69,10 @@ export function tierOf(tone: BadgeTone, holders: number): Tier {
 
 const TIER: Record<Tier, { label: string; ring: [string, string, string]; core: string; icon: string; chip: string; glow: string }> = {
   legendary: { label: "Legendary", ring: ["#FBE7A6", "#D4AF37", "#8E6417"], core: "#12233F", icon: "#F3C96A", chip: "bg-jcc-accent text-jcc-seam", glow: "rgba(212,175,55,.55)" },
-  epic: { label: "Epic", ring: ["#B9CBFF", "#2B59C3", "#14275E"], core: "#0D1728", icon: "#C9D7FF", chip: "bg-[#2B59C3] text-white", glow: "rgba(43,89,195,.45)" },
-  rare: { label: "Rare", ring: ["#A7E8C8", "#1A7A5E", "#0C4434"], core: "#0E211B", icon: "#A7E8C8", chip: "bg-[#1A7A5E] text-white", glow: "rgba(26,122,94,.4)" },
-  common: { label: "Common", ring: ["#F2F4F7", "#A3ABB8", "#5D6677"], core: "#28303D", icon: "#E4E7EC", chip: "bg-[#5D6677] text-white", glow: "rgba(93,102,119,.3)" },
-  banter: { label: "Banter", ring: ["#FFD0C4", "#C2563F", "#6E2620"], core: "#2A1412", icon: "#FFC2B3", chip: "bg-jcc-danger text-white", glow: "rgba(176,71,63,.4)" },
+  epic: { label: "Epic", ring: ["#F4F5F7", "#B8BFCB", "#6E7787"], core: "#12233F", icon: "#E9ECF1", chip: "bg-[#B8BFCB] text-jcc-seam", glow: "rgba(184,191,203,.45)" },
+  rare: { label: "Rare", ring: ["#F1C99A", "#B07A3F", "#6B4520"], core: "#1B1A1F", icon: "#F1C99A", chip: "bg-[#B07A3F] text-[#FCFBF8]", glow: "rgba(176,122,63,.4)" },
+  common: { label: "Common", ring: ["#E4E7EC", "#8A94A6", "#4F5868"], core: "#202A3B", icon: "#D0D5DD", chip: "bg-[#8A94A6] text-[#FCFBF8]", glow: "rgba(93,102,119,.3)" },
+  banter: { label: "Banter", ring: ["#F2C7BF", "#B0473F", "#6E2620"], core: "#2A1412", icon: "#F2C7BF", chip: "bg-jcc-danger text-[#FCFBF8]", glow: "rgba(176,71,63,.35)" },
   locked: { label: "Locked", ring: ["#EAECF0", "#D0D5DD", "#B5BCC8"], core: "#F2F4F7", icon: "#98A2B3", chip: "bg-jcc-navy-light text-jcc-text-muted", glow: "transparent" },
 };
 
@@ -157,23 +159,23 @@ export function AchievementStyles() {
 type Holder = { p: number; team: string; why: string };
 type Row = { p: number; team: string; role: string; badges: Badge[] };
 
-function Avatars({ holders, names }: { holders: Holder[]; names: string[] }) {
+const LABEL = "font-mono text-[10.5px] font-medium uppercase tracking-[0.16em] text-jcc-text-muted";
+const teamColor = (t: string) => teamByName(t)?.primary ?? "#8A94A6";
+
+function Holders({ holders, names }: { holders: Holder[]; names: string[] }) {
   const shown = holders.slice(0, 5);
   return (
-    <div className="flex items-center">
-      <div className="flex -space-x-2">
+    <div className="flex items-center justify-center gap-2">
+      <div className="flex -space-x-2.5">
         {shown.map((h) => (
-          <span
-            key={h.p}
-            title={names[h.p]}
-            className="grid h-6 w-6 place-items-center rounded-full text-[9px] font-bold text-white ring-2 ring-jcc-navy"
-            style={{ background: teamByName(h.team)?.primary ?? "#5D6677" }}
-          >
-            {names[h.p].split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
+          <span key={h.p} title={names[h.p]} className="rounded-full ring-2 ring-jcc-navy-deep">
+            <Avatar name={names[h.p]} size={26} />
           </span>
         ))}
       </div>
-      {holders.length > shown.length && <span className="ml-1.5 text-[11px] font-semibold text-jcc-text-muted">+{holders.length - shown.length}</span>}
+      <span className="font-mono text-[10.5px] text-jcc-text-muted">
+        {holders.length === 1 ? names[holders[0].p] : `${holders.length} players`}
+      </span>
     </div>
   );
 }
@@ -182,6 +184,8 @@ export default function AchievementsTab({ rows, names, players, onOpenPlayer }: 
   const [view, setView] = useState<"badges" | "cabinets">("badges");
   const [cat, setCat] = useState<"all" | BadgeTone>("all");
   const [open, setOpen] = useState<string | null>(null);
+  const { box: viewBox, pill: viewPill } = usePill(view);
+  const { box: catBox, pill: catPill } = usePill(`${view}|${cat}`, "line");
 
   const holders = useMemo(() => {
     const m = new Map<string, Holder[]>();
@@ -196,6 +200,7 @@ export default function AchievementsTab({ rows, names, players, onOpenPlayer }: 
   })
     .filter((b) => cat === "all" || b.tone === cat)
     .sort((a, b) => order.indexOf(a.tier) - order.indexOf(b.tier) || a.holders.length - b.holders.length);
+  const byTier = order.map((tier) => ({ tier, items: badges.filter((b) => b.tier === tier) })).filter((g) => g.items.length);
 
   const unlocked = BADGE_CATALOG.filter((b) => holders.get(b.label)?.length).length;
   const total = rows.reduce((s, r) => s + r.badges.filter((b) => b.tone !== "warn").length, 0);
@@ -205,168 +210,168 @@ export default function AchievementsTab({ rows, names, players, onOpenPlayer }: 
   const cabinets = [...rows]
     .map((r) => ({ ...r, earned: r.badges.filter((b) => b.tone !== "warn"), banter: r.badges.filter((b) => b.tone === "warn") }))
     .sort((a, b) => b.earned.length - a.earned.length || b.earned.filter((x) => x.tone === "crown").length - a.earned.filter((x) => x.tone === "crown").length);
+  const maxEarned = Math.max(1, ...cabinets.map((c) => c.earned.length));
 
   return (
-    <div>
+    <div data-apanel>
       <AchievementStyles />
 
-      {/* Header band */}
-      <div className="relative mb-5 overflow-hidden rounded-2xl bg-jcc-blue px-5 py-6 text-[#FCFBF8] sm:px-7">
-        <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-jcc-accent/20 blur-3xl" />
-        <div className="relative flex flex-wrap items-center gap-x-8 gap-y-4">
-          <div className="flex items-center gap-4">
-            <Emblem label="Orange Cap" tone="crown" tier="legendary" size={64} />
-            <div>
-              <p className="text-[10.5px] font-semibold uppercase tracking-[0.2em] text-jcc-accent-highlight">Achievements</p>
-              <h3 className="font-heading text-3xl font-bold leading-none text-[#FCFBF8]">Hall of Badges</h3>
-            </div>
-          </div>
-          <div className="flex flex-1 flex-wrap gap-x-8 gap-y-3">
-            {([
-              [`${unlocked}/${BADGE_CATALOG.length}`, "badges unlocked"],
-              [total, "achievements earned"],
-              [rows.length, `of ${players} players decorated`],
-            ] as const).map(([v, l]) => (
-              <div key={l}>
-                <div className="font-heading text-3xl font-bold tabular-nums leading-none text-[#FCFBF8]">{v}</div>
-                <div className="mt-1 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[#FCFBF8]/60">{l}</div>
-              </div>
-            ))}
+      {/* ── Spread ── */}
+      <div className="grid items-end gap-10 border-y border-jcc-blue/80 py-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16">
+        <div className="flex items-center gap-6">
+          <Emblem label="Orange Cap" tone="crown" tier="legendary" size={112} />
+          <div>
+            <p className={LABEL}>Achievements</p>
+            <h3 className="mt-2 font-heading text-5xl font-bold leading-[0.92] tracking-[-0.045em] text-white md:text-6xl">Hall of Badges</h3>
           </div>
         </div>
-        <div className="relative mt-5 h-1.5 overflow-hidden rounded-full bg-white/10">
-          <div className="h-full rounded-full bg-gradient-to-r from-jcc-accent-dark via-jcc-accent to-jcc-accent-highlight" style={{ width: `${(100 * unlocked) / BADGE_CATALOG.length}%` }} />
+        <div>
+          <dl className="grid grid-cols-3 gap-6">
+            {([
+              [`${unlocked}`, `/${BADGE_CATALOG.length}`, "Badges unlocked"],
+              [`${total}`, "", "Achievements earned"],
+              [`${rows.length}`, `/${players}`, "Players decorated"],
+            ] as const).map(([v, of, l]) => (
+              <div key={l}>
+                <dd className="font-heading text-5xl font-bold leading-none tracking-[-0.05em] tabular-nums text-white">
+                  {v}
+                  <span className="text-2xl text-jcc-text-muted">{of}</span>
+                </dd>
+                <dt className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-jcc-text-muted">{l}</dt>
+              </div>
+            ))}
+          </dl>
+          <div className="mt-6 h-[3px] overflow-hidden rounded-full bg-jcc-navy-light">
+            <div data-bar className="h-full rounded-full bg-gradient-to-r from-jcc-accent-dark via-jcc-accent to-jcc-accent-highlight" style={{ width: `${(100 * unlocked) / BADGE_CATALOG.length}%` }} />
+          </div>
         </div>
       </div>
 
-      {/* Controls */}
-      <div className="mb-5 flex flex-wrap items-center gap-2">
-        <div className="inline-flex rounded-full border border-jcc-border bg-jcc-navy p-0.5">
+      {/* ── Controls ── */}
+      <div className="mt-10 flex flex-wrap items-end justify-between gap-6 border-b border-jcc-border">
+        <div ref={catBox} className={`no-scrollbar relative flex gap-6 overflow-x-auto ${view === "badges" ? "" : "invisible"}`}>
+          {CATEGORY.map((c) => (
+            <button
+              key={c.key}
+              data-active={view === "badges" && cat === c.key}
+              onClick={() => setCat(c.key)}
+              className={`relative whitespace-nowrap pb-4 text-[14px] font-semibold tracking-tight transition-colors duration-300 ${cat === c.key ? "text-white" : "text-jcc-text-muted hover:text-white"}`}
+            >
+              {c.label} <span className="font-mono text-[10px] opacity-50">{counts[c.key]}</span>
+            </button>
+          ))}
+          <span ref={catPill} aria-hidden className="pointer-events-none absolute bottom-0 left-0 h-[3px] rounded-full bg-jcc-accent" style={{ opacity: 0 }} />
+        </div>
+        <div ref={viewBox} className="relative mb-3 inline-flex rounded-full bg-jcc-navy p-1 shadow-[0_10px_30px_-20px_rgba(18,35,63,0.5)]">
+          <span ref={viewPill} aria-hidden className="pointer-events-none absolute left-0 top-0 rounded-full bg-jcc-blue" style={{ opacity: 0 }} />
           {(["badges", "cabinets"] as const).map((v) => (
             <button
               key={v}
+              data-active={view === v}
               onClick={() => setView(v)}
               aria-pressed={view === v}
-              className={`rounded-full px-4 py-1.5 text-xs font-bold transition ${view === v ? "bg-jcc-blue text-[#FCFBF8]" : "text-jcc-text-muted hover:text-white"}`}
+              className={`relative z-10 rounded-full px-4 py-2 text-[13px] font-semibold tracking-tight transition-colors duration-300 ${view === v ? "text-[#FCFBF8]" : "text-jcc-text-muted hover:text-white"}`}
             >
               {v === "badges" ? "Badges" : "Trophy cabinets"}
             </button>
           ))}
         </div>
-        {view === "badges" && (
-          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-            {CATEGORY.map((c) => (
-              <button
-                key={c.key}
-                onClick={() => setCat(c.key)}
-                aria-pressed={cat === c.key}
-                className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                  cat === c.key ? "border-jcc-accent bg-jcc-accent/15 text-white" : "border-jcc-border bg-jcc-navy text-jcc-text-muted hover:text-white"
-                }`}
-              >
-                {c.label} <span className="opacity-50">{counts[c.key]}</span>
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
+      {/* ── Badges, shelved by tier ── */}
       {view === "badges" && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {badges.map((b, i) => {
-            const locked = b.tier === "locked";
-            return (
-              <button
-                key={b.label}
-                onClick={() => !locked && setOpen(b.label)}
-                className={`ach-tile group relative flex flex-col items-center overflow-hidden rounded-2xl border p-4 text-center transition ${
-                  locked
-                    ? "cursor-default border-dashed border-jcc-border bg-jcc-navy-light/50"
-                    : "border-jcc-border bg-jcc-navy hover:-translate-y-1 hover:border-jcc-accent/60 hover:shadow-[0_16px_32px_-18px_rgba(18,35,63,0.45)]"
-                }`}
-                style={{ animationDelay: `${Math.min(i, 16) * 25}ms` }}
-              >
-                {b.tier === "legendary" && <span className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-jcc-accent/15 to-transparent" />}
-                <div className="absolute right-2.5 top-2.5"><TierChip tier={b.tier} /></div>
-                <div className="mt-3"><Emblem label={b.label} tone={b.tone} tier={b.tier} size={76} /></div>
-                <div className={`mt-3 font-heading text-[17px] font-bold leading-tight ${locked ? "text-jcc-text-muted" : "text-white"}`}>{b.label}</div>
-                <p className="mt-1 min-h-[2.6em] text-[11.5px] leading-snug text-jcc-text-muted">{b.rule}</p>
-                <div className="mt-3 flex min-h-6 items-center justify-center">
-                  {locked ? (
-                    <span className="text-[11px] font-semibold text-jcc-text-muted">Not unlocked yet</span>
-                  ) : b.holders.length === 1 ? (
-                    <span className="text-[12px] font-bold text-white">{names[b.holders[0].p]}</span>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <Avatars holders={b.holders} names={names} />
-                      <span className="text-[11px] font-semibold text-jcc-text-muted">{b.holders.length} unlocked</span>
-                    </div>
-                  )}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {view === "cabinets" && (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {cabinets.map((r, i) => (
-            <button
-              key={r.p}
-              onClick={() => onOpenPlayer(r.p, "labels")}
-              className="ach-tile rounded-2xl border border-jcc-border bg-jcc-navy p-4 text-left transition hover:-translate-y-0.5 hover:border-jcc-accent/60"
-              style={{ animationDelay: `${Math.min(i, 16) * 25}ms` }}
-            >
-              <div className="flex items-center gap-3">
-                <span className="grid h-10 w-10 place-items-center rounded-xl font-heading text-lg font-bold text-white" style={{ background: teamByName(r.team)?.primary ?? "#5D6677" }}>
-                  {names[r.p].split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-semibold text-white">{names[r.p]}</div>
-                  <div className="text-[11px] text-jcc-text-muted">{r.team} · {r.role}</div>
-                </div>
-                <div className="text-right">
-                  <div className="font-heading text-2xl font-bold leading-none text-white">{r.earned.length}</div>
-                  <div className="text-[9.5px] font-semibold uppercase tracking-wider text-jcc-text-muted">badges</div>
-                </div>
+        <div className="mt-4">
+          {byTier.map((g) => (
+            <section key={g.tier} className="grid gap-6 border-b border-jcc-border py-10 last:border-b-0 lg:grid-cols-[180px_minmax(0,1fr)]">
+              <div className="lg:sticky lg:top-24 lg:self-start">
+                <TierChip tier={g.tier} />
+                <div className="mt-3 font-heading text-4xl font-bold tracking-[-0.04em] text-white">{g.items.length}</div>
+                <div className={LABEL}>{g.tier === "locked" ? "still to unlock" : g.items.length === 1 ? "badge" : "badges"}</div>
               </div>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {[...r.earned, ...r.banter].map((b) => (
-                  <span key={b.label} title={`${b.label}: ${b.why}`}>
-                    <Emblem label={b.label} tone={b.tone} tier={tierOf(b.tone, holders.get(b.label)?.length ?? 1)} size={34} />
-                  </span>
-                ))}
+              <div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 xl:grid-cols-4">
+                {g.items.map((b, i) => {
+                  const locked = b.tier === "locked";
+                  return (
+                    <button
+                      key={b.label}
+                      onClick={() => !locked && setOpen(b.label)}
+                      className={`ach-tile group flex flex-col items-center text-center ${locked ? "cursor-default" : ""}`}
+                      style={{ animationDelay: `${Math.min(i, 16) * 30}ms` }}
+                    >
+                      <span className={`transition duration-500 ${locked ? "opacity-60 grayscale" : "group-hover:-translate-y-1.5 group-hover:rotate-6 group-hover:scale-105"}`}>
+                        <Emblem label={b.label} tone={b.tone} tier={b.tier} size={88} />
+                      </span>
+                      <span aria-hidden className={`mt-3 h-px w-16 transition-all duration-500 ${locked ? "bg-jcc-border" : "bg-jcc-accent/50 group-hover:w-24"}`} />
+                      <div className={`mt-3 font-heading text-lg font-bold leading-tight tracking-tight ${locked ? "text-jcc-text-muted" : "text-white"}`}>{b.label}</div>
+                      <p className="mt-1 min-h-[2.6em] max-w-[220px] text-[12px] leading-snug text-jcc-text-muted">{b.rule}</p>
+                      <div className="mt-3 min-h-7">{locked ? <span className="font-mono text-[10.5px] text-jcc-text-muted">Not unlocked yet</span> : <Holders holders={b.holders} names={names} />}</div>
+                    </button>
+                  );
+                })}
               </div>
-            </button>
+            </section>
           ))}
         </div>
       )}
 
+      {/* ── Trophy cabinets: one shelf per player ── */}
+      {view === "cabinets" && (
+        <ol className="mt-4">
+          {cabinets.map((r, i) => (
+            <li key={r.p} className="ach-tile" style={{ animationDelay: `${Math.min(i, 16) * 30}ms` }}>
+              <button onClick={() => onOpenPlayer(r.p, "labels")} className="group grid w-full grid-cols-[minmax(0,1fr)_64px] items-center gap-x-6 gap-y-4 border-b border-jcc-border py-6 text-left md:grid-cols-[minmax(0,260px)_minmax(0,1fr)_72px]">
+                <span className="flex min-w-0 items-center gap-4">
+                  <Avatar name={names[r.p]} size={52} ring={i === 0 ? "#D4AF37" : teamColor(r.team)} className="transition-transform duration-500 group-hover:scale-105" />
+                  <span className="min-w-0">
+                    <span className="block truncate font-heading text-xl font-bold tracking-tight text-white decoration-jcc-accent decoration-2 underline-offset-4 group-hover:underline">{names[r.p]}</span>
+                    <span className="block truncate font-mono text-[10.5px] uppercase tracking-[0.1em] text-jcc-text-muted">{r.team} · {r.role}</span>
+                  </span>
+                </span>
+                <span className="relative col-span-2 row-start-2 md:col-span-1 md:row-start-auto">
+                  <span className="flex flex-wrap items-end gap-1.5 pb-2">
+                    {[...r.earned, ...r.banter].map((b) => (
+                      <span key={b.label} title={`${b.label}: ${b.why}`} className="transition-transform duration-300 hover:-translate-y-1">
+                        <Emblem label={b.label} tone={b.tone} tier={tierOf(b.tone, holders.get(b.label)?.length ?? 1)} size={36} />
+                      </span>
+                    ))}
+                  </span>
+                  {/* the shelf */}
+                  <span aria-hidden className="block h-[3px] rounded-full bg-gradient-to-r from-jcc-accent-dark/60 via-jcc-accent/40 to-transparent" style={{ width: `${Math.max(20, (100 * r.earned.length) / maxEarned)}%` }} />
+                </span>
+                <span className="text-right">
+                  <span className="block font-heading text-4xl font-bold leading-none tracking-[-0.04em] tabular-nums text-white">{r.earned.length}</span>
+                  <span className={LABEL}>badges</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ol>
+      )}
+
       {/* Badge detail */}
       {selected && (
-        <div className="fixed inset-0 z-[60] grid place-items-center bg-[#0D1728]/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={selected.label} onClick={(e) => e.target === e.currentTarget && setOpen(null)}>
-          <div className="relative max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-jcc-navy p-6 shadow-2xl">
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-[#0D1728]/80 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-label={selected.label} onClick={(e) => e.target === e.currentTarget && setOpen(null)}>
+          <div className="relative max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-jcc-navy p-7 shadow-2xl">
             <button onClick={() => setOpen(null)} aria-label="Close" className="absolute right-4 top-4 rounded-full p-1.5 text-jcc-text-muted hover:bg-jcc-navy-light hover:text-white"><X size={18} /></button>
             <div className="flex flex-col items-center text-center">
-              <Emblem label={selected.label} tone={selected.tone} tier={selected.tier} size={112} />
-              <div className="mt-4"><TierChip tier={selected.tier} /></div>
-              <h3 className="mt-2 font-heading text-3xl font-bold text-white">{selected.label}</h3>
+              <Emblem label={selected.label} tone={selected.tone} tier={selected.tier} size={120} />
+              <div className="mt-5"><TierChip tier={selected.tier} /></div>
+              <h3 className="mt-2 font-heading text-4xl font-bold tracking-[-0.03em] text-white">{selected.label}</h3>
               <p className="mt-1 text-sm text-jcc-text-muted">{selected.rule}</p>
-              <p className="mt-1 text-xs font-semibold text-jcc-accent-dark">
+              <p className="mt-2 font-mono text-[11px] text-jcc-accent-dark">
                 {selected.holders.length === 1 ? "Held by one player" : `Unlocked by ${selected.holders.length} of ${players} players`}
               </p>
             </div>
-            <ol className="mt-5 divide-y divide-jcc-border">
+            <ol className="mt-6 border-t border-jcc-blue/80">
               {selected.holders.map((h) => (
                 <li key={h.p}>
-                  <button onClick={() => { setOpen(null); onOpenPlayer(h.p, "labels"); }} className="flex w-full items-center gap-3 py-2.5 text-left hover:bg-jcc-navy-light/60">
-                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: teamByName(h.team)?.primary ?? "#5D6677" }} />
+                  <button onClick={() => { setOpen(null); onOpenPlayer(h.p, "labels"); }} className="group flex w-full items-center gap-3 border-b border-jcc-border py-3 text-left">
+                    <Avatar name={names[h.p]} size={36} ring={teamColor(h.team)} />
                     <div className="min-w-0 flex-1">
                       <div className="font-semibold text-white">{names[h.p]}</div>
                       <div className="text-[12px] text-jcc-text-muted">{h.why}</div>
                     </div>
-                    <span className="text-[11px] font-semibold text-jcc-accent-dark">Cards →</span>
+                    <span className="font-mono text-[10.5px] text-jcc-accent-dark transition-transform group-hover:translate-x-1">Cards →</span>
                   </button>
                 </li>
               ))}

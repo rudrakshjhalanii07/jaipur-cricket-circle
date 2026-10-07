@@ -1,0 +1,58 @@
+/* /stats-preview only (imported by its layout). Colours stay JCC's Royal
+   White & Blue tokens from globals.css — this file only swaps the display
+   type to a tight grotesk and adds mono data labels. Scope to that page's
+   root only. */
+.jcc-stats-page .theme-static-dark {
+  --color-jcc-text-muted: rgba(255, 255, 255, 0.76);
+}
+.jcc-stats-page {
+  --font-heading: var(--font-grotesk), var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  background-color: var(--color-jcc-navy-deep);
+  /* Uncoated-paper grain: navy specks at a few percent, so the white reads
+     as printed stock rather than a flat screen. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .07 0 0 0 0 .14 0 0 0 0 .25 .09 0 0 0 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+@layer base {
+  .jcc-stats-page :is(h1, h2, h3, h4) {
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    text-transform: none;
+  }
+}
+/* Outlined display numerals (position numbers, section indices). */
+.text-outline {
+  -webkit-text-stroke: 1.5px currentColor;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Fades the ends of a horizontally scrolling strip. */
+.edge-fade {
+  mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+}
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Print grain for Royal Blue bands — breaks up flat digital navy. Sits
+   under the content (::before, earlier in paint order than children). */
+.print-grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.09;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* A double keyline set just inside a dark panel, like a framed plate. */
+.heritage-frame::after {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  pointer-events: none;
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  outline: 1px solid rgba(212, 175, 55, 0.1);
+  outline-offset: 4px;
+  border-radius: inherit;
+}
