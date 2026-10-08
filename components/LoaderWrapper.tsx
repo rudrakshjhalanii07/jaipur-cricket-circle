@@ -1,9 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 
 const LOADER_DURATION_MS = 2000;
+
+/** Pages that run their own entrance and skip the site intro. */
+const NO_LOADER = ["/stats-preview"];
 
 export default function LoaderWrapper({
   children,
@@ -15,11 +19,15 @@ export default function LoaderWrapper({
   // client, on every full page load/reload (this component only remounts
   // on a hard navigation, not client-side route changes within the app).
   const [loading, setLoading] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
+    if (NO_LOADER.some((p) => pathname.startsWith(p))) return;
     setLoading(true);
     const t = setTimeout(() => setLoading(false), LOADER_DURATION_MS);
     return () => clearTimeout(t);
+    // Hard loads only: later client-side navigations must not replay it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

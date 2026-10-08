@@ -15,6 +15,7 @@ import { gsap, reduceMotion, useGSAP, usePill } from "./motion";
 import { Avatar } from "./Avatar";
 import AllTimeXI from "./AllTimeXI";
 import TeamDNA from "./TeamDNA";
+import { useNewcomers } from "./Newcomers";
 import BoardsTab from "./BoardsTab";
 import KingsTab from "./KingsTab";
 import MoMSection from "./MoMSection";
@@ -59,6 +60,144 @@ function Tally({ n, of }: { n: number; of: number }) {
   );
 }
 
+type ChanceRow = ReturnType<typeof leagueInsights>["chances"][number];
+
+/**
+ * Who has earned more of the bat or the ball. The flagged cases (efficient
+ * and clearly underused, from profile.ts) come first; everyone else with 3+
+ * matches follows, ranked by the same idea measured against the league
+ * median: how much better than the median they are, times how far short of
+ * a full share they get.
+ */
+function ChancesTab({ rows, names, onOpenPlayer }: { rows: ChanceRow[]; names: string[]; onOpenPlayer: (p: number, card?: string) => void }) {
+  const ranked = useMemo(() => {
+    const median = (xs: number[]) => {
+      const v = [...xs].sort((a, b) => a - b);
+      return v.length ? v[Math.floor(v.length / 2)] : 0;
+    };
+    const pool = rows.filter((c) => c.matches >= 3);
+    const mSr = median(pool.filter((c) => c.balls >= 15 && c.sr != null).map((c) => c.sr!));
+    const mEcon = median(pool.filter((c) => c.bowlBalls >= 12 && c.econ != null).map((c) => c.econ!));
+    return pool
+      .map((c) => {
+        const share = c.teamBallsPerMatch ? Math.min(1, c.ballsPerMatch / c.teamBallsPerMatch) : 1;
+        const bat = c.balls >= 15 && c.sr != null && c.sr > mSr && share < 0.8 ? (c.sr / mSr - 1) * (1 - share) : 0;
+        const bowl = c.bowlBalls >= 12 && c.econ != null && c.econ < mEcon && c.bowlShare < 70 ? (mEcon / c.econ - 1) * (1 - c.bowlShare / 100) : 0;
+        const flagged = c.underusedBat || c.underusedBowl;
+        return { c, share, bat, bowl, score: (flagged ? 10 : 0) + Math.max(bat, bowl), flagged };
+      })
+      .filter((x) => x.flagged || x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 15);
+  }, [rows]);
+
+  const top = ranked.slice(0, 3);
+  const rest = ranked.slice(3);
+  const mSrShown = useMemo(() => {
+    const v = rows.filter((c) => c.matches >= 3 && c.balls >= 15 && c.sr != null).map((c) => c.sr!).sort((a, b) => a - b);
+    return v.length ? v[Math.floor(v.length / 2)] : 0;
+  }, [rows]);
+
+  return (
+    <div data-apanel>
+      <div className="flex flex-wrap items-end justify-between gap-4 border-t border-jcc-blue/80 pt-5">
+        <h3 className="font-heading text-3xl font-bold tracking-[-0.03em] text-white md:text-4xl">Deserve more chances</h3>
+        <span className={LABEL}>Efficient when used, used less than teammates · min 3 matches</span>
+      </div>
+
+      {top.length === 0 ? (
+        <p className="mt-6 text-sm text-jcc-text-muted">Nobody stands out as underused in this season.</p>
+      ) : (
+        <div className="mt-8 grid gap-x-12 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+          {top.map(({ c, share }) => (
+            <button key={c.p} data-arow onClick={() => onOpenPlayer(c.p, "chances")} className="group text-left">
+              <div className="flex items-center gap-4">
+                <Avatar name={names[c.p]} size={60} ring={teamByName(c.team)?.primary ?? "#A97824"} className="transition-transform duration-500 group-hover:scale-105" />
+                <div className="min-w-0">
+                  <p className={LABEL}>The case for</p>
+                  <div className="truncate font-heading text-2xl font-bold tracking-[-0.03em] text-white decoration-jcc-accent decoration-2 underline-offset-4 group-hover:underline">{names[c.p]}</div>
+                </div>
+              </div>
+              {c.sr != null && c.balls >= 15 && (
+                <div className="mt-6">
+                  <div className="flex items-baseline justify-between">
+                    <span className="font-heading text-4xl font-bold tracking-[-0.04em] tabular-nums text-white">{f0(c.sr)}</span>
+                    <span className={LABEL}>strike rate</span>
+                  </div>
+                  <div className="mt-3 space-y-1.5">
+                    <div className="flex items-center gap-3">
+                      <span className="w-14 font-mono text-[10px] uppercase text-jcc-text-muted">Him</span>
+                      <span className="h-1.5 flex-1 rounded-full bg-jcc-navy-light"><span className="block h-full rounded-full bg-jcc-accent" style={{ width: `${share * 100}%` }} /></span>
+                      <span className="w-10 text-right font-mono text-[11px] tabular-nums text-white">{f1(c.ballsPerMatch)}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="w-14 font-mono text-[10px] uppercase text-jcc-text-muted">Team</span>
+                      <span className="h-1.5 flex-1 rounded-full bg-jcc-navy-light"><span className="block h-full rounded-full bg-jcc-blue" style={{ width: "100%" }} /></span>
+                      <span className="w-10 text-right font-mono text-[11px] tabular-nums text-white">{f1(c.teamBallsPerMatch)}</span>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-[12.5px] text-jcc-text-muted">balls faced a match</p>
+                </div>
+              )}
+              {c.econ != null && c.bowlBalls >= 12 && (
+                <div className="mt-6 flex items-center gap-5">
+                  <svg viewBox="0 0 44 44" className="h-16 w-16 -rotate-90">
+                    <circle cx="22" cy="22" r="18" fill="none" stroke="var(--color-jcc-navy-light)" strokeWidth="5" />
+                    <circle cx="22" cy="22" r="18" fill="none" stroke="#D4AF37" strokeWidth="5" strokeLinecap="round" strokeDasharray={`${(2 * Math.PI * 18 * c.bowlShare) / 100} 200`} />
+                  </svg>
+                  <div>
+                    <div className="font-heading text-4xl font-bold tracking-[-0.04em] tabular-nums text-white">{f2(c.econ)}</div>
+                    <p className="text-[12.5px] text-jcc-text-muted">economy, bowls in {f0(c.bowlShare)}% of matches</p>
+                  </div>
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {rest.length > 0 && (
+        <div className="mt-16">
+          <div className="flex items-end justify-between border-b border-jcc-blue/80 pb-2">
+            <span className={LABEL}>Next in line · Nos. 4–{ranked.length}</span>
+            <span className={LABEL}>Why</span>
+          </div>
+          <ol>
+            {rest.map(({ c, share, bat, bowl }, i) => (
+              <li key={c.p} data-arow>
+                <button onClick={() => onOpenPlayer(c.p, "chances")} className="group relative grid w-full grid-cols-[32px_auto_minmax(0,1fr)] items-center gap-4 border-b border-jcc-border py-4 text-left md:grid-cols-[32px_auto_minmax(0,220px)_minmax(0,1fr)]">
+                  <span aria-hidden className="pointer-events-none absolute -inset-x-3 inset-y-1 rounded-xl bg-jcc-navy opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                  <span className="relative font-mono text-[11px] text-jcc-text-muted">{String(i + 4).padStart(2, "0")}</span>
+                  <Avatar name={names[c.p]} size={40} ring={teamByName(c.team)?.primary ?? "#A97824"} className="relative" />
+                  <span className="relative min-w-0">
+                    <span className="block truncate font-semibold tracking-tight text-white transition-transform duration-300 group-hover:translate-x-0.5">{names[c.p]}</span>
+                    <span className="block font-mono text-[10.5px] text-jcc-text-muted">{c.team} · {c.matches} matches</span>
+                  </span>
+                  <span className="relative col-span-3 flex flex-wrap gap-x-6 gap-y-1 text-[13px] text-jcc-text-muted md:col-span-1 md:justify-end">
+                    {bat > 0 && (
+                      <span>
+                        <b className="font-heading text-base text-white">SR {f0(c.sr)}</b> · faces {f1(c.ballsPerMatch)} balls a match, team {f1(c.teamBallsPerMatch)} ({f0(share * 100)}%)
+                      </span>
+                    )}
+                    {bowl > 0 && (
+                      <span>
+                        <b className="font-heading text-base text-white">Econ {f2(c.econ)}</b> · bowls in {f0(c.bowlShare)}% of matches
+                      </span>
+                    )}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-6 max-w-3xl font-mono text-[11px] leading-relaxed text-jcc-text-muted">
+            Top 15. A batter qualifies with a strike rate above the league median ({f0(mSrShown)}) while facing under 80% of his team&apos;s balls a match; a bowler with an economy below the median while bowling in under 70% of matches. Ranked by how far above the median, times how far short of a full share.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AnalyticsSection({
   data,
   seasons,
@@ -76,6 +215,12 @@ export default function AnalyticsSection({
   const lastTab = useRef<TabKey | null>(null);
 
   const rows = useMemo(() => leaderboardRows(data, seasons), [data, seasons]);
+  // Season 3 newcomers, tagged in the attendance register when Season 3 is in view.
+  const { fresh } = useNewcomers(data);
+  const showNew = seasons.includes(3);
+  const newIds = useMemo(() => new Set(showNew ? fresh.map((n) => n.p) : []), [fresh, showNew]);
+  const [registerPick, setRegister] = useState<"all" | "new">("all");
+  const register = showNew ? registerPick : "all";
   const L = useMemo(() => leagueInsights(data, seasons), [data, seasons]);
   const names = data.players;
 
@@ -156,7 +301,23 @@ export default function AnalyticsSection({
           {/* The register */}
           <div className="mt-14 flex flex-wrap items-end justify-between gap-4">
             <h3 className="font-heading text-3xl font-bold tracking-[-0.03em] text-white">The register</h3>
-            <span className={LABEL}>One stroke per matchday, tallied in fives</span>
+            <div className="flex flex-wrap items-center gap-4">
+              {showNew && (
+                <div className="inline-flex rounded-full bg-jcc-navy p-1 shadow-[0_10px_30px_-20px_rgba(18,35,63,0.5)]">
+                  {(["all", "new"] as const).map((k) => (
+                    <button
+                      key={k}
+                      onClick={() => setRegister(k)}
+                      aria-pressed={register === k}
+                      className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold tracking-tight transition-colors duration-300 ${register === k ? "bg-jcc-blue text-[#FCFBF8]" : "text-jcc-text-muted hover:text-white"}`}
+                    >
+                      {k === "all" ? "Everyone" : `Newcomers · ${L.attendance.filter((a) => newIds.has(a.p)).length}`}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <span className={LABEL}>One stroke per matchday, tallied in fives</span>
+            </div>
           </div>
           <div className="mt-6 hidden grid-cols-[44px_minmax(0,1fr)_minmax(0,1.2fr)_96px_88px] gap-4 border-b border-jcc-blue/80 pb-3 md:grid">
             {["", "Player", "Matchdays", "Team matches", "Present"].map((h, i) => (
@@ -164,7 +325,7 @@ export default function AnalyticsSection({
             ))}
           </div>
           <ol>
-            {L.attendance.map((a, i) => (
+            {L.attendance.filter((a) => register === "all" || newIds.has(a.p)).map((a, i) => (
               <li key={a.p} data-arow>
                 <button
                   onClick={() => onOpenPlayer(a.p, "chances")}
@@ -175,7 +336,12 @@ export default function AnalyticsSection({
                   <span className="relative flex min-w-0 items-center gap-3">
                     <Avatar name={names[a.p]} size={36} ring={teamByName(a.team)?.primary ?? "#A97824"} />
                     <span className="min-w-0">
-                      <span className="block truncate font-semibold tracking-tight text-white">{names[a.p]}</span>
+                      <span className="flex items-center gap-2">
+                        <span className="truncate font-semibold tracking-tight text-white">{names[a.p]}</span>
+                        {newIds.has(a.p) && (
+                          <span className="shrink-0 rounded-full bg-jcc-accent/20 px-2 py-px font-mono text-[9.5px] font-semibold uppercase tracking-[0.12em] text-jcc-accent-dark">New in S3</span>
+                        )}
+                      </span>
                       <span className="block truncate font-mono text-[10.5px] text-jcc-text-muted">
                         {a.team}
                         {a.guest > 0 && ` · +${a.guest} as guest for ${a.guestTeams.join(", ")}`}
@@ -202,115 +368,7 @@ export default function AnalyticsSection({
         </div>
       )}
 
-      {tab === "chances" && (
-        <div data-apanel className="space-y-20">
-          <div>
-            <div className="flex flex-wrap items-end justify-between gap-4 border-t border-jcc-blue/80 pt-5">
-              <h3 className="font-heading text-3xl font-bold tracking-[-0.03em] text-white">Deserve more chances</h3>
-              <span className={LABEL}>Efficient when used, used less than teammates · min 3 matches</span>
-            </div>
-            {L.chances.filter((c) => c.underusedBat || c.underusedBowl).length ? (
-              <div className="mt-8 grid gap-x-12 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
-                {L.chances.filter((c) => c.underusedBat || c.underusedBowl).map((c) => {
-                  const share = c.teamBallsPerMatch ? Math.min(100, (100 * c.ballsPerMatch) / c.teamBallsPerMatch) : 0;
-                  return (
-                    <button key={c.p} data-arow onClick={() => onOpenPlayer(c.p, "chances")} className="group text-left">
-                      <div className="flex items-center gap-4">
-                        <Avatar name={names[c.p]} size={60} ring={teamByName(c.team)?.primary ?? "#A97824"} className="transition-transform duration-500 group-hover:scale-105" />
-                        <div className="min-w-0">
-                          <p className={LABEL}>The case for</p>
-                          <div className="truncate font-heading text-2xl font-bold tracking-[-0.03em] text-white decoration-jcc-accent decoration-2 underline-offset-4 group-hover:underline">{names[c.p]}</div>
-                        </div>
-                      </div>
-                      {c.underusedBat && (
-                        <div className="mt-6">
-                          <div className="flex items-baseline justify-between">
-                            <span className="font-heading text-4xl font-bold tracking-[-0.04em] tabular-nums text-white">{f0(c.sr)}</span>
-                            <span className={LABEL}>strike rate</span>
-                          </div>
-                          <div className="mt-3 space-y-1.5">
-                            <div className="flex items-center gap-3">
-                              <span className="w-14 font-mono text-[10px] uppercase text-jcc-text-muted">Him</span>
-                              <span className="h-1.5 flex-1 rounded-full bg-jcc-navy-light"><span data-bar className="block h-full rounded-full bg-jcc-accent" style={{ width: `${share}%` }} /></span>
-                              <span className="w-10 text-right font-mono text-[11px] tabular-nums text-white">{f1(c.ballsPerMatch)}</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span className="w-14 font-mono text-[10px] uppercase text-jcc-text-muted">Team</span>
-                              <span className="h-1.5 flex-1 rounded-full bg-jcc-navy-light"><span data-bar className="block h-full rounded-full bg-jcc-blue" style={{ width: "100%" }} /></span>
-                              <span className="w-10 text-right font-mono text-[11px] tabular-nums text-white">{f1(c.teamBallsPerMatch)}</span>
-                            </div>
-                          </div>
-                          <p className="mt-2 text-[12.5px] text-jcc-text-muted">balls faced a match</p>
-                        </div>
-                      )}
-                      {c.underusedBowl && (
-                        <div className="mt-6 flex items-center gap-5">
-                          <svg viewBox="0 0 44 44" className="h-16 w-16 -rotate-90">
-                            <circle cx="22" cy="22" r="18" fill="none" stroke="var(--color-jcc-navy-light)" strokeWidth="5" />
-                            <circle cx="22" cy="22" r="18" fill="none" stroke="#D4AF37" strokeWidth="5" strokeLinecap="round" strokeDasharray={`${(2 * Math.PI * 18 * (c.bowlShare ?? 0)) / 100} 200`} />
-                          </svg>
-                          <div>
-                            <div className="font-heading text-4xl font-bold tracking-[-0.04em] tabular-nums text-white">{f2(c.econ)}</div>
-                            <p className="text-[12.5px] text-jcc-text-muted">economy, but bowls in {f0(c.bowlShare)}% of matches</p>
-                          </div>
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="mt-6 text-sm text-jcc-text-muted">Nobody stands out as underused in this season.</p>
-            )}
-          </div>
-
-          <div>
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <h3 className="font-heading text-3xl font-bold tracking-[-0.03em] text-white">Fewest chances</h3>
-              <span className={LABEL}>Balls faced plus balls bowled a match, fewest first</span>
-            </div>
-            <div className="no-scrollbar -mx-5 mt-6 overflow-x-auto px-5 md:mx-0 md:px-0">
-              <table className="w-full min-w-max text-sm">
-                <thead>
-                  <tr className="border-b border-jcc-blue/80">
-                    {["Player", "M", "Batted in", "Avg pos", "Share of team balls", "SR", "Bowled in", "Overs / m", "Econ"].map((h, i) => (
-                      <th key={h} className={`px-3 pb-3 font-mono text-[10.5px] font-medium uppercase tracking-[0.12em] text-jcc-text-muted first:pl-0 last:pr-0 ${i ? "text-right" : "text-left"}`}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {L.chances.map((c) => {
-                    const share = c.teamBallsPerMatch ? Math.min(100, (100 * c.ballsPerMatch) / c.teamBallsPerMatch) : 0;
-                    return (
-                      <tr key={c.p} data-arow onClick={() => onOpenPlayer(c.p, "chances")} className="group cursor-pointer border-b border-jcc-border transition-colors hover:bg-jcc-navy">
-                        <td className="py-3.5 pl-0 pr-3">
-                          <span className="flex items-center gap-3">
-                            <Avatar name={names[c.p]} size={32} ring={teamByName(c.team)?.primary ?? "#A97824"} />
-                            <span className="font-semibold tracking-tight text-white transition-transform duration-300 group-hover:translate-x-1">{names[c.p]}</span>
-                          </span>
-                        </td>
-                        <td className="px-3 text-right tabular-nums text-jcc-text-muted">{c.matches}</td>
-                        <td className="px-3 text-right tabular-nums text-jcc-text-muted">{c.battedIn}</td>
-                        <td className="px-3 text-right tabular-nums text-jcc-text-muted">{f1(c.avgPos)}</td>
-                        <td className="px-3">
-                          <span className="flex items-center justify-end gap-3">
-                            <span className="h-1 w-24 rounded-full bg-jcc-navy-light"><span data-bar className="block h-full rounded-full bg-jcc-blue" style={{ width: `${share}%` }} /></span>
-                            <span className="w-16 text-right font-mono text-[11px] tabular-nums text-white">{f1(c.ballsPerMatch)}<span className="text-jcc-text-muted">/{f1(c.teamBallsPerMatch)}</span></span>
-                          </span>
-                        </td>
-                        <td className="px-3 text-right font-heading text-base font-bold tabular-nums text-white">{f0(c.sr)}</td>
-                        <td className="px-3 text-right tabular-nums text-jcc-text-muted">{f0(c.bowlShare)}%</td>
-                        <td className="px-3 text-right tabular-nums text-jcc-text-muted">{f1(c.oversPerMatch)}</td>
-                        <td className="pl-3 pr-0 text-right font-heading text-base font-bold tabular-nums text-white">{f2(c.econ)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
+      {tab === "chances" && <ChancesTab rows={L.chances} names={names} onOpenPlayer={onOpenPlayer} />}
       </div>
     </div>
   );

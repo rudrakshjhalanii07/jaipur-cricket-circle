@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { MetadataRoute } from 'next';
+import { dayReports } from '@/lib/match-reports';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL
@@ -30,6 +31,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const lastMod = art.updated_at || art.published_at || art.created_at;
     articleEntries.set(art.slug, lastMod ? new Date(lastMod) : new Date());
   });
+
+  // Matchday reports are generated from the scorecard export, one per match day.
+  for (const r of dayReports()) {
+    articleEntries.set(r.slug, new Date(`${r.date}T00:00:00Z`));
+  }
 
   // 3. Define main static pages
   const staticPages = [

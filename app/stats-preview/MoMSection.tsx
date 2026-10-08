@@ -47,23 +47,105 @@ function Block({ title, note, icon, children }: { title: string; note?: string; 
   );
 }
 
-function AwardRow({ a, names, onOpenMatch, value }: { a: Award; names: string[]; onOpenMatch: (id: string) => void; value: string }) {
+type Analytics = ReturnType<typeof momAnalytics>;
+
+/** The record book as a two-pane browser: categories on the left, the selected record in full on the right. */
+function RecordBook({ A, names, onOpenMatch }: { A: Analytics; names: string[]; onOpenMatch: (id: string) => void }) {
+  const books = [
+    { key: "biggest", title: "Biggest performances", note: "Highest match impact.", icon: Flame, rows: A.records.biggest, value: (a: Award) => signed(a.score) },
+    { key: "dominant", title: "Most dominant", note: "Furthest clear of the runner-up.", icon: Trophy, rows: A.records.dominant, value: (a: Award) => signed(a.margin) },
+    { key: "closest", title: "Photo finishes", note: "Smallest winning margin over the runner-up.", icon: Zap, rows: A.records.closest, value: (a: Award) => a.margin.toFixed(2) },
+    { key: "batting", title: "Best batting awards", note: "Highest batting impact in an award.", icon: Target, rows: A.records.batting, value: (a: Award) => signed(a.impact.bat) },
+    { key: "bowling", title: "Best bowling awards", note: "Highest bowling impact in an award.", icon: Crosshair, rows: A.records.bowling, value: (a: Award) => signed(a.impact.bowl) },
+    { key: "losing", title: "In a losing cause", note: "Awards won by a player on the losing side.", icon: Swords, rows: A.records.losingSide, value: (a: Award) => signed(a.score) },
+  ];
+  const [key, setKey] = useState(books[0].key);
+  const { box, pill } = usePill(key);
+  const book = books.find((b) => b.key === key) ?? books[0];
+  const [first, ...rest] = book.rows;
+
   return (
-    <li data-arow>
-      <button onClick={() => onOpenMatch(a.matchId)} className="group flex w-full items-center gap-3 border-b border-jcc-border py-3 text-left">
-        <Avatar name={names[a.p]} size={34} ring={teamColor(a.team)} />
-        <div className="min-w-0 flex-1 transition-transform duration-300 group-hover:translate-x-1">
-          <div className="truncate font-semibold tracking-tight text-white">
-            {names[a.p]} <span className="font-normal text-jcc-text-muted">· {a.line}</span>
-          </div>
-          <div className="truncate font-mono text-[10.5px] text-jcc-text-muted">
-            v {a.opp} · {fmtDate(a.date)} S{a.season}
-            {a.runnerUp ? ` · runner-up ${names[a.runnerUp.p]}` : ""}
-          </div>
+    <div className="mt-20">
+      <div className="flex items-end justify-between gap-4 border-b border-jcc-blue/80 pb-4">
+        <h4 className="font-heading text-4xl font-bold tracking-[-0.04em] text-white">Record book</h4>
+        <span className={LABEL}>Tap an award for its scorecard</span>
+      </div>
+      <div className="mt-8 grid gap-10 lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-14">
+        {/* categories */}
+        <div ref={box} className="no-scrollbar relative -mx-5 flex gap-2 overflow-x-auto px-5 lg:mx-0 lg:flex-col lg:gap-1 lg:overflow-visible lg:px-0">
+          <span ref={pill} aria-hidden className="pointer-events-none absolute left-0 top-0 rounded-2xl bg-jcc-blue" style={{ opacity: 0 }} />
+          {books.map((b) => {
+            const on = b.key === key;
+            const lead = b.rows[0];
+            return (
+              <button
+                key={b.key}
+                data-active={on}
+                onClick={() => setKey(b.key)}
+                className={`relative z-10 flex shrink-0 items-center gap-3 rounded-2xl px-4 py-3 text-left transition-colors duration-300 lg:w-full ${on ? "text-[#FCFBF8]" : "text-white hover:bg-jcc-navy"}`}
+              >
+                <b.icon size={16} className={on ? "text-jcc-accent-highlight" : "text-jcc-accent-dark"} />
+                <span className="min-w-0 flex-1">
+                  <span className="block whitespace-nowrap text-[14px] font-semibold tracking-tight">{b.title}</span>
+                  {lead && (
+                    <span className={`hidden truncate font-mono text-[10.5px] lg:block ${on ? "text-[#FCFBF8]/70" : "text-jcc-text-muted"}`}>
+                      {names[lead.p]} · {b.value(lead)}
+                    </span>
+                  )}
+                </span>
+              </button>
+            );
+          })}
         </div>
-        <span className="shrink-0 font-heading text-xl font-bold tabular-nums tracking-tight text-white">{value}</span>
-      </button>
-    </li>
+
+        {/* the selected record */}
+        <div key={book.key} data-apanel className="min-w-0">
+          <p className={LABEL}>{book.note}</p>
+          {!first ? (
+            <p className="mt-6 text-sm text-jcc-text-muted">Every award went to the winning side.</p>
+          ) : (
+            <>
+              <button onClick={() => onOpenMatch(first.matchId)} className="group mt-6 grid w-full items-center gap-6 rounded-3xl bg-jcc-navy p-6 text-left shadow-[0_20px_40px_-30px_rgba(18,35,63,0.6)] ring-1 ring-jcc-border transition hover:ring-jcc-accent/60 sm:grid-cols-[auto_minmax(0,1fr)_auto] md:p-8">
+                <Avatar name={names[first.p]} size={88} ring="#D4AF37" />
+                <div className="min-w-0">
+                  <p className={LABEL}>No. 1 · {first.team}</p>
+                  <div className="mt-1 font-heading text-3xl font-bold tracking-[-0.03em] text-white decoration-jcc-accent decoration-2 underline-offset-4 group-hover:underline md:text-4xl">{names[first.p]}</div>
+                  <p className="mt-1 text-[15px] font-medium text-white">{first.line}</p>
+                  <p className="mt-2 font-mono text-[11px] leading-relaxed text-jcc-text-muted">
+                    v {first.opp} · {fmtDate(first.date)}, Season {first.season}
+                    {first.runnerUp ? ` · runner-up ${names[first.runnerUp.p]}` : ""}
+                  </p>
+                </div>
+                <span className="font-heading text-6xl font-bold leading-none tracking-[-0.05em] tabular-nums md:text-7xl" style={{ backgroundImage: "linear-gradient(135deg,#F3C96A,#D4AF37 45%,#A97824)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
+                  {book.value(first)}
+                </span>
+              </button>
+              <ol className="mt-4">
+                {rest.map((a, i) => (
+                  <li key={a.m} data-arow>
+                    <button onClick={() => onOpenMatch(a.matchId)} className="group relative grid w-full grid-cols-[32px_auto_minmax(0,1fr)_auto] items-center gap-4 border-b border-jcc-border py-4 text-left">
+                      <span aria-hidden className="pointer-events-none absolute -inset-x-3 inset-y-1 rounded-xl bg-jcc-navy opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                      <span className="text-outline relative font-heading text-3xl font-bold leading-none text-jcc-accent-dark">{i + 2}</span>
+                      <Avatar name={names[a.p]} size={44} ring={teamColor(a.team)} className="relative" />
+                      <div className="relative min-w-0">
+                        <div className="font-semibold tracking-tight text-white">
+                          {names[a.p]} <span className="font-normal text-jcc-text-muted">· {a.line}</span>
+                        </div>
+                        <div className="mt-0.5 font-mono text-[10.5px] leading-relaxed text-jcc-text-muted">
+                          {a.team} v {a.opp} · {fmtDate(a.date)}, S{a.season}
+                          {a.runnerUp ? ` · runner-up ${names[a.runnerUp.p]}` : ""}
+                        </div>
+                      </div>
+                      <span className="relative font-heading text-3xl font-bold tabular-nums tracking-[-0.04em] text-white">{book.value(a)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -248,34 +330,7 @@ export default function MoMSection({ data, onOpenPlayer, onOpenMatch }: { data: 
       </div>
 
       {/* ── Record book ── */}
-      <div className="mt-20 flex items-end justify-between gap-4">
-        <h4 className="font-heading text-4xl font-bold tracking-[-0.04em] text-white">Record book</h4>
-        <span className={LABEL}>Tap an award for its scorecard</span>
-      </div>
-      <div className="mt-8 grid gap-x-12 gap-y-14 md:grid-cols-2 lg:grid-cols-3">
-        <Block title="Biggest performances" icon={Flame} note="Highest match impact.">
-          <ol>{A.records.biggest.map((a) => <AwardRow key={a.m} a={a} names={names} onOpenMatch={onOpenMatch} value={signed(a.score)} />)}</ol>
-        </Block>
-        <Block title="Most dominant" icon={Trophy} note="Furthest clear of the runner-up.">
-          <ol>{A.records.dominant.map((a) => <AwardRow key={a.m} a={a} names={names} onOpenMatch={onOpenMatch} value={signed(a.margin)} />)}</ol>
-        </Block>
-        <Block title="Photo finishes" icon={Zap} note="Smallest winning margin.">
-          <ol>{A.records.closest.map((a) => <AwardRow key={a.m} a={a} names={names} onOpenMatch={onOpenMatch} value={a.margin.toFixed(2)} />)}</ol>
-        </Block>
-        <Block title="Best batting awards" icon={Target} note="Highest batting impact in an award.">
-          <ol>{A.records.batting.map((a) => <AwardRow key={a.m} a={a} names={names} onOpenMatch={onOpenMatch} value={signed(a.impact.bat)} />)}</ol>
-        </Block>
-        <Block title="Best bowling awards" icon={Crosshair} note="Highest bowling impact in an award.">
-          <ol>{A.records.bowling.map((a) => <AwardRow key={a.m} a={a} names={names} onOpenMatch={onOpenMatch} value={signed(a.impact.bowl)} />)}</ol>
-        </Block>
-        <Block title="In a losing cause" icon={Swords} note="Awards won by a player on the losing side.">
-          {A.records.losingSide.length ? (
-            <ol>{A.records.losingSide.map((a) => <AwardRow key={a.m} a={a} names={names} onOpenMatch={onOpenMatch} value={signed(a.score)} />)}</ol>
-          ) : (
-            <p className="text-sm text-jcc-text-muted">Every award went to the winning side.</p>
-          )}
-        </Block>
-      </div>
+      <RecordBook A={A} names={names} onOpenMatch={onOpenMatch} />
 
       {/* ── Matchday timeline ── */}
       <div className="mt-20 border-t border-jcc-blue/80 pt-5">

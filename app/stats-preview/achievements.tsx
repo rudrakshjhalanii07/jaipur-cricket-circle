@@ -168,7 +168,7 @@ function Holders({ holders, names }: { holders: Holder[]; names: string[] }) {
     <div className="flex items-center justify-center gap-2">
       <div className="flex -space-x-2.5">
         {shown.map((h) => (
-          <span key={h.p} title={names[h.p]} className="rounded-full ring-2 ring-jcc-navy-deep">
+          <span key={h.p} title={names[h.p]} className="flex shrink-0 rounded-full ring-2 ring-jcc-navy-deep">
             <Avatar name={names[h.p]} size={26} />
           </span>
         ))}

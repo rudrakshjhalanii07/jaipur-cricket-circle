@@ -1580,3 +1580,82 @@ export function momAnalytics(d: CardData, seasons: number[]) {
     },
   };
 }
+
+// ─── Key battles ─────────────────────────────────────────────────────────────
+
+/** One innings in which the bowler bowled and the batter batted. */
+export type Meeting = {
+  m: number; date: string; season: number;
+  /** The batter's whole innings — not just the balls he faced from this bowler. */
+  runs: number; balls: number; notOut: boolean;
+  /** True when this bowler took his wicket. */
+  out: boolean;
+  /** The bowler's whole spell in that innings. */
+  spell: { balls: number; runs: number; wk: number };
+};
+
+export type Battle = {
+  batter: number; bowler: number;
+  batTeam: string; bowlTeam: string;
+  meetings: Meeting[];
+  /** Times this bowler dismissed him. */
+  bowlerWins: number;
+  /** Meetings he got through without this bowler dismissing him. */
+  batterWins: number;
+  /** Batter's runs and balls across those innings (whole innings, see Meeting). */
+  runs: number; balls: number;
+};
+
+export const BATTLE_MIN_MEETINGS = 3;
+const BATTLE_TOP = 15;
+
+/**
+ * Even contests between headline players.
+ *
+ * The scorecard export has no ball-by-ball data, so a "meeting" is an innings
+ * where the bowler bowled and the batter batted — we know they were on the
+ * field against each other, not how many balls one faced from the other. The
+ * one exact head-to-head fact is the dismissal: `bw` names the bowler.
+ *
+ * A pair qualifies when the batter is a top-15 run-scorer and the bowler a
+ * top-15 wicket-taker in this scope, they have met at least three times, and
+ * the record is genuinely split: the bowler has dismissed him at least twice,
+ * in 30–70% of their meetings. Ranked by meetings, then by how close the
+ * split is to even, then by combined standing.
+ */
+export function keyBattles(d: CardData, seasons: number[]): Battle[] {
+  const S = getScope(d, seasons);
+  const ps = [...S.players.values()];
+  const runRank = new Map([...ps].filter((x) => x.B.runs > 0).sort((a, b) => b.B.runs - a.B.runs).map((x, i) => [x.p, i]));
+  const wkRank = new Map([...ps].filter((x) => x.W.wk > 0).sort((a, b) => b.W.wk - a.W.wk || (a.W.econ ?? 99) - (b.W.econ ?? 99)).map((x, i) => [x.p, i]));
+  const batters = new Set([...runRank].filter(([, i]) => i < BATTLE_TOP).map(([p]) => p));
+  const bowlers = new Set([...wkRank].filter(([, i]) => i < BATTLE_TOP).map(([p]) => p));
+  const teamOf = (p: number) => S.players.get(p)?.team ?? "";
+
+  const pairs = new Map<string, Battle>();
+  for (const r of S.bat) {
+    if (!batters.has(r.p)) continue;
+    for (const w of S.byInnBowl.get(key(r.m, r.inn)) ?? []) {
+      if (!bowlers.has(w.p) || w.p === r.p) continue;
+      const k = `${r.p}:${w.p}`;
+      const b = pairs.get(k) ?? pairs.set(k, { batter: r.p, bowler: w.p, batTeam: teamOf(r.p), bowlTeam: teamOf(w.p), meetings: [], bowlerWins: 0, batterWins: 0, runs: 0, balls: 0 }).get(k)!;
+      const out = r.bw === w.p;
+      b.meetings.push({
+        m: r.m, date: S.d.matches[r.m].date, season: S.d.matches[r.m].season,
+        runs: r.runs, balls: r.balls, notOut: r.kind === "no", out,
+        spell: { balls: w.balls, runs: w.runs, wk: w.wk },
+      });
+      if (out) b.bowlerWins++; else b.batterWins++;
+      b.runs += r.runs; b.balls += r.balls;
+    }
+  }
+  const standing = (b: Battle) => (runRank.get(b.batter) ?? 99) + (wkRank.get(b.bowler) ?? 99);
+  const gap = (b: Battle) => Math.abs(b.bowlerWins / b.meetings.length - 0.5);
+  return [...pairs.values()]
+    .filter((b) => {
+      const share = b.bowlerWins / b.meetings.length;
+      return b.meetings.length >= BATTLE_MIN_MEETINGS && b.bowlerWins >= 2 && b.batterWins >= 1 && share >= 0.3 && share <= 0.7;
+    })
+    .map((b) => ({ ...b, meetings: [...b.meetings].sort((x, y) => x.date.localeCompare(y.date)) }))
+    .sort((a, b) => b.meetings.length - a.meetings.length || gap(a) - gap(b) || standing(a) - standing(b));
+}

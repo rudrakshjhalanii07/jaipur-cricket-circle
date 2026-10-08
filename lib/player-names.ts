@@ -24,6 +24,7 @@ export const PLAYER_NAME_ALIASES: Record<string, string> = {
   "bhairav neurostrikers": "Bhairav Deep", // team name, not a surname
   "naman mavericks": "Naman Saini", // the other Naman on the books is Mittal
   "gourav boss": "Kunwar Gaurav",
+  "aditya m.": "Aditya Mutha", // confirmed 7 Oct 2026; NOT Aditya Maroo, the Season 3 signing
 
   // Confirmed with the club, 30 Jul 2026. Two Ankits play: Jain and Sharma —
   // they appear on opposite sides of the same innings (26 Jun match 2), so a

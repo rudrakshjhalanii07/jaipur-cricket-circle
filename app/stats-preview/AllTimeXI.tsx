@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Hand, Crosshair, Swords, Shield, Target, ChevronDown } from "lucide-react";
 import { allTimeXI, f2, type CardData, type XIRole } from "@/lib/scorecard-dashboard/profile";
 import { teamByName } from "@/lib/teams";
-import Jaali from "./Jaali";
+import Jaali from "@/components/Jaali";
 import { Avatar } from "./Avatar";
 import { usePill } from "./motion";
 
@@ -152,7 +152,7 @@ export default function AllTimeXI({ data, onOpenPlayer }: { data: CardData; onOp
               <div className="grid gap-4 py-6 last:pb-0 sm:grid-cols-[130px_minmax(0,1fr)] sm:items-center">
                 <span className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-[#FCFBF8]/70">12th man</span>
                 <button onClick={() => onOpenPlayer(r.twelfth!.p)} className="group flex items-center gap-4 text-left">
-                  <span className="rounded-full p-[3px] ring-1 ring-dashed ring-[#FCFBF8]/40" style={{ outline: "1px dashed rgba(252,251,248,0.35)", outlineOffset: 3 }}>
+                  <span className="flex rounded-full p-[3px] ring-1 ring-dashed ring-[#FCFBF8]/40" style={{ outline: "1px dashed rgba(252,251,248,0.35)", outlineOffset: 3 }}>
                     <Avatar name={names[r.twelfth.p]} size={52} className="opacity-80 transition group-hover:opacity-100" />
                   </span>
                   <span>

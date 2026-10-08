@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { createContext, useContext, useState } from "react";
 import Image from "next/image";
 import { photoFor, type PlayerPhotoMap } from "@/lib/player-photos";
 
@@ -24,7 +24,9 @@ const initials = (name: string) =>
  * `ring` draws a hairline in a team colour (or gold) around it.
  */
 export function Avatar({ name, size = 28, ring, className = "" }: { name: string; size?: number; ring?: string; className?: string }) {
-  const src = usePhoto(name);
+  const photo = usePhoto(name);
+  const [failed, setFailed] = useState<string | null>(null);
+  const src = photo && failed !== photo ? photo : null;
   const style = { width: size, height: size, boxShadow: ring ? `0 0 0 ${size >= 48 ? 2 : 1.5}px ${ring}` : undefined };
   if (!src) {
     return (
@@ -39,7 +41,10 @@ export function Avatar({ name, size = 28, ring, className = "" }: { name: string
   }
   return (
     <span className={`relative inline-block shrink-0 overflow-hidden rounded-full bg-jcc-navy-light ${className}`} style={style}>
-      <Image src={src} alt={name} fill sizes={`${size * 2}px`} className="object-cover object-top" />
+      {/* Member photos are already small webp files: load them straight from
+          storage rather than through the image optimiser, and drop to the
+          monogram if one fails. */}
+      <Image src={src} alt={name} fill unoptimized onError={() => setFailed(src)} className="object-cover object-top" />
     </span>
   );
 }
@@ -49,7 +54,9 @@ export function Avatar({ name, size = 28, ring, className = "" }: { name: string
  * Renders nothing without a photo, so the caller can fall back.
  */
 export function Portrait({ name, className = "" }: { name: string; className?: string }) {
-  const src = usePhoto(name);
+  const photo = usePhoto(name);
+  const [failed, setFailed] = useState<string | null>(null);
+  const src = photo && failed !== photo ? photo : null;
   if (!src) return null;
   return (
     <div
@@ -60,7 +67,7 @@ export function Portrait({ name, className = "" }: { name: string; className?: s
         WebkitMaskComposite: "source-in",
       }}
     >
-      <Image src={src} alt="" fill sizes="(min-width: 1024px) 420px, 60vw" className="object-cover object-top grayscale-[35%] transition duration-700 group-hover:scale-[1.03] group-hover:grayscale-0" />
+      <Image src={src} alt="" fill unoptimized onError={() => setFailed(src)} className="object-cover object-top grayscale-[35%] transition duration-700 group-hover:scale-[1.03] group-hover:grayscale-0" />
     </div>
   );
 }

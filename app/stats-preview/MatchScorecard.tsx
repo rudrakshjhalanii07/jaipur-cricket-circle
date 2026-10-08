@@ -6,7 +6,7 @@ import { Trophy, X } from "lucide-react";
 import { f2, fmtDate, manOfTheMatch, matchScorecard, ov, type CardData, type ScorecardInnings } from "@/lib/scorecard-dashboard/profile";
 import { teamByName } from "@/lib/teams";
 import { Avatar } from "./Avatar";
-import Jaali from "./Jaali";
+import Jaali from "@/components/Jaali";
 import { gsap, reduceMotion, useGSAP, usePill } from "./motion";
 
 const LABEL = "font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-jcc-text-muted";
@@ -40,7 +40,7 @@ function Innings({ inn, onOpen }: { inn: ScorecardInnings; onOpen: (p: number) =
         </div>
         <ol>
           {inn.batting.map((r, i) => (
-            <li key={r.p} data-sc-row className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-5 gap-y-2 border-b border-jcc-border py-3 sm:grid-cols-[minmax(0,1fr)_96px_auto]">
+            <li key={r.p} data-sc-row className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 sm:gap-x-5 border-b border-jcc-border py-3 sm:grid-cols-[minmax(0,1fr)_96px_auto]">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="w-4 font-mono text-[10.5px] text-jcc-text-muted">{i + 1}</span>
                 <Avatar name={r.name} size={36} ring={r.out ? color : "#D4AF37"} />
@@ -49,15 +49,20 @@ function Innings({ inn, onOpen }: { inn: ScorecardInnings; onOpen: (p: number) =
                   <div className="truncate font-mono text-[10.5px] text-jcc-text-muted">{r.how}</div>
                 </div>
               </div>
-              <div className="col-span-2 row-start-2 h-1 rounded-full bg-jcc-navy-light sm:col-span-1 sm:row-start-auto">
-                <div className="h-full rounded-full" style={{ width: `${(100 * r.runs) / maxRuns}%`, background: r.out ? "#12233F" : "#D4AF37" }} />
+              <div className="col-span-2 row-start-2 flex items-center gap-3 sm:contents">
+                <div className="h-1 min-w-0 flex-1 rounded-full bg-jcc-navy-light">
+                  <div className="h-full rounded-full" style={{ width: `${(100 * r.runs) / maxRuns}%`, background: r.out ? "#12233F" : "#D4AF37" }} />
+                </div>
+                <span className="whitespace-nowrap font-mono text-[10.5px] tabular-nums text-jcc-text-muted sm:hidden">
+                  {r.balls}b · {r.f4}×4 · {r.s6}×6 · <span className="text-white">SR {r.sr == null ? "–" : r.sr.toFixed(0)}</span>
+                </span>
               </div>
               <div className="flex items-baseline justify-end gap-3 text-right">
                 <span className={`font-heading text-2xl font-bold tabular-nums tracking-tight ${r.out ? "text-white" : "text-jcc-accent-dark"}`}>
                   {r.runs}
                   {r.out ? "" : "*"}
                 </span>
-                <span className="w-[160px] whitespace-nowrap text-right font-mono text-[11px] tabular-nums text-jcc-text-muted">
+                <span className="hidden w-[160px] whitespace-nowrap text-right font-mono sm:inline text-[11px] tabular-nums text-jcc-text-muted">
                   {r.balls}b · {r.f4}×4 · {r.s6}×6 · <span className="text-white">SR {r.sr == null ? "–" : r.sr.toFixed(0)}</span>
                 </span>
               </div>
@@ -89,7 +94,8 @@ function Innings({ inn, onOpen }: { inn: ScorecardInnings; onOpen: (p: number) =
           <div className="border-b border-jcc-blue/80 pb-2">
             <span className={LABEL}>Fall of wickets · along the innings, 0 to {inn.runs}</span>
           </div>
-          <div className="relative mx-2 mb-2 mt-12 h-14">
+          <div className="no-scrollbar -mx-5 overflow-x-auto overscroll-x-contain px-5 sm:mx-0 sm:overflow-visible sm:px-0">
+          <div className="relative mx-8 mb-2 mt-12 h-14 min-w-[520px] sm:mx-2 sm:min-w-0">
             <div className="absolute inset-x-0 top-[26px] h-1 rounded-full" style={{ background: `linear-gradient(90deg, ${color}40, ${color})` }} />
             {inn.fow.map((f, k) => {
               const x = Math.min(100, (100 * f.score) / Math.max(1, inn.runs));
@@ -104,6 +110,7 @@ function Innings({ inn, onOpen }: { inn: ScorecardInnings; onOpen: (p: number) =
               );
             })}
           </div>
+          </div>
         </div>
       )}
 
@@ -117,7 +124,16 @@ function Innings({ inn, onOpen }: { inn: ScorecardInnings; onOpen: (p: number) =
           {inn.bowling.map((r) => (
             <li key={r.p} data-sc-row className="flex items-center gap-3 border-b border-jcc-border py-3">
               <Avatar name={r.name} size={34} ring={r.wk >= 2 ? "#D4AF37" : "rgba(18,35,63,0.2)"} />
-              <NameBtn p={r.p} name={r.name} onOpen={onOpen} className="min-w-0 flex-1" />
+              <div className="min-w-0 flex-1">
+                <NameBtn p={r.p} name={r.name} onOpen={onOpen} className="block max-w-full" />
+                <div className="flex flex-wrap gap-x-2 font-mono text-[10.5px] tabular-nums text-jcc-text-muted sm:hidden">
+                  <span>{ov(r.balls)} ov</span>
+                  <span>{r.mdn} md</span>
+                  <span>econ <span className="text-white">{f2(r.econ)}</span></span>
+                  <span>{r.dots} dots</span>
+                  <span>wd {r.wd} · nb {r.nb}</span>
+                </div>
+              </div>
               <span className="hidden font-mono text-[11px] tabular-nums text-jcc-text-muted sm:block">
                 {ov(r.balls)} · {r.mdn} · {f2(r.econ)} · {r.dots} · {r.wd} · {r.nb}
               </span>
@@ -281,11 +297,11 @@ export default function MatchScorecard({
           )}
 
           {/* ── Highlights ── */}
-          <dl data-sc-in className="grid grid-cols-2 gap-y-6 border-b border-jcc-border py-8 sm:grid-cols-4">
+          <dl data-sc-in className="grid grid-cols-2 gap-x-4 gap-y-6 border-b border-jcc-border py-8 sm:grid-cols-4">
             {top && (
-              <button onClick={() => onOpenPlayer(top.p)} className="text-left">
+              <button onClick={() => onOpenPlayer(top.p)} className="min-w-0 text-left">
                 <dt className={LABEL}>Top score</dt>
-                <dd className="mt-2 font-heading text-3xl font-bold tracking-[-0.04em] tabular-nums text-white">
+                <dd className="mt-2 font-heading text-2xl font-bold tracking-[-0.04em] sm:text-3xl tabular-nums text-white">
                   {top.runs}
                   {top.out ? "" : "*"} <span className="text-base text-jcc-text-muted">({top.balls})</span>
                 </dd>
@@ -293,9 +309,9 @@ export default function MatchScorecard({
               </button>
             )}
             {best && (
-              <button onClick={() => onOpenPlayer(best.p)} className="text-left">
+              <button onClick={() => onOpenPlayer(best.p)} className="min-w-0 text-left">
                 <dt className={LABEL}>Best bowling</dt>
-                <dd className="mt-2 font-heading text-3xl font-bold tracking-[-0.04em] tabular-nums text-white">
+                <dd className="mt-2 font-heading text-2xl font-bold tracking-[-0.04em] sm:text-3xl tabular-nums text-white">
                   {best.wk}/{best.runs} <span className="text-base text-jcc-text-muted">({ov(best.balls)})</span>
                 </dd>
                 <dd className="truncate text-[12.5px] text-jcc-text-muted">{best.name}</dd>
@@ -303,14 +319,14 @@ export default function MatchScorecard({
             )}
             <div>
               <dt className={LABEL}>Boundaries</dt>
-              <dd className="mt-2 font-heading text-3xl font-bold tracking-[-0.04em] tabular-nums text-white">{fours + sixes}</dd>
+              <dd className="mt-2 font-heading text-2xl font-bold tracking-[-0.04em] sm:text-3xl tabular-nums text-white">{fours + sixes}</dd>
               <dd className="text-[12.5px] text-jcc-text-muted">
                 {fours} fours · {sixes} sixes
               </dd>
             </div>
             <div>
               <dt className={LABEL}>Run rates</dt>
-              <dd className="mt-2 font-heading text-3xl font-bold tracking-[-0.04em] tabular-nums text-white">
+              <dd className="mt-2 font-heading text-2xl font-bold tracking-[-0.04em] sm:text-3xl tabular-nums text-white">
                 {innings.map((i) => f2(i.balls ? (6 * i.runs) / i.balls : null)).join(" · ")}
               </dd>
               <dd className="text-[12.5px] text-jcc-text-muted">1st · 2nd innings</dd>

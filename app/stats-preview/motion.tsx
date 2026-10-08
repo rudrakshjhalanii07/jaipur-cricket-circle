@@ -37,34 +37,6 @@ export function whenSeen(el: Element, fn: () => void, line = 0.92) {
 }
 
 /**
- * Calls `cb` once the site's intro loader (LoaderWrapper, shown on every hard
- * load) has gone, so an entrance isn't spent underneath it. The loader mounts
- * in a passive effect after ours run, hence the short wait before looking.
- * Returns a cancel function.
- */
-export function afterLoader(cb: () => void) {
-  const present = () => !!document.querySelector('div.fixed > img[src="/jcc_logo.png"]');
-  let mo: MutationObserver | undefined;
-  let done = false;
-  const fire = () => {
-    if (done) return;
-    done = true;
-    mo?.disconnect();
-    cb();
-  };
-  const t = window.setTimeout(() => {
-    if (!present()) return fire();
-    mo = new MutationObserver(() => !present() && fire());
-    mo.observe(document.body, { childList: true, subtree: true });
-  }, 80);
-  return () => {
-    done = true;
-    window.clearTimeout(t);
-    mo?.disconnect();
-  };
-}
-
-/**
  * A highlight that glides to whichever child of `box` has data-active="true".
  * "fill" covers the active item (segmented controls); "line" only tracks its
  * x/width (underline tabs — position the pill at the bottom in CSS).
@@ -121,14 +93,11 @@ export function Counter({
   decimals = 0,
   comma = false,
   delay = 0,
-  intro = false,
 }: {
   value: number;
   decimals?: number;
   comma?: boolean;
   delay?: number;
-  /** Part of the hero entrance: wait for the site loader before counting. */
-  intro?: boolean;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   /** The value on screen once a tween has landed; null until the first count-up. */
@@ -164,7 +133,6 @@ export function Counter({
           shown.current = value;
         },
       });
-      if (from == null && intro) return afterLoader(() => tween.play());
       if (from == null) return whenSeen(el, () => tween.play(), 0.95);
     },
     { dependencies: [value], revertOnUpdate: true },

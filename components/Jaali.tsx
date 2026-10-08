@@ -1,7 +1,10 @@
 "use client";
 
 import { useId, useRef } from "react";
-import { gsap, reduceMotion, useGSAP } from "./motion";
+import { gsap } from "gsap";
+import { useGSAP } from "@gsap/react";
+
+const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /**
  * A carved stone screen in the manner of the Hawa Mahal and City Palace
@@ -13,21 +16,37 @@ import { gsap, reduceMotion, useGSAP } from "./motion";
  * window. Sits behind content: give the parent `relative` and the content
  * `relative` too.
  */
-export default function Jaali({ className = "", fade = "0.72 0.3" }: { className?: string; fade?: string }) {
+export default function Jaali({
+  className = "",
+  fade = "0.72 0.3",
+  intensity = 1,
+  weight = 1,
+  drift = [0.8, 0.2, 0.2, 0.8],
+}: {
+  className?: string;
+  fade?: string;
+  /** Multiplies the pattern's opacity; 1 is the stats page's faint default. */
+  intensity?: number;
+  /** Multiplies the line thickness. */
+  weight?: number;
+  /** Path of the drifting light, as fractions of the box: [fromX, fromY, toX, toY]. */
+  drift?: [number, number, number, number];
+}) {
   const id = useId().replace(/[^a-zA-Z0-9]/g, "");
   const light = useRef<SVGRadialGradientElement>(null);
   const [fx, fy] = fade.split(" ");
 
   useGSAP(() => {
     if (reduceMotion() || !light.current) return;
-    gsap.fromTo(light.current, { attr: { cx: 0.8, cy: 0.2 } }, { attr: { cx: 0.2, cy: 0.8 }, duration: 18, ease: "sine.inOut", yoyo: true, repeat: -1 });
-  });
+    const [x0, y0, x1, y1] = drift;
+    gsap.fromTo(light.current, { attr: { cx: x0, cy: y0 } }, { attr: { cx: x1, cy: y1 }, duration: 18, ease: "sine.inOut", yoyo: true, repeat: -1 });
+  }, { dependencies: drift });
 
   return (
     <svg aria-hidden className={`pointer-events-none absolute inset-0 h-full w-full ${className}`}>
       <defs>
         <pattern id={`${id}p`} width="56" height="56" patternUnits="userSpaceOnUse" patternTransform="scale(1.35)">
-          <g fill="none" stroke="#D4AF37" strokeWidth="0.7" strokeLinejoin="round">
+          <g fill="none" stroke="#D4AF37" strokeWidth={0.7 * weight} strokeLinejoin="round">
             {/* the star: a square over a diamond */}
             <rect x="16" y="16" width="24" height="24" />
             <path d="M28 11 L45 28 L28 45 L11 28 Z" />
@@ -48,7 +67,7 @@ export default function Jaali({ className = "", fade = "0.72 0.3" }: { className
         <mask id={`${id}m`}>
           <rect width="100%" height="100%" fill={`url(#${id}f)`} />
         </mask>
-        <radialGradient ref={light} id={`${id}l`} cx="0.8" cy="0.2" r="0.32">
+        <radialGradient ref={light} id={`${id}l`} cx={drift[0]} cy={drift[1]} r="0.32">
           <stop offset="0" stopColor="#fff" stopOpacity="1" />
           <stop offset="1" stopColor="#fff" stopOpacity="0" />
         </radialGradient>
@@ -56,8 +75,8 @@ export default function Jaali({ className = "", fade = "0.72 0.3" }: { className
           <rect width="100%" height="100%" fill={`url(#${id}l)`} />
         </mask>
       </defs>
-      <rect width="100%" height="100%" fill={`url(#${id}p)`} mask={`url(#${id}m)`} opacity="0.16" />
-      <rect width="100%" height="100%" fill={`url(#${id}p)`} mask={`url(#${id}lm)`} opacity="0.32" />
+      <rect width="100%" height="100%" fill={`url(#${id}p)`} mask={`url(#${id}m)`} opacity={Math.min(1, 0.16 * intensity)} />
+      <rect width="100%" height="100%" fill={`url(#${id}p)`} mask={`url(#${id}lm)`} opacity={Math.min(1, 0.32 * intensity)} />
     </svg>
   );
 }

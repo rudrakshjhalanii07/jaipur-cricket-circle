@@ -15,6 +15,7 @@
 
 import auction from "@/scripts/season-3-auction.json";
 import type { TeamId } from "@/lib/teams";
+import { playerPhotoIndexKeys, playerPhotoKeys } from "@/lib/player-photos";
 
 export interface Signing {
   /** Canonical name, as agreed when the results graphic was transcribed. */
@@ -56,3 +57,34 @@ export const AUCTION_SIGNINGS: Signing[] = auction.teams.flatMap((t) =>
     captain: p.captain === true,
   })),
 );
+
+/**
+ * Resolves a scorecard name onto the signing it belongs to.
+ *
+ * The two lists spell the same person differently: the sheet was transcribed in
+ * full ("Sagar Sharma", "Rudraksh Jhalani") while a scorecard says whatever the
+ * scorer typed ("Sagar", "Rudraksh"). Compared as strings they never meet, and
+ * Season 3's regulars end up filed as newcomers while their signings sit on 0
+ * matches — so the sheet is indexed and looked up exactly the way the roster is
+ * in createRosterMatcher, most specific key first.
+ *
+ * A name two signings both answer to resolves to neither, and a scorecard name
+ * carrying a surname the sheet doesn't have is a different person: "Raghav
+ * Chaturvedi" is not the Vikings' "Raghav" unless someone says so in the JSON.
+ */
+export function createSigningMatcher() {
+  const claims = new Map<string, Signing[]>();
+  for (const s of AUCTION_SIGNINGS) {
+    for (const k of playerPhotoIndexKeys(s.name)) {
+      claims.set(k, [...(claims.get(k) ?? []), s]);
+    }
+  }
+  return (name: string): Signing | null => {
+    for (const k of playerPhotoKeys(name)) {
+      const holders = claims.get(k);
+      if (!holders) continue;
+      return holders.length === 1 ? holders[0] : null;
+    }
+    return null;
+  };
+}

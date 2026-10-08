@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { f0, type TeamDna } from "@/lib/scorecard-dashboard/profile";
 import { teamByName } from "@/lib/teams";
-import Jaali from "./Jaali";
+import Jaali from "@/components/Jaali";
 import { Avatar } from "./Avatar";
 import { Counter, gsap, reduceMotion, useGSAP, usePill } from "./motion";
 

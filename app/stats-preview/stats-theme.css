@@ -34,14 +34,15 @@
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
 /* Print grain for Royal Blue bands — breaks up flat digital navy. Sits
-   under the content (::before, earlier in paint order than children). */
+   under the content (::before, earlier in paint order than children).
+   Plain alpha rather than a blend mode: a soft-light layer under scrubbed
+   and pinned content forces a full re-blend every scroll frame. */
 .print-grain::before {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.09;
-  mix-blend-mode: soft-light;
+  opacity: 0.045;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 

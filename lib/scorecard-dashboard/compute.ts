@@ -100,6 +100,7 @@ const ID_NAME: Record<string, string> = {
   "1218133": "Ankit Jain",
   "15649695": "Ankit Sharma", // also called Ankit Gupta — same person
   "52957941": "Madhav Sharma", // also scored as a bare "Madhav"
+  "8590477": "Aditya Mutha", // scored as "Aditya M."; not the auction's Aditya Maroo
 };
 
 /** CricHeroes team name → the display name in lib/teams.ts (teamByName). */

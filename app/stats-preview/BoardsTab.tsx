@@ -283,14 +283,14 @@ export default function BoardsTab({ rows, names, onOpenPlayer }: { rows: BoardRo
               aria-selected={disc === d}
               data-active={disc === d}
               onClick={() => pickDisc(d)}
-              className={`relative z-10 rounded-full px-4 py-2 text-[13px] font-semibold tracking-tight transition-colors duration-300 ${disc === d ? "text-[#FCFBF8]" : "text-jcc-text-muted hover:text-white"}`}
+              className={`relative z-10 rounded-full px-2.5 py-2 text-[12.5px] font-semibold sm:px-4 sm:text-[13px] tracking-tight transition-colors duration-300 ${disc === d ? "text-[#FCFBF8]" : "text-jcc-text-muted hover:text-white"}`}
             >
               {DISC_LABEL[d]}
             </button>
           ))}
         </div>
         <span className="font-mono text-[11px] text-jcc-text-muted">
-          {idx + 1} / {list.length} · use ← → to browse
+          {idx + 1} / {list.length}<span className="hidden sm:inline"> · use ← → to browse</span>
         </span>
       </div>
 

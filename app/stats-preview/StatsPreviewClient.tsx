@@ -15,10 +15,12 @@ import { manOfTheMatch, slug, type CardData } from "@/lib/scorecard-dashboard/pr
 import PlayerDeck, { deckHash } from "./PlayerDeck";
 import AnalyticsSection from "./AnalyticsSection";
 import MatchScorecard from "./MatchScorecard";
+import Newcomers from "./Newcomers";
+import KeyBattles from "./KeyBattles";
 import type { PlayerPhotoMap } from "@/lib/player-photos";
-import Jaali from "./Jaali";
+import Jaali from "@/components/Jaali";
 import { Avatar, PhotoContext, Portrait, usePhoto } from "./Avatar";
-import { Counter, ScrollTrigger, afterLoader, gsap, isSeen, reduceMotion, useGSAP, usePill, whenSeen } from "./motion";
+import { Counter, ScrollTrigger, gsap, isSeen, reduceMotion, useGSAP, usePill, whenSeen } from "./motion";
 
 // Everything rendered here is either a number or a string formatted on the
 // server — no toLocale* calls, so server and client HTML always match.
@@ -29,7 +31,9 @@ const SECTIONS = [
   ["leaders", "Leaders"],
   ["table", "Table"],
   ["leaderboards", "Leaderboards"],
+  ["newcomers", "Newcomers"],
   ["analytics", "Analytics"],
+  ["battles", "Battles"],
   ["records", "Records"],
   ["results", "Results"],
 ] as const;
@@ -218,7 +222,7 @@ function ShowAll({ total, open, onToggle }: { total: number; open: boolean; onTo
       <span className="grid h-10 w-10 place-items-center rounded-full border border-jcc-blue/20 transition duration-300 group-hover:border-jcc-blue group-hover:bg-jcc-blue group-hover:text-[#FCFBF8]">
         <ArrowDown size={16} className={`transition-transform duration-500 ${open ? "rotate-180" : ""}`} />
       </span>
-      {open ? "Show top 10" : `Show all ${total}`}
+      {open ? "Show top 10" : `Show all ${total + 3}`}
     </button>
   );
 }
@@ -277,7 +281,7 @@ function Seam() {
       data-seam
       viewBox="0 0 600 600"
       aria-hidden
-      className="pointer-events-none absolute -right-[30%] top-28 w-[110vw] max-w-[860px] opacity-35 md:opacity-70 sm:-right-[12%] md:-right-[6%] md:top-14 md:w-[62vw]"
+      className="pointer-events-none absolute -right-[30%] top-28 will-change-transform w-[110vw] max-w-[860px] opacity-35 md:opacity-70 sm:-right-[12%] md:-right-[6%] md:top-14 md:w-[62vw]"
       fill="none"
     >
       <circle cx="300" cy="300" r="282" stroke="rgba(255,255,255,0.09)" strokeWidth="1.5" />
@@ -615,10 +619,10 @@ function Leaderboards({ s }: { s: ScopeStats }) {
     ids = all.map((r) => r.id);
     pods = all.slice(0, 3).map((p) => ({ id: p.id, name: p.name, teams: p.teams, value: p.runs, unit: "runs", sub: `SR ${p.strikeRate.toFixed(1)} · avg ${dp(p.average, 1)} · HS ${p.highest}` }));
     cols = [{ head: "#", align: "left", className: "w-12" }, { head: "Player", align: "left" }, { head: "Runs" }, { head: "M" }, { head: "Inn" }, { head: "NO" }, { head: "HS" }, { head: "Avg" }, { head: "SR" }, { head: "30s" }, { head: "50s" }, { head: "4s" }, { head: "6s" }];
-    rows = (open ? all : all.slice(0, 10)).map((p, i) => ({
+    rows = (open ? all.slice(3) : all.slice(3, 10)).map((p, i) => ({
       key: p.id,
       onClick: () => openPlayer(p.id, ids),
-      cells: [<Rank key="r" n={i + 1} />, <PlayerName key="p" name={p.name} teams={p.teams} />, <BarStat key="b" value={p.runs} max={max} lead={i === 0} />, p.matches, p.innings, p.notOuts, p.highest, dp(p.average), p.strikeRate.toFixed(2), p.thirties, p.fifties, p.fours, p.sixes],
+      cells: [<Rank key="r" n={i + 4} />, <PlayerName key="p" name={p.name} teams={p.teams} />, <BarStat key="b" value={p.runs} max={max} />, p.matches, p.innings, p.notOuts, p.highest, dp(p.average), p.strikeRate.toFixed(2), p.thirties, p.fifties, p.fours, p.sixes],
     }));
   } else if (disc === "bowl") {
     const all: BowlingRow[] = s.bowling;
@@ -626,10 +630,10 @@ function Leaderboards({ s }: { s: ScopeStats }) {
     ids = all.map((r) => r.id);
     pods = all.slice(0, 3).map((p) => ({ id: p.id, name: p.name, teams: p.teams, value: p.wickets, unit: "wkts", sub: `econ ${p.economy.toFixed(2)} · ${p.overs} ov · best ${p.best}` }));
     cols = [{ head: "#", align: "left", className: "w-12" }, { head: "Player", align: "left" }, { head: "Wkts" }, { head: "M" }, { head: "Overs" }, { head: "Runs" }, { head: "Best" }, { head: "Econ" }, { head: "Avg" }, { head: "Dot %" }, { head: "Mdn" }, { head: "Wd" }, { head: "Nb" }];
-    rows = (open ? all : all.slice(0, 10)).map((p, i) => ({
+    rows = (open ? all.slice(3) : all.slice(3, 10)).map((p, i) => ({
       key: p.id,
       onClick: () => openPlayer(p.id, ids),
-      cells: [<Rank key="r" n={i + 1} />, <PlayerName key="p" name={p.name} teams={p.teams} />, <BarStat key="b" value={p.wickets} max={max} lead={i === 0} />, p.matches, p.overs, p.runs, p.best, p.economy.toFixed(2), dp(p.average), p.dotPct.toFixed(1), p.maidens, p.wides, p.noBalls],
+      cells: [<Rank key="r" n={i + 4} />, <PlayerName key="p" name={p.name} teams={p.teams} />, <BarStat key="b" value={p.wickets} max={max} />, p.matches, p.overs, p.runs, p.best, p.economy.toFixed(2), dp(p.average), p.dotPct.toFixed(1), p.maidens, p.wides, p.noBalls],
     }));
   } else {
     const all = s.fielding;
@@ -637,10 +641,10 @@ function Leaderboards({ s }: { s: ScopeStats }) {
     ids = all.map((r) => r.id);
     pods = all.slice(0, 3).map((f) => ({ id: f.id, name: f.name, teams: teamsOf(f.id), value: f.total, unit: "dismissals", sub: `${f.catches} ct · ${f.stumpings} st · ${f.runOuts} ro` }));
     cols = [{ head: "#", align: "left", className: "w-12" }, { head: "Player", align: "left" }, { head: "Total" }, { head: "Catches" }, { head: "Stumpings" }, { head: "Run-outs" }];
-    rows = (open ? all : all.slice(0, 10)).map((f, i) => ({
+    rows = (open ? all.slice(3) : all.slice(3, 10)).map((f, i) => ({
       key: f.id,
       onClick: f.id.startsWith("name:") ? undefined : () => openPlayer(f.id, ids),
-      cells: [<Rank key="r" n={i + 1} />, <PlayerName key="p" name={f.name} teams={teamsOf(f.id)} />, <BarStat key="b" value={f.total} max={max} lead={i === 0} />, f.catches, f.stumpings, f.runOuts],
+      cells: [<Rank key="r" n={i + 4} />, <PlayerName key="p" name={f.name} teams={teamsOf(f.id)} />, <BarStat key="b" value={f.total} max={max} />, f.catches, f.stumpings, f.runOuts],
     }));
   }
   const total = disc === "bat" ? s.batting.length : disc === "bowl" ? s.bowling.length : s.fielding.length;
@@ -669,7 +673,7 @@ function Leaderboards({ s }: { s: ScopeStats }) {
       <div className="mt-16">
         <DataTable cols={cols} rows={rows} />
       </div>
-      {total > 10 && <ShowAll total={total} open={open} onToggle={() => setOpen((v) => !v)} />}
+      {total > 10 && <ShowAll total={total - 3} open={open} onToggle={() => setOpen((v) => !v)} />}
     </div>
   );
 }
@@ -802,19 +806,28 @@ function Results({ s, onOpen, mom }: { s: ScopeStats; onOpen: (matchId: string) 
 function useActiveSection() {
   const [active, setActive] = useState<SectionId | null>(null);
   useEffect(() => {
-    const els = SECTIONS.map(([id]) => document.getElementById(id)).filter((e): e is HTMLElement => !!e);
     const pick = () => {
+      // Looked up fresh each time, so sections that mount later (or re-mount) are never missed.
       const line = window.innerHeight * 0.35;
       let current: SectionId | null = null;
-      for (const el of els) if (el.getBoundingClientRect().top <= line) current = el.id as SectionId;
+      for (const [id] of SECTIONS) {
+        const el = document.getElementById(id);
+        if (el && el.getBoundingClientRect().top <= line) current = id;
+      }
       setActive(current);
     };
+    // At most one layout read per frame, however fast the scroll events come.
+    let frame = 0;
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(() => ((frame = 0), pick()));
+    };
     pick();
-    window.addEventListener("scroll", pick, { passive: true });
-    window.addEventListener("resize", pick);
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
     return () => {
-      window.removeEventListener("scroll", pick);
-      window.removeEventListener("resize", pick);
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
     };
   }, []);
   return active;
@@ -894,8 +907,8 @@ export default function StatsPreviewClient({ scopes, cardData, photos }: { scope
         const len = (p as unknown as SVGPathElement).getTotalLength();
         gsap.set(p, { strokeDasharray: len, strokeDashoffset: 0 });
       });
-      const intro = gsap
-        .timeline({ paused: true, defaults: { ease: "expo.out", duration: 1.1 } })
+      gsap
+        .timeline({ defaults: { ease: "expo.out", duration: 1.1 } })
         .from(q("[data-hero=kicker]"), { y: 14, autoAlpha: 0, stagger: 0.08, duration: 0.8 })
         .from(q("[data-hero=line]"), { yPercent: 115, stagger: 0.12, duration: 1.4 }, 0.15)
         .from(q("[data-seam-draw]"), { strokeDashoffset: (_i: number, el: SVGPathElement) => el.getTotalLength(), duration: 2.4, ease: "power2.inOut", stagger: 0.15 }, 0.2)
@@ -904,25 +917,32 @@ export default function StatsPreviewClient({ scopes, cardData, photos }: { scope
         .from(q("[data-hero=rule]"), { scaleX: 0, transformOrigin: "left center", duration: 1.6 }, 0.7)
         .from(q("[data-hero=kpi]"), { y: 30, autoAlpha: 0, stagger: 0.06 }, 0.8)
         .from(q("[data-hero=bar]"), { scaleX: 0, transformOrigin: "left center", stagger: 0.1, duration: 1.4 }, 1.1);
-      const cancelIntro = afterLoader(() => intro.play());
 
       // Hero depth on scroll.
       const hero = q("[data-hero-root]")[0];
       const heroScroll = { trigger: hero, start: "top top", end: "bottom top", scrub: true };
       gsap.to(q("[data-seam]"), { rotate: 55, yPercent: 18, ease: "none", scrollTrigger: heroScroll });
       gsap.to(q("[data-hero=content]"), { yPercent: -10, autoAlpha: 0.2, ease: "none", scrollTrigger: { ...heroScroll, start: "25% top" } });
-      gsap.to(q("[data-glow]"), { xPercent: -18, yPercent: 14, scale: 1.2, duration: 10, ease: "sine.inOut", yoyo: true, repeat: -1 });
 
-      // Leaders ticker: a steady loop that surges with scroll speed.
+      // Leaders ticker: a steady loop that surges with scroll speed. One
+      // ticker callback eases timeScale toward the target, rather than
+      // spawning tweens on every scroll event.
       const track = q("[data-marquee]")[0];
+      let surge: (() => void) | undefined;
       if (track) {
         const loop = gsap.to(track, { xPercent: -50, duration: 45, ease: "none", repeat: -1 });
+        let target = 1;
         ScrollTrigger.create({
           onUpdate: (self) => {
-            const boost = Math.min(Math.abs(self.getVelocity()) / 300, 5);
-            gsap.to(loop, { timeScale: 1 + boost, duration: 0.2, overwrite: true, onComplete: () => void gsap.to(loop, { timeScale: 1, duration: 1.2 }) });
+            target = 1 + Math.min(Math.abs(self.getVelocity()) / 300, 5);
           },
         });
+        surge = () => {
+          const ts = loop.timeScale();
+          if (Math.abs(ts - target) > 0.01) loop.timeScale(ts + (target - ts) * 0.12);
+          target += (1 - target) * 0.05;
+        };
+        gsap.ticker.add(surge);
       }
 
       // Reading progress along the bottom of the section capsule.
@@ -1000,7 +1020,7 @@ export default function StatsPreviewClient({ scopes, cardData, photos }: { scope
       });
 
       return () => {
-        cancelIntro();
+        if (surge) gsap.ticker.remove(surge);
         ro.disconnect();
         mm.revert();
       };
@@ -1099,7 +1119,7 @@ export default function StatsPreviewClient({ scopes, cardData, photos }: { scope
               <div key={label} data-hero="kpi" className="py-6 pr-3 md:py-8">
                 <dt className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-white/50">{label}</dt>
                 <dd className="mt-3 font-heading text-[2rem] font-bold leading-none tracking-[-0.05em] tabular-nums text-white sm:text-5xl lg:text-6xl">
-                  <Counter value={value} decimals={decimals} comma={comma} delay={0.9} intro />
+                  <Counter value={value} decimals={decimals} comma={comma} delay={0.9} />
                 </dd>
               </div>
             ))}
@@ -1119,7 +1139,7 @@ export default function StatsPreviewClient({ scopes, cardData, photos }: { scope
 
         <div data-hero="fade" className="relative mt-16 border-y border-white/10 py-5 md:py-7">
           <div className="edge-fade overflow-hidden">
-            <div data-marquee className="flex w-max items-center">
+            <div data-marquee className="flex w-max items-center will-change-transform">
               {[0, 1].map((dup) => (
                 <div key={dup} aria-hidden={dup === 1} className="flex items-center">
                   {ticker.map((t) => (
@@ -1151,7 +1171,9 @@ export default function StatsPreviewClient({ scopes, cardData, photos }: { scope
                 data-active={active === id}
                 aria-current={active === id ? "true" : undefined}
                 className={`relative z-10 flex items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2 text-[13px] font-semibold tracking-tight transition-colors duration-300 ${
-                  active === id ? "text-[#FCFBF8]" : "text-jcc-text-muted hover:text-white"
+                  // The active item carries its own navy (faded in just after the
+                  // gliding pill lands), so its light text can never sit on white.
+                  active === id ? "bg-jcc-blue text-[#FCFBF8] delay-300" : "text-jcc-text-muted hover:text-white"
                 }`}
               >
                 <span className={`font-mono text-[10px] ${active === id ? "text-jcc-accent" : "opacity-50"}`}>{pad(i + 1)}</span>
@@ -1201,21 +1223,36 @@ export default function StatsPreviewClient({ scopes, cardData, photos }: { scope
           <Leaderboards s={s} />
         </section>
 
-        {/* ── 04 Analytics ── */}
-        <section className="mt-28 bg-jcc-navy-light/70 pb-28 md:mt-36">
+        {/* ── 04 Newcomers ── */}
+        <section className="theme-static-dark section-bg-royal relative mt-28 overflow-hidden pb-24 md:mt-36 md:pb-32">
+          <Jaali />
+          <div className={`${WRAP} relative`}>
+            <SectionHead id="newcomers" n="04" dark kicker="Season 3 · fresh faces" title="Newcomers" note="Who arrived this season, and how they came in: through the auction or straight onto a scorecard." />
+            <Newcomers data={cardData} onOpenPlayer={(p) => openIndex(p, undefined, [p])} />
+          </div>
+        </section>
+
+        {/* ── 05 Analytics ── */}
+        <section className="border-y border-jcc-accent/25 bg-[#F1EDE2] pb-28">
           <div className={WRAP}>
-            <SectionHead id="analytics" n="04" kicker="Deep dive" title="Analytics" note="Leaderboards, death overs, team DNA, player labels, attendance" />
+            <SectionHead id="analytics" n="05" kicker="Deep dive" title="Analytics" note="Leaderboards, death overs, team DNA, player labels, attendance" />
             <AnalyticsSection data={cardData} seasons={seasons} onOpenPlayer={(p, card) => openIndex(p, card, [p])} onOpenMatch={setMatchOpen} />
           </div>
         </section>
 
-        {/* ── 05 Records — pans sideways on wide screens ── */}
+        {/* ── 06 Key battles ── */}
+        <section className={`${WRAP} pb-28`}>
+          <SectionHead id="battles" n="06" kicker={`Key battles · ${s.label}`} title="Hot battles" note="Headline batters against headline bowlers, and neither has put the other away yet." />
+          <KeyBattles data={cardData} seasons={seasons} onOpenPlayer={(p) => openIndex(p, "battles", [p])} />
+        </section>
+
+        {/* ── 07 Records — pans sideways on wide screens ── */}
         <section data-hscroll className="theme-static-dark section-bg-royal relative motion-safe:lg:h-[280vh]">
           <div className="print-grain relative overflow-hidden pb-24 motion-safe:lg:sticky motion-safe:lg:top-0 motion-safe:lg:flex motion-safe:lg:h-screen motion-safe:lg:flex-col motion-safe:lg:justify-center motion-safe:lg:pb-0 motion-safe:lg:pt-20">
             <Jaali />
             <FieldPlan className="absolute -bottom-[30%] -right-[18%] w-[900px] text-white/20 md:w-[1100px]" />
             <div className={`${WRAP} relative`}>
-              <SectionHead id="records" n="05" dark kicker="Hall of fame" title="Records" note="10 ov = one of the three 10-over matches on 26 Jun" className="pt-28 pb-10 motion-safe:lg:pt-0" />
+              <SectionHead id="records" n="07" dark kicker="Hall of fame" title="Records" note="10 ov = one of the three 10-over matches on 26 Jun" className="pt-28 pb-10 motion-safe:lg:pt-0" />
             </div>
             <div className="no-scrollbar relative snap-x snap-mandatory overflow-x-auto motion-safe:lg:overflow-visible">
               <div data-track className="flex w-max pl-5 pr-5 md:pl-10 lg:pl-[max(2.5rem,calc((100vw-80rem)/2+2.5rem))] lg:pr-[12vw]">
@@ -1229,9 +1266,9 @@ export default function StatsPreviewClient({ scopes, cardData, photos }: { scope
           </div>
         </section>
 
-        {/* ── 06 Results ── */}
+        {/* ── 08 Results ── */}
         <section className={`${WRAP} pb-28`}>
-          <SectionHead id="results" n="06" kicker="Match by match" title="Results" note="Newest first · tap a match for the full scorecard" />
+          <SectionHead id="results" n="08" kicker="Match by match" title="Results" note="Newest first · tap a match for the full scorecard" />
           <Results s={s} onOpen={setMatchOpen} mom={momById} />
           <div className="mt-16 flex flex-wrap items-center justify-between gap-3 border-t border-jcc-blue/80 pt-6">
             <p className={LABEL}>JCC Data · Source: CricHeroes</p>

@@ -1,6 +1,7 @@
 "use client";
 
 import { Avatar } from "./Avatar";
+import { MeetingStrip, TugOfWar, battleStory } from "./KeyBattles";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { X, ChevronLeft, ChevronRight, Link2, ClipboardCopy } from "lucide-react";
 import {
@@ -21,7 +22,7 @@ import {
   type CardData,
   type Profile,
   type Split,
-  type BowlSplit,
+  type BowlSplit, keyBattles
 } from "@/lib/scorecard-dashboard/profile";
 import { teamByName } from "@/lib/teams";
 import { AchievementStyles, Emblem, TierChip, tierOf } from "./achievements";
@@ -33,6 +34,7 @@ const MARK = "#2B59C3";
 const MARK_2 = "#B98419";
 const REF = "#7D8DB0";
 const BAD = "#B0473F";
+const SLIDE = "transform .35s cubic-bezier(.2,.8,.2,1)";
 
 const TONE: Record<BadgeTone, string> = {
   crown: "bg-jcc-accent text-jcc-seam border-jcc-accent",
@@ -354,8 +356,9 @@ function TipList({ tips }: { tips: Profile["tips"]["batting"] }) {
 }
 
 type MoMView = ReturnType<typeof momAnalytics>;
+type Battles = ReturnType<typeof keyBattles>;
 
-function buildCards(pr: Profile, scopeLabel: string, setTip: SetTip, holders: Map<string, number>, momA: MoMView, onOpenMatch: (id: string) => void): Card[] {
+function buildCards(pr: Profile, scopeLabel: string, setTip: SetTip, holders: Map<string, number>, momA: MoMView, onOpenMatch: (id: string) => void, battles: Battles, names: string[]): Card[] {
   const b = pr.B, w = pr.W, LB = pr.league.LB, LW = pr.league.LW;
   const rk = (r: { rank: number; of: number } | null) => (r ? `#${r.rank} of ${r.of}` : undefined);
   const cards: Card[] = [];
@@ -772,6 +775,40 @@ function buildCards(pr: Profile, scopeLabel: string, setTip: SetTip, holders: Ma
     });
   }
 
+  const mine = battles.filter((x) => x.batter === pr.p || x.bowler === pr.p);
+  if (mine.length) {
+    cards.push({
+      id: "battles", tab: "Battles", kicker: "Key battles", title: `${plural(mine.length, "hot battle")}`,
+      body: (
+        <>
+          <ol className="space-y-6">
+            {mine.map((x) => {
+              const batting = x.batter === pr.p;
+              const opp = batting ? x.bowler : x.batter;
+              const story = battleStory(x, names);
+              return (
+                <li key={`${x.batter}-${x.bowler}`}>
+                  <div className="flex items-center gap-3">
+                    <Avatar name={names[opp]} size={40} ring={teamByName(batting ? x.bowlTeam : x.batTeam)?.primary ?? "#A97824"} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-semibold text-white">{batting ? "Batting against" : "Bowling to"} {names[opp]}</div>
+                      <div className="text-[12.5px] text-jcc-text-muted">{story.headline} · {x.meetings.length} meetings since {story.since}</div>
+                    </div>
+                  </div>
+                  <div className="mt-3"><TugOfWar b={x} names={names} /></div>
+                  <div className="mt-3"><MeetingStrip b={x} size={18} /></div>
+                </li>
+              );
+            })}
+          </ol>
+          <p className="mt-3 text-xs leading-relaxed text-jcc-text-muted">
+            One rope segment per meeting: team colour when the batter survived the bowler, gold when the bowler struck; the knot sits where they meet. Runs shown are his whole innings.
+          </p>
+        </>
+      ),
+    });
+  }
+
   cards.push({
     id: "chances", tab: "Opportunity", kicker: "Opportunity", title: "How many chances he gets",
     body: (
@@ -831,7 +868,8 @@ export default function PlayerDeck({
     return m;
   }, [data, seasons]);
   const momA = useMemo(() => momAnalytics(data, seasons), [data, seasons]);
-  const cards = useMemo(() => (pr ? buildCards(pr, scopeLabel, setTip, holders, momA, onOpenMatch) : []), [pr, scopeLabel, holders, momA, onOpenMatch]);
+  const battles = useMemo(() => keyBattles(data, seasons), [data, seasons]);
+  const cards = useMemo(() => (pr ? buildCards(pr, scopeLabel, setTip, holders, momA, onOpenMatch, battles, data.players) : []), [pr, scopeLabel, holders, momA, onOpenMatch, battles, data.players]);
   const idx = Math.max(0, cards.findIndex((c) => c.id === card));
   const go = (i: number) => {
     const c = cards[Math.max(0, Math.min(cards.length - 1, i))];
@@ -840,7 +878,15 @@ export default function PlayerDeck({
   const pos = order.indexOf(player);
   const tabsRef = useRef<HTMLDivElement>(null);
   const swipe = useRef<{ x: number; y: number; dx: number } | null>(null);
-  const [drag, setDrag] = useState(0);
+  // Drag offsets are written straight to the strip, not through state, so a
+  // swipe doesn't re-render every card on each pointer move.
+  const strip = useRef<HTMLDivElement>(null);
+  const slide = (dx: number) => {
+    const el = strip.current;
+    if (!el) return;
+    el.style.transition = dx ? "none" : SLIDE;
+    el.style.transform = `translateX(calc(${-100 * idx}% + ${dx}px))`;
+  };
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -934,20 +980,21 @@ export default function PlayerDeck({
           const s = swipe.current;
           if (!s) return;
           s.dx = e.clientX - s.x;
-          if (Math.abs(s.dx) > Math.abs(e.clientY - s.y) && Math.abs(s.dx) > 8) setDrag(s.dx);
+          if (Math.abs(s.dx) > Math.abs(e.clientY - s.y) && Math.abs(s.dx) > 8) slide(s.dx);
         }}
         onPointerUp={() => {
           const s = swipe.current;
           swipe.current = null;
-          setDrag(0);
+          slide(0);
           if (s && s.dx < -50) go(idx + 1);
           else if (s && s.dx > 50) go(idx - 1);
         }}
-        onPointerCancel={() => { swipe.current = null; setDrag(0); }}
+        onPointerCancel={() => { swipe.current = null; slide(0); }}
       >
         <div
+          ref={strip}
           className="flex h-full"
-          style={{ transform: `translateX(calc(${-100 * idx}% + ${drag}px))`, transition: drag ? "none" : "transform .35s cubic-bezier(.2,.8,.2,1)" }}
+          style={{ transform: `translateX(${-100 * idx}%)`, transition: SLIDE }}
         >
           {cards.map((c, i) => (
             <article
