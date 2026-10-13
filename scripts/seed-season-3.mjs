@@ -22,7 +22,7 @@ import { readFileSync, existsSync } from "node:fs";
 // ── Config ──────────────────────────────────────────────────────────────────
 
 const FIRST_MATCH_DATE = process.env.FIRST_MATCH_DATE ?? "2026-07-24"; // Friday — JCC plays Fridays
-const OVERS_PER_INNINGS = Number(process.env.OVERS_PER_INNINGS ?? 10);
+const OVERS_PER_INNINGS = Number(process.env.OVERS_PER_INNINGS ?? 7); // Season 3 is 7 a side
 const VENUE = process.env.VENUE ?? null;
 
 const NS = "neurostrikers";

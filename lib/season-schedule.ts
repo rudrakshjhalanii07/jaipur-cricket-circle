@@ -31,6 +31,8 @@ const OUT = "outliers";
 const VIK = "vikings";
 
 // Weeks 1-11: the league stage. 42 matches, each pair meeting exactly 7 times.
+// This is the poster as published; the database holds the live fixture list.
+// Rescheduled since: W7 M1 (OUT v MAV) → W11 M3, W7 M4 (MAV v VIK) → W11 M4.
 const LEAGUE_WEEKS: Array<Array<[TeamId, TeamId]>> = [
   /* W1  */ [[NS, VIK], [NS, OUT], [MAV, VIK], [OUT, MAV]],
   /* W2  */ [[OUT, VIK], [NS, VIK], [OUT, MAV], [NS, MAV]],
