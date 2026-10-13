@@ -101,6 +101,9 @@ const ID_NAME: Record<string, string> = {
   "15649695": "Ankit Sharma", // also called Ankit Gupta — same person
   "52957941": "Madhav Sharma", // also scored as a bare "Madhav"
   "8590477": "Aditya Mutha", // scored as "Aditya M."; not the auction's Aditya Maroo
+  // Spelled as the database already has them, so the two don't split.
+  "15117958": "Rudhra Agrawal", // scored as "Rudhra agrwal"
+  "52428881": "Vaibhav Asudani", // scored as a bare "Vaibhav"
 };
 
 /** CricHeroes team name → the display name in lib/teams.ts (teamByName). */
@@ -799,4 +802,23 @@ export function buildCardData(): CardData {
     bowl,
     present,
   };
+}
+
+// ─── Identity for the database sync ──────────────────────────────────────────
+// lib/scorecard-dashboard/series-sync.ts writes these matches into the
+// series tables. It names players through the same rules as this dashboard,
+// so a player synced into /seasons is spelled the way /stats-preview shows him.
+
+export { data as dashboardData };
+export type { RawMatch, RawInnings, RawBatting, RawBowling, RawFallOfWicket };
+
+/** Display name for a CricHeroes player ID, after merges and overrides. */
+export function dashboardPlayerName(playerId: string, rawName: string): string {
+  return playerName.get(mergedId(playerId)) ?? cleanName(rawName);
+}
+
+/** A name written inside a dismissal ("c †Nitesh b …"), resolved to a player. */
+export function dashboardNameInText(matchId: string, team: string, raw: string): string {
+  const id = resolveFielder(matchId, team, raw.replace(/†/g, ""));
+  return id.startsWith("name:") ? id.slice(5) : (playerName.get(id) ?? cleanName(raw));
 }
