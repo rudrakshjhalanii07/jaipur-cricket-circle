@@ -1,168 +1,150 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+// Match entry, ball by ball. Pick the seeded fixture, set the toss and the two
+// squads, then score every delivery; the scorecard is replayed from the ball
+// log (lib/ball-by-ball.ts) and saved through /api/series/save like any other.
+//
+// The draft lives in this browser's localStorage, keyed by fixture, after every
+// ball — a refresh or a dead phone battery mid-match loses nothing.
+
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  FileJson, X, Save, ChevronDown, ChevronUp,
-  Plus, Trash2, CheckCircle, AlertCircle, Loader2, ArrowLeft, ExternalLink,
-  RefreshCw, Link2, RotateCcw, Copy, Check,
+  Save, ChevronDown, ChevronUp, Plus, Trash2, CheckCircle, AlertCircle,
+  Loader2, ArrowLeft, ExternalLink, Link2, RefreshCw, Play, RotateCcw,
 } from "lucide-react";
 import {
   fetchAllSeries,
   fetchSeriesMatches,
-  oversToDecimal,
+  type MatchStage,
   type Series,
   type SeriesMatch,
 } from "@/lib/series";
 import { fetchSeasons, type Season } from "@/lib/seasons";
-import { MATCH_TEMPLATE_JSON } from "@/lib/match-template";
 import { TEAMS as TEAM_CONFIG, TEAM_ORDER_ALL } from "@/lib/teams";
+import { AUCTION_SIGNINGS } from "@/lib/auction-squads";
+import {
+  inningsOver,
+  matchResult,
+  oversLabel,
+  replayInnings,
+  toSaveInnings,
+  type ScoreEvent,
+} from "@/lib/ball-by-ball";
+import Scorer from "./Scorer";
 
-// ── Types mirroring the save API body ────────────────────────────────────────
-
-// Driven off lib/teams.ts rather than a local copy, so a new team shows up in
-// every dropdown here the moment it's added to the team config.
-const TEAMS = TEAM_ORDER_ALL;
 const TEAM_LABELS: Record<string, string> = Object.fromEntries(
   TEAM_ORDER_ALL.map((id) => [id, TEAM_CONFIG[id].name]),
 );
-const TEAM_ID_LIST = TEAM_ORDER_ALL.join(" | ");
+const teamLabel = (id: string | null | undefined) => (id ? (TEAM_LABELS[id] ?? id) : "TBD");
 
-const STAGES = ["league", "eliminator", "qualifier", "final"] as const;
-const STAGE_LABELS: Record<string, string> = {
-  league: "League",
-  eliminator: "Eliminator",
-  qualifier: "Qualifier",
-  final: "Final",
-};
-const DISMISSAL_TYPES = [
-  "bowled", "caught", "lbw", "run_out", "stumped",
-  "hit_wicket", "retired_hurt", "not_out", "did_not_bat",
-] as const;
+const ALL_SIGNING_NAMES = [...new Set(AUCTION_SIGNINGS.map((s) => s.name))].sort();
 
-interface BatterRow {
-  batting_order: number;
-  player_name: string;
-  runs: number;
-  balls_faced: number | null;
-  fours: number;
-  sixes: number;
-  dismissal_type: string;
-  dismissed_by: string;
-  caught_by: string;
-}
+// ── Draft ─────────────────────────────────────────────────────────────────────
 
-interface BowlerRow {
-  bowling_order: number;
-  player_name: string;
+type Phase = "setup" | "innings1" | "innings2" | "review";
+
+interface Draft {
+  v: 1;
+  weekId: string;
+  fixtureId: string;
+  matchNo: number;
+  stage: MatchStage;
+  team1: string;
+  team2: string;
+  date: string;
   overs: number;
-  maidens: number;
-  runs_conceded: number;
-  wickets: number;
-  wides: number;
-  no_balls: number;
+  tossWinner: string;
+  tossDecision: "bat" | "bowl";
+  squads: Record<string, string[]>;
+  captains: Record<string, string>;
+  innings: [ScoreEvent[], ScoreEvent[]];
+  phase: Phase;
+  result: { winner: string; marginType: "runs" | "wickets" | ""; marginValue: number | null; tie: boolean } | null;
+  potm: string;
+  notes: string;
 }
 
-interface FoW {
-  wkt: number;
-  score: number;
-  overs: string;
-  player: string;
+const draftKey = (fixtureId: string) => `jcc_bbb_draft_${fixtureId}`;
+
+function loadDraft(fixtureId: string): Draft | null {
+  try {
+    const raw = localStorage.getItem(draftKey(fixtureId));
+    const d = raw ? (JSON.parse(raw) as Draft) : null;
+    return d?.v === 1 ? d : null;
+  } catch {
+    return null;
+  }
 }
 
-interface InningsForm {
-  innings_no: 1 | 2;
-  batting_team_id: string;
-  bowling_team_id: string;
-  total_runs: number;
-  total_wickets: number;
-  total_overs: number;
-  all_out: boolean;
-  extras_wides: number;
-  extras_no_balls: number;
-  extras_byes: number;
-  extras_leg_byes: number;
-  fall_of_wickets: FoW[];
-  batting: BatterRow[];
-  bowling: BowlerRow[];
+function storeDraft(d: Draft) {
+  try {
+    localStorage.setItem(draftKey(d.fixtureId), JSON.stringify(d));
+  } catch {
+    // Storage blocked — scoring still works, it just won't survive a reload.
+  }
 }
 
-interface MatchForm {
-  match_no: number;
-  stage: (typeof STAGES)[number];
-  match_date: string;
-  venue: string;
-  team1_id: string;
-  team2_id: string;
-  toss_winner_id: string;
-  toss_decision: string;
-  team1_captain: string;
-  team2_captain: string;
-  winner_id: string;
-  margin_type: string;
-  margin_value: number | null;
-  is_tie: boolean;
-  player_of_match: string;
-  match_notes: string;
-  innings: InningsForm[];
+function clearDraft(fixtureId: string) {
+  try {
+    localStorage.removeItem(draftKey(fixtureId));
+  } catch {}
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function emptyBatter(order: number): BatterRow {
-  return { batting_order: order, player_name: "", runs: 0, balls_faced: null, fours: 0, sixes: 0, dismissal_type: "not_out", dismissed_by: "", caught_by: "" };
+/** Season 3 squads from the auction, captain first. */
+function defaultSquad(team: string): string[] {
+  return AUCTION_SIGNINGS.filter((s) => s.teamId === team)
+    .sort((a, b) => Number(b.captain) - Number(a.captain) || a.name.localeCompare(b.name))
+    .map((s) => s.name);
 }
 
-function emptyBowler(order: number): BowlerRow {
-  return { bowling_order: order, player_name: "", overs: 0, maidens: 0, runs_conceded: 0, wickets: 0, wides: 0, no_balls: 0 };
-}
-
-function emptyInnings(no: 1 | 2, t1: string, t2: string): InningsForm {
+function newDraft(week: Series, f: SeriesMatch): Draft {
+  const team1 = f.team1_id ?? "";
+  const team2 = f.team2_id ?? "";
+  const captainOf = (t: string) => AUCTION_SIGNINGS.find((s) => s.teamId === t && s.captain)?.name ?? "";
   return {
-    innings_no: no,
-    batting_team_id: no === 1 ? t1 : t2,
-    bowling_team_id: no === 1 ? t2 : t1,
-    total_runs: 0, total_wickets: 0, total_overs: 0,
-    all_out: false, extras_wides: 0, extras_no_balls: 0, extras_byes: 0, extras_leg_byes: 0,
-    fall_of_wickets: [],
-    batting: Array.from({ length: 6 }, (_, i) => emptyBatter(i + 1)),
-    bowling: Array.from({ length: 4 }, (_, i) => emptyBowler(i + 1)),
+    v: 1,
+    weekId: week.id,
+    fixtureId: f.id,
+    matchNo: f.match_no,
+    stage: f.stage,
+    team1,
+    team2,
+    date: f.match_date ?? week.started_at?.slice(0, 10) ?? "",
+    overs: week.overs_per_innings,
+    tossWinner: "",
+    tossDecision: "bat",
+    // Nobody is ticked to start — a fixture is rarely the full auction squad.
+    squads: { [team1]: [], [team2]: [] },
+    captains: { [team1]: captainOf(team1), [team2]: captainOf(team2) },
+    innings: [[], []],
+    phase: "setup",
+    result: null,
+    potm: "",
+    notes: "",
   };
 }
 
-function defaultMatch(): MatchForm {
-  return {
-    match_no: 1, stage: "league",
-    match_date: "", venue: "", team1_id: "mavericks", team2_id: "neurostrikers",
-    toss_winner_id: "", toss_decision: "bat", team1_captain: "", team2_captain: "", winner_id: "", margin_type: "runs",
-    margin_value: null, is_tie: false, player_of_match: "", match_notes: "",
-    innings: [emptyInnings(1, "mavericks", "neurostrikers"), emptyInnings(2, "neurostrikers", "mavericks")],
-  };
+/** Batting first / second, from the toss. */
+function battingOrder(d: Draft): [string, string] {
+  const other = d.tossWinner === d.team1 ? d.team2 : d.team1;
+  return d.tossDecision === "bat" ? [d.tossWinner, other] : [other, d.tossWinner];
 }
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+// ── Small UI pieces ───────────────────────────────────────────────────────────
 
 function Label({ children }: { children: React.ReactNode }) {
   return <label className="admin-label">{children}</label>;
 }
 
-function Input({ className = "", compact, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { compact?: boolean }) {
-  return (
-    <input
-      className={`admin-input ${className}`}
-      style={compact ? { padding: "6px 8px", borderRadius: 10 } : undefined}
-      {...props}
-    />
-  );
+function Input({ className = "", ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
+  return <input className={`admin-input ${className}`} {...props} />;
 }
 
 function Select({ className = "", children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <select
-      className={`admin-select ${className}`}
-      {...props}
-    >
+    <select className={`admin-select ${className}`} {...props}>
       {children}
     </select>
   );
@@ -195,272 +177,89 @@ function CollapsibleSection({ title, children, defaultOpen = true }: { title: st
   );
 }
 
-function BattingTable({ rows, onChange }: {
-  rows: BatterRow[];
-  onChange: (rows: BatterRow[]) => void;
+function SquadPicker({
+  team,
+  squad,
+  captain,
+  onSquad,
+  onCaptain,
+}: {
+  team: string;
+  squad: string[];
+  captain: string;
+  onSquad: (s: string[]) => void;
+  onCaptain: (c: string) => void;
 }) {
-  const update = (i: number, field: keyof BatterRow, val: unknown) => {
-    const next = [...rows];
-    next[i] = { ...next[i], [field]: val };
-    onChange(next);
+  const [guest, setGuest] = useState("");
+  const signed = defaultSquad(team);
+  const extras = squad.filter((p) => !signed.includes(p));
+  const toggle = (p: string) => onSquad(squad.includes(p) ? squad.filter((x) => x !== p) : [...squad, p]);
+  const addGuest = () => {
+    const n = guest.trim().replace(/\s+/g, " ");
+    if (n && !squad.includes(n)) onSquad([...squad, n]);
+    setGuest("");
   };
-  const add = () => onChange([...rows, emptyBatter(rows.length + 1)]);
-  const remove = (i: number) => onChange(rows.filter((_, j) => j !== i));
+  const color = TEAM_CONFIG[team as keyof typeof TEAM_CONFIG]?.primary;
 
   return (
-    <div className="space-y-2">
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs text-jcc-blue/80 min-w-[700px]">
-          <thead>
-            <tr className="text-[10px] text-jcc-text-muted uppercase tracking-wider">
-              <th className="text-left pb-2 w-6">#</th>
-              <th className="text-left pb-2">Player</th>
-              <th className="text-center pb-2 w-12">R</th>
-              <th className="text-center pb-2 w-12">B</th>
-              <th className="text-center pb-2 w-10">4s</th>
-              <th className="text-center pb-2 w-10">6s</th>
-              <th className="text-center pb-2 w-12">SR</th>
-              <th className="text-left pb-2 w-32">Dismissal</th>
-              <th className="text-left pb-2">Bowler</th>
-              <th className="text-left pb-2">Catcher</th>
-              <th className="w-6" />
-            </tr>
-          </thead>
-          <tbody className="space-y-1">
-            {rows.map((r, i) => {
-              const noWkt = ["not_out", "did_not_bat", "retired_hurt"].includes(r.dismissal_type);
-              // A run out has no bowler, but it does have fielders — and they
-              // are the only ones who earn anything for it. Locking this column
-              // to catches is what sent them into the bowler field instead, so
-              // stumpings and run outs open it too.
-              const isRunOut = r.dismissal_type === "run_out";
-              const noCatch = !["caught", "stumped", "run_out"].includes(r.dismissal_type);
-              const fielderHint = isRunOut ? "Fielder / Fielder" : "Fielder";
-              return (
-              <tr key={i} className="group">
-                <td className="py-0.5 pr-2 text-jcc-text-muted/70">{i + 1}</td>
-                <td className="py-0.5 pr-1"><Input value={r.player_name} onChange={(e) => update(i, "player_name", e.target.value)} placeholder="Name" /></td>
-                <td className="py-0.5 px-1"><Input compact type="number" value={r.runs} onChange={(e) => update(i, "runs", +e.target.value)} className="text-center" /></td>
-                <td className="py-0.5 px-1"><Input compact type="number" value={r.balls_faced ?? ""} onChange={(e) => update(i, "balls_faced", e.target.value ? +e.target.value : null)} className="text-center" placeholder="—" /></td>
-                <td className="py-0.5 px-1"><Input compact type="number" value={r.fours} onChange={(e) => update(i, "fours", +e.target.value)} className="text-center" /></td>
-                <td className="py-0.5 px-1"><Input compact type="number" value={r.sixes} onChange={(e) => update(i, "sixes", +e.target.value)} className="text-center" /></td>
-                <td className="py-0.5 px-1 text-center text-jcc-accent/80 font-black tabular-nums">{r.balls_faced && r.balls_faced > 0 ? ((r.runs / r.balls_faced) * 100).toFixed(1) : "—"}</td>
-                <td className="py-0.5 px-1">
-                  <Select value={r.dismissal_type} onChange={(e) => update(i, "dismissal_type", e.target.value)}>
-                    {DISMISSAL_TYPES.map((d) => <option key={d} value={d}>{d.replace("_", " ")}</option>)}
-                  </Select>
-                </td>
-                <td className="py-0.5 px-1"><Input value={r.dismissed_by} onChange={(e) => update(i, "dismissed_by", e.target.value)} placeholder="Bowler" disabled={noWkt || isRunOut} className={noWkt || isRunOut ? "opacity-20 cursor-not-allowed" : ""} /></td>
-                <td className="py-0.5 px-1"><Input value={r.caught_by} onChange={(e) => update(i, "caught_by", e.target.value)} placeholder={fielderHint} disabled={noCatch} className={noCatch ? "opacity-20 cursor-not-allowed" : ""} /></td>
-                <td className="py-0.5 pl-1">
-                  <button type="button" onClick={() => remove(i)} className="text-jcc-text-muted/70 hover:text-jcc-danger transition-colors">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </td>
-              </tr>
-              );
-            })}
-          </tbody>
-        </table>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-black uppercase tracking-wide" style={{ color }}>{teamLabel(team)}</p>
+        <span className="text-[10px] font-black uppercase tracking-widest text-jcc-text-muted">{squad.length} playing</span>
       </div>
-      <button type="button" onClick={add} className="text-xs text-jcc-accent/70 hover:text-jcc-accent flex items-center gap-1 transition-colors">
-        <Plus className="w-3.5 h-3.5" /> Add batter
-      </button>
-    </div>
-  );
-}
-
-function BowlingTable({ rows, onChange }: { rows: BowlerRow[]; onChange: (rows: BowlerRow[]) => void }) {
-  const update = (i: number, field: keyof BowlerRow, val: unknown) => {
-    const next = [...rows];
-    next[i] = { ...next[i], [field]: val };
-    onChange(next);
-  };
-  const add = () => onChange([...rows, emptyBowler(rows.length + 1)]);
-  const remove = (i: number) => onChange(rows.filter((_, j) => j !== i));
-
-  return (
-    <div className="space-y-2">
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs text-jcc-blue/80 min-w-[500px]">
-          <thead>
-            <tr className="text-[10px] text-jcc-text-muted uppercase tracking-wider">
-              <th className="text-left pb-2">Bowler</th>
-              <th className="text-center pb-2 w-14">Ov</th>
-              <th className="text-center pb-2 w-10">M</th>
-              <th className="text-center pb-2 w-12">R</th>
-              <th className="text-center pb-2 w-10">W</th>
-              <th className="text-center pb-2 w-12">Econ</th>
-              <th className="w-6" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={i}>
-                <td className="py-0.5 pr-1"><Input value={r.player_name} onChange={(e) => update(i, "player_name", e.target.value)} placeholder="Name" /></td>
-                <td className="py-0.5 px-1"><Input compact type="number" step="0.1" value={r.overs} onChange={(e) => update(i, "overs", +e.target.value)} className="text-center" /></td>
-                <td className="py-0.5 px-1"><Input compact type="number" value={r.maidens} onChange={(e) => update(i, "maidens", +e.target.value)} className="text-center" /></td>
-                <td className="py-0.5 px-1"><Input compact type="number" value={r.runs_conceded} onChange={(e) => update(i, "runs_conceded", +e.target.value)} className="text-center" /></td>
-                <td className="py-0.5 px-1"><Input compact type="number" value={r.wickets} onChange={(e) => update(i, "wickets", +e.target.value)} className="text-center" /></td>
-                <td className="py-0.5 px-1 text-center text-jcc-accent/80 font-black tabular-nums">{r.overs && r.overs > 0 ? (r.runs_conceded / oversToDecimal(r.overs)).toFixed(1) : "—"}</td>
-                <td className="py-0.5 pl-1">
-                  <button type="button" onClick={() => remove(i)} className="text-jcc-text-muted/70 hover:text-jcc-danger transition-colors">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="flex flex-wrap gap-1.5">
+        {[...signed, ...extras].map((p) => {
+          const on = squad.includes(p);
+          return (
+            <button
+              key={p}
+              type="button"
+              onClick={() => toggle(p)}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                on ? "bg-jcc-blue text-white border-jcc-blue" : "border-jcc-border text-jcc-blue/60 hover:border-jcc-accent/50"
+              }`}
+            >
+              {p}
+              {!signed.includes(p) && <span className="opacity-60"> · guest</span>}
+            </button>
+          );
+        })}
       </div>
-      <button type="button" onClick={add} className="text-xs text-jcc-accent/70 hover:text-jcc-accent flex items-center gap-1 transition-colors">
-        <Plus className="w-3.5 h-3.5" /> Add bowler
-      </button>
+      <div className="flex gap-2">
+        <Input
+          value={guest}
+          list="jcc-player-names"
+          onChange={(e) => setGuest(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addGuest();
+            }
+          }}
+          placeholder="Add a guest / unlisted player"
+        />
+        <button type="button" onClick={addGuest} className="btn-ghost px-3 rounded-xl" title="Add player">
+          <Plus className="w-4 h-4" />
+        </button>
+      </div>
+      <div>
+        <Label>Captain</Label>
+        <Select value={captain} onChange={(e) => onCaptain(e.target.value)}>
+          <option value="">—</option>
+          {squad.map((p) => <option key={p} value={p}>{p}</option>)}
+        </Select>
+      </div>
     </div>
   );
 }
 
-function FoWEditor({ rows, onChange }: { rows: FoW[]; onChange: (rows: FoW[]) => void }) {
-  const update = (i: number, field: keyof FoW, val: unknown) => {
-    const next = [...rows];
-    next[i] = { ...next[i], [field]: val as string & number };
-    onChange(next);
-  };
-  const add = () => onChange([...rows, { wkt: rows.length + 1, score: 0, overs: "0.0", player: "" }]);
-  const remove = (i: number) => onChange(rows.filter((_, j) => j !== i));
-
-  return (
-    <div className="space-y-2">
-      {rows.length > 0 && (
-        <div className="flex items-center gap-2 text-[9px] text-jcc-text-muted/70 uppercase tracking-widest mb-0.5 ml-10">
-          <span className="w-20">Score</span>
-          <span className="w-16">Over (4.6)</span>
-          <span className="flex-1">Dismissed player</span>
-        </div>
-      )}
-      {rows.map((r, i) => (
-        <div key={i} className="flex items-center gap-2 text-xs">
-          <span className="text-jcc-text-muted w-8 shrink-0">{r.wkt}wkt</span>
-          <div className="w-20 shrink-0"><Input compact type="number" value={r.score} onChange={(e) => update(i, "score", +e.target.value)} placeholder="0" /></div>
-          <div className="w-16 shrink-0"><Input compact value={r.overs} onChange={(e) => update(i, "overs", e.target.value)} placeholder="0.0" /></div>
-          <div className="flex-1 min-w-0"><Input value={r.player} onChange={(e) => update(i, "player", e.target.value)} placeholder="Player name" /></div>
-          <button type="button" onClick={() => remove(i)} className="text-jcc-text-muted/70 hover:text-jcc-danger transition-colors">
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      ))}
-      <button type="button" onClick={add} className="text-xs text-jcc-accent/70 hover:text-jcc-accent flex items-center gap-1 transition-colors">
-        <Plus className="w-3.5 h-3.5" /> Add wicket
-      </button>
-    </div>
-  );
-}
-
-// ── Main page ─────────────────────────────────────────────────────────────────
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function SeriesImportPage() {
   const [password, setPassword] = useState("");
   const [isAuthed, setIsAuthed] = useState<boolean | null>(null);
   const [pwInput, setPwInput] = useState("");
-  const [pwError, setPwError] = useState(false);
 
-  // JSON import
-  const [jsonText, setJsonText] = useState("");
-  const [jsonError, setJsonError] = useState("");
-  const [templateCopied, setTemplateCopied] = useState(false);
-
-  const handleCopyTemplate = async () => {
-    try {
-      await navigator.clipboard.writeText(MATCH_TEMPLATE_JSON);
-      setTemplateCopied(true);
-      setTimeout(() => setTemplateCopied(false), 2000);
-    } catch {
-      // ignore — clipboard write blocked
-    }
-  };
-
-  // JCC is season-based now: every match belongs to a seeded week of the active
-  // season, so there is nothing to create here — only a week to pick. Series
-  // from earlier eras (the old tri-series) still hold their stats in the DB,
-  // they're just not import targets any more, so they're filtered out below.
-  const [allSeries, setAllSeries] = useState<Series[]>([]);
-  const [seasons, setSeasons] = useState<Season[]>([]);
-  const [weekId, setWeekId] = useState("");
-
-  useEffect(() => {
-    fetchAllSeries().then(setAllSeries).catch(() => {});
-    fetchSeasons().then(setSeasons).catch(() => {});
-  }, []);
-
-  const activeSeason = seasons.find((s) => s.status === "active") ?? null;
-  const weeks = allSeries
-    .filter((s) => s.week_no != null && s.season_id === activeSeason?.id)
-    .sort((a, b) => (a.week_no ?? 0) - (b.week_no ?? 0));
-  const selectedWeek = weeks.find((w) => w.id === weekId) ?? null;
-
-  // Match form
-  const [matchForm, setMatchForm] = useState<MatchForm>(defaultMatch());
-  const [showForm, setShowForm] = useState(false);
-
-  // ── Fixture auto-match ──────────────────────────────────────────────────────
-  // Season weeks are seeded with all their fixtures, and a pair of teams meets
-  // at most once in a week — so the two team dropdowns are enough to identify
-  // which seeded fixture this scorecard belongs to. Deriving match_no from the
-  // opponents beats typing it: a wrong number silently overwrites a different
-  // fixture's result.
-  const [seededMatches, setSeededMatches] = useState<SeriesMatch[]>([]);
-
-  useEffect(() => {
-    if (!weekId) {
-      setSeededMatches([]);
-      return;
-    }
-    let cancelled = false;
-    fetchSeriesMatches(weekId)
-      .then((rows) => {
-        if (!cancelled) setSeededMatches(rows);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [weekId]);
-
-  const fixtureCandidates = seededMatches.filter(
-    (m) =>
-      (m.team1_id === matchForm.team1_id && m.team2_id === matchForm.team2_id) ||
-      (m.team1_id === matchForm.team2_id && m.team2_id === matchForm.team1_id),
-  );
-  // An unplayed fixture is the one being imported; a played one means this is a
-  // correction. Prefer the former when a pair somehow appears twice.
-  const matchedFixture =
-    fixtureCandidates.find((m) => !m.winner_id && !m.is_tie) ??
-    fixtureCandidates[0] ??
-    null;
-
-  useEffect(() => {
-    if (!matchedFixture) return;
-    setMatchForm((p) =>
-      p.match_no === matchedFixture.match_no && p.stage === matchedFixture.stage
-        ? p
-        : { ...p, match_no: matchedFixture.match_no, stage: matchedFixture.stage },
-    );
-  }, [matchedFixture]);
-
-  // Save
-  const [saving, setSaving] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [saveResult, setSaveResult] = useState<{ match_id: string; series_id: string } | null>(null);
-  const [analysisText, setAnalysisText] = useState("");
-  const [error, setError] = useState("");
-
-  // Update articles panel
-  const [artSeriesId, setArtSeriesId] = useState("");
-  const [artItems, setArtItems] = useState<Array<{ title: string; url: string }>>([]);
-  const [artBusy, setArtBusy] = useState(false);
-  const [artMsg, setArtMsg] = useState("");
-
-  // Auth check
   useEffect(() => {
     const stored = sessionStorage.getItem("jcc_admin_password");
     if (stored) {
@@ -479,128 +278,156 @@ export default function SeriesImportPage() {
     setIsAuthed(true);
   };
 
-  const handleJsonLoad = useCallback(() => {
-    setJsonError("");
-    try {
-      const d = JSON.parse(jsonText);
-      const info = d.match_info;
-      if (!info) throw new Error('JSON must have a "match_info" key at the top level.');
-      const t1 = info.team1_id || "mavericks";
-      const t2 = info.team2_id || "neurostrikers";
-      const inningsData: InningsForm[] = (d.innings ?? []).map((inn: InningsForm & {
-        batting: BatterRow[]; bowling: BowlerRow[];
-      }, i: number) => ({
-        innings_no: (i + 1) as 1 | 2,
-        batting_team_id: inn.batting_team_id || (i === 0 ? t1 : t2),
-        bowling_team_id: inn.bowling_team_id || (i === 0 ? t2 : t1),
-        total_runs: inn.total_runs || 0,
-        total_wickets: inn.total_wickets || 0,
-        total_overs: inn.total_overs || 0,
-        all_out: inn.all_out || false,
-        extras_wides: inn.extras_wides || 0,
-        extras_no_balls: inn.extras_no_balls || 0,
-        extras_byes: inn.extras_byes || 0,
-        extras_leg_byes: inn.extras_leg_byes || 0,
-        fall_of_wickets: (inn.fall_of_wickets || []).map((f: FoW) => ({
-          wkt: f.wkt ?? 0,
-          score: f.score ?? 0,
-          overs: f.overs ?? "0.0",
-          player: f.player ?? "",
-        })),
-        batting: (inn.batting || []).map((b: BatterRow) => ({
-          ...b,
-          dismissed_by: b.dismissed_by ?? "",
-          caught_by: b.caught_by ?? "",
-          player_name: b.player_name ?? "",
-          runs: b.runs ?? 0,
-          fours: b.fours ?? 0,
-          sixes: b.sixes ?? 0,
-        })),
-        bowling: (inn.bowling || []).map((b: BowlerRow) => ({
-          ...b,
-          player_name: b.player_name ?? "",
-          overs: b.overs ?? 0,
-          maidens: b.maidens ?? 0,
-          runs_conceded: b.runs_conceded ?? 0,
-          wickets: b.wickets ?? 0,
-          wides: b.wides ?? 0,
-          no_balls: b.no_balls ?? 0,
-        })),
-      }));
+  // Season weeks are pre-seeded with their fixtures; scoring fills one in.
+  const [allSeries, setAllSeries] = useState<Series[]>([]);
+  const [seasons, setSeasons] = useState<Season[]>([]);
+  const [pickedWeekId, setWeekId] = useState("");
 
-      // A pasted week_no picks the week for you when it matches a seeded one —
-      // otherwise the dropdown stays as-is and the admin chooses.
-      const pastedWeek = d.series?.week_no;
-      if (pastedWeek != null) {
-        const hit = weeks.find((w) => w.week_no === Number(pastedWeek));
-        if (hit) setWeekId(hit.id);
-      }
+  const refreshSeries = useCallback(() => {
+    fetchAllSeries().then(setAllSeries).catch(() => {});
+  }, []);
 
-      setMatchForm((prev) => ({
-        match_no: info.match_no ?? prev.match_no,
-        stage: info.stage || "league",
-        match_date: info.match_date || "",
-        venue: info.venue || "",
-        team1_id: t1,
-        team2_id: t2,
-        toss_winner_id: info.toss_winner_id || "",
-        team1_captain: info.team1_captain || "",
-        team2_captain: info.team2_captain || "",
-        toss_decision: info.toss_decision === "field" ? "bowl" : info.toss_decision || "bat",
-        winner_id: info.winner_id || "",
-        margin_type: info.margin_type || "runs",
-        margin_value: info.margin_value ?? null,
-        is_tie: info.is_tie || false,
-        player_of_match: info.player_of_match || "",
-        match_notes: info.match_notes || "",
-        innings: inningsData.length ? inningsData : [emptyInnings(1, t1, t2), emptyInnings(2, t2, t1)],
-      }));
-      setShowForm(true);
-    } catch (err) {
-      setJsonError(String(err));
+  useEffect(() => {
+    refreshSeries();
+    fetchSeasons().then(setSeasons).catch(() => {});
+  }, [refreshSeries]);
+
+  const activeSeason = seasons.find((s) => s.status === "active") ?? null;
+  const weeks = allSeries
+    .filter((s) => s.week_no != null && s.season_id === activeSeason?.id)
+    .sort((a, b) => (a.week_no ?? 0) - (b.week_no ?? 0));
+  // Until one is picked, open on this week's matchday: the first week starting
+  // no more than a few days ago, else the last one.
+  const [today] = useState(() => new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10));
+  const weekId =
+    pickedWeekId ||
+    (weeks.find((w) => (w.started_at ?? "") >= today) ?? weeks[weeks.length - 1])?.id ||
+    "";
+  const week = weeks.find((w) => w.id === weekId) ?? null;
+
+  const [fixtureRows, setFixtureRows] = useState<{ weekId: string; rows: SeriesMatch[] }>({ weekId: "", rows: [] });
+  const [fixturesVersion, setFixturesVersion] = useState(0);
+  const refreshFixtures = () => setFixturesVersion((v) => v + 1);
+  useEffect(() => {
+    if (!weekId) return;
+    let cancelled = false;
+    fetchSeriesMatches(weekId)
+      .then((rows) => {
+        if (!cancelled) setFixtureRows({ weekId, rows });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [weekId, fixturesVersion]);
+  const fixtures = fixtureRows.weekId === weekId ? fixtureRows.rows : [];
+
+  // ── Draft ──
+  const [draft, setDraftState] = useState<Draft | null>(null);
+  const setDraft = useCallback((d: Draft | null) => {
+    setDraftState(d);
+    if (d) storeDraft(d);
+  }, []);
+  const patch = (p: Partial<Draft>) => draft && setDraft({ ...draft, ...p });
+
+  const openFixture = (f: SeriesMatch) => {
+    if (!week) return;
+    const saved = loadDraft(f.id);
+    if (f.winner_id || f.is_tie) {
+      if (!confirm(`M${f.match_no} already has a result. Scoring it again replaces that scorecard. Continue?`)) return;
     }
-  }, [jsonText, weeks]);
-
-  const handleJsonFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setJsonText((ev.target?.result as string) ?? "");
-    reader.readAsText(file);
-    e.target.value = "";
+    setDraft(saved ?? newDraft(week, f));
   };
 
-  const handleSave = async () => {
-    if (!weekId) {
-      setError("Pick the season week this match belongs to.");
-      return;
+  const discardDraft = () => {
+    if (!draft) return;
+    if (!confirm("Discard this match's draft, including every ball scored?")) return;
+    clearDraft(draft.fixtureId);
+    setDraftState(null);
+  };
+
+  // ── Derived match state ──
+  const [bat1, bat2] = draft ? battingOrder(draft) : ["", ""];
+  const inn1 = useMemo(() => replayInnings(draft?.innings[0] ?? []), [draft?.innings]);
+  const inn2 = useMemo(() => replayInnings(draft?.innings[1] ?? []), [draft?.innings]);
+  const squadOf = (t: string) => draft?.squads[t] ?? [];
+
+  const autoResult = draft
+    ? matchResult(
+        { team: bat1, runs: inn1.runs },
+        { team: bat2, runs: inn2.runs, wickets: inn2.wickets, squadSize: squadOf(bat2).length },
+      )
+    : null;
+
+  const setupProblems: string[] = [];
+  if (draft) {
+    if (!draft.team1 || !draft.team2 || draft.team1 === draft.team2) setupProblems.push("Pick two different teams.");
+    if (!draft.tossWinner) setupProblems.push("Who won the toss?");
+    for (const t of [draft.team1, draft.team2]) {
+      if (t && squadOf(t).length < 2) setupProblems.push(`${teamLabel(t)} needs at least 2 players.`);
     }
+    const both = [...squadOf(draft.team1), ...squadOf(draft.team2)];
+    const dup = both.find((p, i) => both.indexOf(p) !== i);
+    if (dup) setupProblems.push(`${dup} is in both squads.`);
+    if (!draft.overs || draft.overs < 1) setupProblems.push("Set the overs per innings.");
+  }
+
+  const startReview = () => {
+    if (!draft || !autoResult) return;
+    setDraft({
+      ...draft,
+      phase: "review",
+      result: draft.result ?? {
+        winner: autoResult.winner ?? "",
+        marginType: autoResult.marginType ?? "",
+        marginValue: autoResult.marginValue,
+        tie: autoResult.tie,
+      },
+    });
+  };
+
+  // ── Save ──
+  const [saving, setSaving] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [saveResult, setSaveResult] = useState<{ match_id: string; series_id: string } | null>(null);
+  const [analysisText, setAnalysisText] = useState("");
+  const [error, setError] = useState("");
+
+  const handleSave = async () => {
+    if (!draft || !draft.result) return;
     setSaving(true);
     setError("");
     try {
+      const r = draft.result;
+      const limits = (team: string) => ({ overs: draft.overs, squadSize: squadOf(team).length, target: null });
       const body = {
-        series_id: weekId,
-        match_no: matchForm.match_no,
-        stage: matchForm.stage,
-        match_date: matchForm.match_date || null,
-        venue: matchForm.venue || null,
-        team1_id: matchForm.team1_id,
-        team2_id: matchForm.team2_id,
-        toss_winner_id: matchForm.toss_winner_id || null,
-        team1_captain: matchForm.team1_captain || null,
-        team2_captain: matchForm.team2_captain || null,
-        toss_decision: matchForm.toss_decision || null,
-        winner_id: matchForm.winner_id || null,
-        margin_type: matchForm.margin_type || null,
-        margin_value: matchForm.margin_value,
-        is_tie: matchForm.is_tie,
-        player_of_match: matchForm.player_of_match || null,
-        match_notes: matchForm.match_notes || null,
-        innings: matchForm.innings.map((inn) => ({
-          ...inn,
-          batting: inn.batting.filter((b) => b.player_name.trim()),
-          bowling: inn.bowling.filter((b) => b.player_name.trim()),
-        })),
+        series_id: draft.weekId,
+        match_no: draft.matchNo,
+        stage: draft.stage,
+        match_date: draft.date || null,
+        venue: null,
+        team1_id: draft.team1,
+        team2_id: draft.team2,
+        toss_winner_id: draft.tossWinner || null,
+        toss_decision: draft.tossDecision,
+        team1_captain: draft.captains[draft.team1] || null,
+        team2_captain: draft.captains[draft.team2] || null,
+        winner_id: r.tie ? null : r.winner || null,
+        margin_type: r.tie ? null : r.marginType || null,
+        margin_value: r.tie ? null : r.marginValue,
+        is_tie: r.tie,
+        player_of_match: draft.potm || null,
+        match_notes: draft.notes || null,
+        innings: [
+          toSaveInnings(inn1, {
+            inningsNo: 1, battingTeam: bat1, bowlingTeam: bat2, squad: squadOf(bat1),
+            allOut: inningsOver(inn1, limits(bat1)) === "all_out",
+          }),
+          toSaveInnings(inn2, {
+            inningsNo: 2, battingTeam: bat2, bowlingTeam: bat1, squad: squadOf(bat2),
+            allOut: inningsOver(inn2, limits(bat2)) === "all_out",
+          }),
+        ],
       };
 
       const res = await fetch("/api/series/save", {
@@ -611,11 +438,10 @@ export default function SeriesImportPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.detail ? `${json.error}: ${json.detail}` : json.error);
 
+      clearDraft(draft.fixtureId);
       setSaveResult({ match_id: json.match_id, series_id: json.series_id });
+      refreshSeries();
 
-      fetchAllSeries().then(setAllSeries).catch(() => {});
-
-      // Auto-trigger analysis
       setAnalyzing(true);
       const ar = await fetch("/api/series/analyze", {
         method: "POST",
@@ -631,6 +457,20 @@ export default function SeriesImportPage() {
       setAnalyzing(false);
     }
   };
+
+  const resetForNext = () => {
+    setDraftState(null);
+    setSaveResult(null);
+    setAnalysisText("");
+    setError("");
+    refreshFixtures();
+  };
+
+  // ── Admin tools: articles ──
+  const [artSeriesId, setArtSeriesId] = useState("");
+  const [artItems, setArtItems] = useState<Array<{ title: string; url: string }>>([]);
+  const [artBusy, setArtBusy] = useState(false);
+  const [artMsg, setArtMsg] = useState("");
 
   const handleLoadArticles = async () => {
     if (!artSeriesId.trim()) return;
@@ -671,26 +511,41 @@ export default function SeriesImportPage() {
     }
   };
 
-  const resetForNext = () => {
-    setJsonText("");
-    setJsonError("");
-    setShowForm(false);
-    setSaveResult(null);
-    setAnalysisText("");
-    setError("");
-    fetchAllSeries().then(setAllSeries).catch(() => {}); // keep the week list in sync
-    if (saveResult) {
-      // Stay on the same week — the next scorecard is almost always another
-      // fixture from the same night.
-      setWeekId(saveResult.series_id);
-      setMatchForm((prev) => ({ ...defaultMatch(), match_no: prev.match_no + 1 }));
-      // The match just saved now has a result — refetch so the next import's
-      // fixture banner doesn't call it unplayed.
-      fetchSeriesMatches(saveResult.series_id).then(setSeededMatches).catch(() => {});
+  // ── Admin tools: /stats-preview sync ──
+  interface SyncReport {
+    apply: boolean;
+    summary: Record<string, number>;
+    new_names: string[];
+    rows: Array<{ source_id: string; date: string; teams: string; result: string; week_no: number | null; match_no: number | null; status: string; detail?: string; warnings: string[] }>;
+  }
+  const [syncBusy, setSyncBusy] = useState(false);
+  const [syncReport, setSyncReport] = useState<SyncReport | null>(null);
+  const [syncError, setSyncError] = useState("");
+
+  const runSync = async (apply: boolean) => {
+    setSyncBusy(true);
+    setSyncError("");
+    try {
+      const res = await fetch("/api/series/sync-dashboard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-password": password },
+        body: JSON.stringify({ apply }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.detail ? `${json.error}: ${json.detail}` : json.error);
+      setSyncReport(json);
+      if (apply) {
+        refreshSeries();
+        refreshFixtures();
+      }
+    } catch (err) {
+      setSyncError(String(err));
+    } finally {
+      setSyncBusy(false);
     }
   };
 
-  // ── Auth gate ──────────────────────────────────────────────────────────────
+  // ── Auth gate ──
 
   if (isAuthed === null) {
     return <div className="min-h-screen flex items-center justify-center bg-[var(--jcc-bg)]"><Loader2 className="w-8 h-8 text-jcc-accent animate-spin" /></div>;
@@ -703,7 +558,6 @@ export default function SeriesImportPage() {
           <h1 className="text-2xl font-black text-jcc-blue uppercase tracking-tight mb-6 text-center">Admin Access</h1>
           <form onSubmit={handleLogin} className="space-y-4">
             <Input type="password" placeholder="Admin password" value={pwInput} onChange={(e) => setPwInput(e.target.value)} />
-            {pwError && <p className="text-jcc-danger text-xs">Incorrect password</p>}
             <button type="submit" className="w-full py-3 rounded-xl btn-vibrant-blue font-black text-sm uppercase tracking-widest">
               Unlock
             </button>
@@ -713,7 +567,7 @@ export default function SeriesImportPage() {
     );
   }
 
-  // ── Success state ──────────────────────────────────────────────────────────
+  // ── Saved ──
 
   if (saveResult) {
     return (
@@ -723,450 +577,470 @@ export default function SeriesImportPage() {
             <CheckCircle className="w-8 h-8 text-jcc-accent" />
             <h1 className="text-2xl font-black text-jcc-blue uppercase tracking-tight">Match Saved</h1>
           </div>
-
           {analyzing && (
             <div className="flex items-center gap-2 text-sm text-jcc-text-muted">
               <Loader2 className="w-4 h-4 animate-spin text-jcc-accent" />
               Generating AI match analysis…
             </div>
           )}
-
           {analysisText && (
             <div className="premium-card border-jcc-accent/20 p-5">
               <p className="text-[10px] font-black uppercase tracking-widest text-jcc-accent-dark mb-3">AI Match Analysis</p>
               <p className="text-sm text-jcc-blue/70 leading-relaxed whitespace-pre-wrap">{analysisText}</p>
             </div>
           )}
-
           <div className="flex gap-3 flex-wrap">
             <button onClick={resetForNext} className="px-5 py-3 rounded-xl btn-vibrant-blue font-black text-sm uppercase tracking-widest">
-              Import Next Match
+              Score Next Match
             </button>
             <Link href="/seasons" className="btn-ghost px-5 py-3 rounded-xl font-black text-sm uppercase tracking-widest flex items-center gap-2">
               View Seasons Page <ExternalLink className="w-3.5 h-3.5" />
             </Link>
           </div>
-
         </div>
       </div>
     );
   }
 
-  // ── Main UI ────────────────────────────────────────────────────────────────
+  // ── Main ──
+
+  const phaseSteps: { key: Phase; label: string }[] = [
+    { key: "setup", label: "Setup" },
+    { key: "innings1", label: "1st innings" },
+    { key: "innings2", label: "2nd innings" },
+    { key: "review", label: "Review & save" },
+  ];
 
   return (
     <div className="min-h-screen bg-[var(--jcc-bg)] text-jcc-blue">
+      <datalist id="jcc-player-names">
+        {ALL_SIGNING_NAMES.map((n) => <option key={n} value={n} />)}
+      </datalist>
       <div className="max-w-4xl mx-auto px-4 page-top pb-12 space-y-6">
 
-        {/* Header */}
         <div className="flex items-center gap-4">
           <a href="/admin" className="text-jcc-text-muted hover:text-jcc-blue transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </a>
           <div>
-            <h1 className="text-[26px] font-black uppercase tracking-tight text-jcc-accent-dark">Series Import</h1>
-            <p className="text-xs text-jcc-text-muted font-medium mt-0.5">Paste match JSON → Review → Save to database</p>
+            <h1 className="text-[26px] font-black uppercase tracking-tight text-jcc-accent-dark">Match Scorer</h1>
+            <p className="text-xs text-jcc-text-muted font-medium mt-0.5">Pick a fixture → score it ball by ball → save to the database</p>
           </div>
         </div>
 
-        {/* Step 1: JSON Import */}
-        <CollapsibleSection title="Step 1 — Paste Match JSON">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <label
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest border cursor-pointer transition-colors"
-                  style={{ color: "color-mix(in srgb, var(--jcc-text-soft) 50%, transparent)", borderColor: "color-mix(in srgb, var(--jcc-text-soft) 15%, transparent)" }}
-                >
-                  <FileJson className="w-3.5 h-3.5" />
-                  Browse .json file
-                  <input type="file" accept=".json,application/json" className="hidden" onChange={handleJsonFile} />
-                </label>
-                <span className="text-xs" style={{ color: "color-mix(in srgb, var(--jcc-text-soft) 25%, transparent)" }}>or paste below</span>
-              </div>
-              <button
-                type="button"
-                onClick={handleCopyTemplate}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest border transition-colors shrink-0"
-                style={templateCopied
-                  ? { color: "var(--jcc-accent)", borderColor: "color-mix(in srgb, var(--jcc-accent) 40%, transparent)" }
-                  : { color: "color-mix(in srgb, var(--jcc-text-soft) 55%, transparent)", borderColor: "color-mix(in srgb, var(--jcc-text-soft) 20%, transparent)" }}
-              >
-                {templateCopied
-                  ? <><Check className="w-3.5 h-3.5" /> Copied!</>
-                  : <><Copy className="w-3.5 h-3.5" /> Copy Template</>}
-              </button>
+        {!draft ? (
+          // ── Fixture picker ──
+          <CollapsibleSection title="Choose a fixture">
+            <div>
+              <Label>Season Week</Label>
+              <Select value={weekId} onChange={(e) => setWeekId(e.target.value)}>
+                <option value="">— Choose a week —</option>
+                {weeks.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}{w.started_at ? ` — ${w.started_at.slice(0, 10)}` : ""}
+                  </option>
+                ))}
+              </Select>
+              {weeks.length === 0 && (
+                <p className="text-[10px] text-jcc-text-muted mt-1">No seeded weeks found for {activeSeason?.title ?? "the active season"}.</p>
+              )}
             </div>
-
-            <textarea
-              value={jsonText}
-              onChange={(e) => setJsonText(e.target.value)}
-              placeholder='{ "match_info": { ... }, "innings": [ ... ] }'
-              rows={8}
-              className="admin-textarea text-xs font-mono"
-            />
-
-            {jsonError && (
-              <div className="flex items-start gap-2 text-xs text-jcc-danger bg-jcc-danger/10 rounded-lg px-3 py-2">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span className="break-all">{jsonError}</span>
-              </div>
-            )}
-
-            <div className="flex gap-2 flex-wrap">
-              <button
-                onClick={handleJsonLoad}
-                disabled={!jsonText.trim()}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl btn-vibrant-blue font-black text-sm uppercase tracking-widest disabled:opacity-40"
-              >
-                <FileJson className="w-4 h-4" /> Load JSON
-              </button>
-              <button
-                onClick={() => { setShowForm(true); setMatchForm(defaultMatch()); }}
-                className="btn-ghost px-4 py-2.5 rounded-xl font-black text-sm uppercase tracking-widest"
-              >
-                Fill Manually
-              </button>
-            </div>
-
-            <details className="group">
-              <summary className="text-[10px] font-black uppercase tracking-widest text-jcc-text-muted hover:text-jcc-blue cursor-pointer select-none">JSON format reference</summary>
-              <div className="mt-2 rounded-lg border border-jcc-border/60 bg-jcc-navy-light/60 px-3 py-2 text-[10px] leading-relaxed text-jcc-text-muted">
-                <span className="font-black uppercase tracking-widest text-jcc-accent-dark">Season fixtures are pre-seeded.</span>{" "}
-                Pick the week in step 2a; the fixture is then identified from the two
-                teams, so <span className="font-mono">match_no</span> fills itself in. The
-                save fills in the seeded row instead of creating a new match, and
-                re-uploading the same fixture replaces that scorecard — a correction is
-                just another upload.
-              </div>
-              <pre className="mt-2 p-3 bg-jcc-navy-light rounded-lg text-[10px] text-jcc-text-muted overflow-x-auto leading-relaxed">{JSON.stringify({
-                match_info: {
-                  match_no: 1,
-                  stage: STAGES.join(" | "),
-                  match_date: "YYYY-MM-DD",
-                  venue: "string or null (leave null — venue is set per week in Admin → Seasons)",
-                  team1_id: TEAM_ID_LIST,
-                  team2_id: TEAM_ID_LIST,
-                  toss_winner_id: "team_id",
-                  team1_captain: "captain name (gets a (C) in scorecard)",
-                  team2_captain: "captain name (gets a (C) in scorecard)",
-                  toss_decision: "bat | bowl",
-                  winner_id: "team_id",
-                  margin_type: "runs | wickets",
-                  margin_value: 0,
-                  is_tie: false,
-                  player_of_match: "string",
-                  match_notes: "string or null",
-                },
-                innings: [{
-                  innings_no: 1,
-                  batting_team_id: "team_id",
-                  bowling_team_id: "team_id",
-                  total_runs: 0, total_wickets: 0, total_overs: 7.0, all_out: false,
-                  extras_wides: 0, extras_no_balls: 0, extras_byes: 0, extras_leg_byes: 0,
-                  fall_of_wickets: [{ wkt: 1, score: 0, overs: "0.0", player: "name" }],
-                  batting: [{
-                    batting_order: 1, player_name: "string", runs: 0, balls_faced: 0,
-                    fours: 0, sixes: 0,
-                    dismissal_type: "bowled|caught|lbw|run_out|stumped|hit_wicket|retired_hurt|not_out|did_not_bat",
-                    dismissed_by: "bowler or null", caught_by: "fielder or null",
-                  }],
-                  bowling: [{
-                    bowling_order: 1, player_name: "string", overs: 2.0,
-                    maidens: 0, runs_conceded: 0, wickets: 0, wides: 0, no_balls: 0,
-                  }],
-                }],
-              }, null, 2)}</pre>
-            </details>
-          </div>
-        </CollapsibleSection>
-
-        {/* Step 2: Form */}
-        <AnimatePresence>
-          {showForm && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-4"
-            >
-              {/* Week */}
-              <CollapsibleSection title="Step 2a — Week">
-                <Label>Season Week</Label>
-                <Select value={weekId} onChange={(e) => setWeekId(e.target.value)}>
-                  <option value="">— Choose a week —</option>
-                  {weeks.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                      {s.venue ? ` — ${s.venue}` : ""}
-                    </option>
-                  ))}
-                </Select>
-                <p className="text-[10px] text-jcc-text-muted mt-1">
-                  {weeks.length === 0
-                    ? `No seeded weeks found for ${activeSeason?.title ?? "the active season"}.`
-                    : selectedWeek
-                      ? `${activeSeason?.title ?? "Active season"} · ${selectedWeek.venue ?? "venue not set — see Admin → Seasons → Week Venues &amp; Timings"}`
-                      : "Every match belongs to a seeded week of the active season."}
-                </p>
-              </CollapsibleSection>
-
-
-              {/* Match Info */}
-              <CollapsibleSection title="Step 2b — Match Info">
-                {/* Which seeded fixture the chosen opponents resolve to. */}
-                {seededMatches.length > 0 && (
-                  <div
-                    className={`mb-4 flex items-start gap-2 rounded-lg px-3 py-2 text-xs font-medium ${
-                      !matchedFixture
-                        ? "bg-jcc-danger/10 text-jcc-danger"
-                        : matchedFixture.winner_id || matchedFixture.is_tie
-                          ? "bg-jcc-accent/10 text-jcc-accent-dark"
-                          : "bg-jcc-blue/10 text-jcc-blue"
-                    }`}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {fixtures.map((f) => {
+                const played = !!(f.winner_id || f.is_tie);
+                const hasDraft = typeof window !== "undefined" && loadDraft(f.id) !== null;
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => openFixture(f)}
+                    className="text-left rounded-xl border border-jcc-border hover:border-jcc-accent/50 bg-jcc-navy-light/40 p-4 transition-colors"
                   >
-                    {matchedFixture ? (
-                      <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                    ) : (
-                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-jcc-text-muted">
+                        M{f.match_no} · {f.stage}
+                      </span>
+                      <span
+                        className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
+                          hasDraft ? "bg-jcc-blue/10 text-jcc-blue" : played ? "bg-jcc-accent/10 text-jcc-accent-dark" : "bg-jcc-border/40 text-jcc-text-muted"
+                        }`}
+                      >
+                        {hasDraft ? "Draft in progress" : played ? "Result in" : "To play"}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm font-black">
+                      {teamLabel(f.team1_id)} <span className="text-jcc-text-muted font-bold">v</span> {teamLabel(f.team2_id)}
+                    </p>
+                    {played && (
+                      <p className="text-[11px] text-jcc-text-muted mt-0.5">
+                        {f.is_tie ? "Tied" : `${teamLabel(f.winner_id)} won by ${f.margin_value} ${f.margin_type}`}
+                      </p>
                     )}
-                    <span>
-                      {!matchedFixture ? (
-                        <>
-                          No fixture in this week is{" "}
-                          <b>{TEAM_LABELS[matchForm.team1_id]} v {TEAM_LABELS[matchForm.team2_id]}</b>.
-                          Check the teams above, or set Match # by hand. This week has:{" "}
-                          {seededMatches
-                            .map((m) => `M${m.match_no} ${TEAM_LABELS[m.team1_id ?? ""] ?? "TBD"} v ${TEAM_LABELS[m.team2_id ?? ""] ?? "TBD"}`)
-                            .join(", ")}
-                          .
-                        </>
-                      ) : matchedFixture.winner_id || matchedFixture.is_tie ? (
-                        <>
-                          Matched <b>M{matchedFixture.match_no}</b>, which already has a
-                          result. Saving <b>replaces</b> its scorecard.
-                        </>
-                      ) : (
-                        <>
-                          Matched seeded fixture <b>M{matchedFixture.match_no}</b> — saving
-                          fills it in rather than creating a new match.
-                        </>
-                      )}
-                    </span>
-                  </div>
-                )}
+                  </button>
+                );
+              })}
+            </div>
+          </CollapsibleSection>
+        ) : (
+          <>
+            {/* Fixture header + progress */}
+            <div className="premium-card p-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-jcc-text-muted">
+                  {week?.name} · M{draft.matchNo} · {draft.stage}
+                </p>
+                <p className="text-lg font-black">
+                  {teamLabel(draft.team1)} <span className="text-jcc-text-muted">v</span> {teamLabel(draft.team2)}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => setDraftState(null)} className="btn-ghost px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest">
+                  Fixtures
+                </button>
+                <button type="button" onClick={discardDraft} className="px-3 py-2 rounded-lg text-xs font-black uppercase tracking-widest text-jcc-danger border border-jcc-danger/30 hover:bg-jcc-danger/10 flex items-center gap-1.5">
+                  <RotateCcw className="w-3.5 h-3.5" /> Discard
+                </button>
+              </div>
+              <div className="w-full flex gap-1.5">
+                {phaseSteps.map((p, i) => {
+                  const idx = phaseSteps.findIndex((x) => x.key === draft.phase);
+                  return (
+                    <div key={p.key} className="flex-1">
+                      <div className={`h-1 rounded-full ${i <= idx ? "bg-jcc-accent" : "bg-jcc-border"}`} />
+                      <p className={`mt-1 text-[10px] font-black uppercase tracking-widest ${i === idx ? "text-jcc-blue" : "text-jcc-text-muted/70"}`}>{p.label}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <div>
-                    <Label>Match #{matchedFixture ? " (auto)" : ""}</Label>
-                    <Input type="number" value={matchForm.match_no} onChange={(e) => setMatchForm((p) => ({ ...p, match_no: +e.target.value }))} />
-                  </div>
-                  <div>
-                    <Label>Stage</Label>
-                    <Select value={matchForm.stage} onChange={(e) => setMatchForm((p) => ({ ...p, stage: e.target.value as (typeof STAGES)[number] }))}>
-                      {STAGES.map((s) => <option key={s} value={s}>{STAGE_LABELS[s]}</option>)}
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Date</Label>
-                    <Input type="date" value={matchForm.match_date} onChange={(e) => setMatchForm((p) => ({ ...p, match_date: e.target.value }))} />
-                  </div>
-                  <div>
-                    <Label>Venue</Label>
-                    <Input value={matchForm.venue} onChange={(e) => setMatchForm((p) => ({ ...p, venue: e.target.value }))} />
-                  </div>
-                  <div>
-                    <Label>Team 1</Label>
-                    <Select value={matchForm.team1_id} onChange={(e) => setMatchForm((p) => ({ ...p, team1_id: e.target.value }))}>
-                      {TEAMS.map((t) => <option key={t} value={t}>{TEAM_LABELS[t]}</option>)}
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Team 2</Label>
-                    <Select value={matchForm.team2_id} onChange={(e) => setMatchForm((p) => ({ ...p, team2_id: e.target.value }))}>
-                      {TEAMS.map((t) => <option key={t} value={t}>{TEAM_LABELS[t]}</option>)}
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Toss Winner</Label>
-                    <Select value={matchForm.toss_winner_id} onChange={(e) => setMatchForm((p) => ({ ...p, toss_winner_id: e.target.value }))}>
-                      <option value="">—</option>
-                      {TEAMS.map((t) => <option key={t} value={t}>{TEAM_LABELS[t]}</option>)}
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Toss Decision</Label>
-                    <Select value={matchForm.toss_decision} onChange={(e) => setMatchForm((p) => ({ ...p, toss_decision: e.target.value }))}>
-                      <option value="bat">Bat</option>
-                      <option value="bowl">Bowl</option>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Winner</Label>
-                    <Select value={matchForm.winner_id} onChange={(e) => setMatchForm((p) => ({ ...p, winner_id: e.target.value }))}>
-                      <option value="">—</option>
-                      {TEAMS.map((t) => <option key={t} value={t}>{TEAM_LABELS[t]}</option>)}
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Margin Type</Label>
-                    <Select value={matchForm.margin_type} onChange={(e) => setMatchForm((p) => ({ ...p, margin_type: e.target.value }))}>
-                      <option value="runs">Runs</option>
-                      <option value="wickets">Wickets</option>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Margin Value</Label>
-                    <Input type="number" value={matchForm.margin_value ?? ""} onChange={(e) => setMatchForm((p) => ({ ...p, margin_value: e.target.value ? +e.target.value : null }))} />
-                  </div>
-                  <div className="flex items-end pb-1">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={matchForm.is_tie} onChange={(e) => setMatchForm((p) => ({ ...p, is_tie: e.target.checked }))} className="accent-jcc-accent" />
-                      <span className="text-xs text-jcc-blue/70 font-bold">Tie?</span>
-                    </label>
-                  </div>
-                  <div>
-                    <Label>{TEAM_LABELS[matchForm.team1_id] ?? "Team 1"} Captain</Label>
-                    <Input value={matchForm.team1_captain} onChange={(e) => setMatchForm((p) => ({ ...p, team1_captain: e.target.value }))} placeholder="Captain name (C)" />
-                  </div>
-                  <div>
-                    <Label>{TEAM_LABELS[matchForm.team2_id] ?? "Team 2"} Captain</Label>
-                    <Input value={matchForm.team2_captain} onChange={(e) => setMatchForm((p) => ({ ...p, team2_captain: e.target.value }))} placeholder="Captain name (C)" />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <Label>Player of the Match</Label>
-                    <Input value={matchForm.player_of_match} onChange={(e) => setMatchForm((p) => ({ ...p, player_of_match: e.target.value }))} />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <Label>Match Notes</Label>
-                    <Input value={matchForm.match_notes} onChange={(e) => setMatchForm((p) => ({ ...p, match_notes: e.target.value }))} placeholder="Key moments, context…" />
-                  </div>
-                </div>
-              </CollapsibleSection>
-
-              {/* Innings */}
-              {matchForm.innings.map((inn, innIdx) => (
-                <CollapsibleSection key={innIdx} title={`Step 2c — Innings ${inn.innings_no} (${TEAM_LABELS[inn.batting_team_id] ?? inn.batting_team_id} batting)`}>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
-                    <div>
-                      <Label>Batting Team</Label>
-                      <Select value={inn.batting_team_id} onChange={(e) => {
-                        const next = [...matchForm.innings];
-                        next[innIdx] = { ...next[innIdx], batting_team_id: e.target.value };
-                        setMatchForm((p) => ({ ...p, innings: next }));
-                      }}>
-                        {TEAMS.map((t) => <option key={t} value={t}>{TEAM_LABELS[t]}</option>)}
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Bowling Team</Label>
-                      <Select value={inn.bowling_team_id} onChange={(e) => {
-                        const next = [...matchForm.innings];
-                        next[innIdx] = { ...next[innIdx], bowling_team_id: e.target.value };
-                        setMatchForm((p) => ({ ...p, innings: next }));
-                      }}>
-                        {TEAMS.map((t) => <option key={t} value={t}>{TEAM_LABELS[t]}</option>)}
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Total</Label>
-                      <div className="flex gap-1">
-                        <Input type="number" value={inn.total_runs} onChange={(e) => {
-                          const next = [...matchForm.innings]; next[innIdx] = { ...next[innIdx], total_runs: +e.target.value };
-                          setMatchForm((p) => ({ ...p, innings: next }));
-                        }} placeholder="Runs" />
-                        <span className="text-jcc-text-muted self-center">/</span>
-                        <Input type="number" value={inn.total_wickets} onChange={(e) => {
-                          const next = [...matchForm.innings]; next[innIdx] = { ...next[innIdx], total_wickets: +e.target.value };
-                          setMatchForm((p) => ({ ...p, innings: next }));
-                        }} placeholder="Wkts" className="w-16" />
-                      </div>
-                    </div>
-                    <div>
-                      <Label>Overs</Label>
-                      <Input type="number" step="0.1" value={inn.total_overs} onChange={(e) => {
-                        const next = [...matchForm.innings]; next[innIdx] = { ...next[innIdx], total_overs: +e.target.value };
-                        setMatchForm((p) => ({ ...p, innings: next }));
-                      }} />
-                    </div>
-                    <div className="flex items-end pb-1">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={inn.all_out} onChange={(e) => {
-                          const next = [...matchForm.innings]; next[innIdx] = { ...next[innIdx], all_out: e.target.checked };
-                          setMatchForm((p) => ({ ...p, innings: next }));
-                        }} className="accent-jcc-accent" />
-                        <span className="text-xs text-jcc-blue/70 font-bold">All out</span>
-                      </label>
-                    </div>
-                    {(["extras_wides", "extras_no_balls", "extras_byes", "extras_leg_byes"] as const).map((field) => (
-                      <div key={field}>
-                        <Label>{field.replace("extras_", "").replace("_", " ")}</Label>
-                        <Input type="number" value={inn[field]} onChange={(e) => {
-                          const next = [...matchForm.innings]; next[innIdx] = { ...next[innIdx], [field]: +e.target.value };
-                          setMatchForm((p) => ({ ...p, innings: next }));
-                        }} />
+            {draft.phase === "setup" && (
+              <>
+                <CollapsibleSection title="Match">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {[draft.team1, draft.team2].map((t, i) => (
+                      <div key={i}>
+                        <Label>Team {i + 1}</Label>
+                        <Select
+                          value={t}
+                          onChange={(e) => {
+                            const key = i === 0 ? "team1" : "team2";
+                            const v = e.target.value;
+                            patch({ [key]: v, squads: { ...draft.squads, [v]: draft.squads[v] ?? [] } });
+                          }}
+                        >
+                          <option value="">—</option>
+                          {TEAM_ORDER_ALL.map((id) => <option key={id} value={id}>{TEAM_LABELS[id]}</option>)}
+                        </Select>
                       </div>
                     ))}
-                  </div>
-
-                  <div className="space-y-4">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-jcc-text-muted mb-2">Batting</p>
-                      <BattingTable
-                        rows={inn.batting}
-                        onChange={(rows) => {
-                          const next = [...matchForm.innings]; next[innIdx] = { ...next[innIdx], batting: rows };
-                          setMatchForm((p) => ({ ...p, innings: next }));
-                        }}
-                      />
+                      <Label>Date</Label>
+                      <Input type="date" value={draft.date} onChange={(e) => patch({ date: e.target.value })} />
                     </div>
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-jcc-text-muted mb-2">Bowling</p>
-                      <BowlingTable
-                        rows={inn.bowling}
-                        onChange={(rows) => {
-                          const next = [...matchForm.innings]; next[innIdx] = { ...next[innIdx], bowling: rows };
-                          setMatchForm((p) => ({ ...p, innings: next }));
-                        }}
-                      />
+                      <Label>Overs per innings</Label>
+                      <Input type="number" min={1} value={draft.overs} onChange={(e) => patch({ overs: +e.target.value })} />
                     </div>
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-jcc-text-muted mb-2">Fall of Wickets</p>
-                      <FoWEditor
-                        rows={inn.fall_of_wickets}
-                        onChange={(rows) => {
-                          const next = [...matchForm.innings]; next[innIdx] = { ...next[innIdx], fall_of_wickets: rows };
-                          setMatchForm((p) => ({ ...p, innings: next }));
-                        }}
-                      />
+                      <Label>Toss won by</Label>
+                      <Select value={draft.tossWinner} onChange={(e) => patch({ tossWinner: e.target.value })}>
+                        <option value="">—</option>
+                        {[draft.team1, draft.team2].filter(Boolean).map((t) => <option key={t} value={t}>{teamLabel(t)}</option>)}
+                      </Select>
                     </div>
+                    <div>
+                      <Label>Elected to</Label>
+                      <Select value={draft.tossDecision} onChange={(e) => patch({ tossDecision: e.target.value as "bat" | "bowl" })}>
+                        <option value="bat">Bat</option>
+                        <option value="bowl">Bowl</option>
+                      </Select>
+                    </div>
+                    {draft.tossWinner && (
+                      <div className="col-span-2 flex items-end pb-2 text-xs font-bold text-jcc-text-muted">
+                        {teamLabel(bat1)} bat first.
+                      </div>
+                    )}
                   </div>
                 </CollapsibleSection>
-              ))}
 
-              {/* Save */}
-              <div className="flex items-center gap-4 pt-2">
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="flex items-center gap-2 px-6 py-3 rounded-xl btn-vibrant-blue font-black text-sm uppercase tracking-widest disabled:opacity-50"
-                >
-                  {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <><Save className="w-4 h-4" /> Save Match</>}
-                </button>
-                {error && (
-                  <div className="flex items-center gap-2 text-xs text-jcc-danger">
-                    <AlertCircle className="w-4 h-4" /> {error}
+                <CollapsibleSection title="Playing squads">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {[draft.team1, draft.team2].filter(Boolean).map((t) => (
+                      <SquadPicker
+                        key={t}
+                        team={t}
+                        squad={squadOf(t)}
+                        captain={draft.captains[t] ?? ""}
+                        onSquad={(s) => patch({ squads: { ...draft.squads, [t]: s } })}
+                        onCaptain={(c) => patch({ captains: { ...draft.captains, [t]: c } })}
+                      />
+                    ))}
                   </div>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                  <p className="text-[10px] text-jcc-text-muted">
+                    Everyone ticked gets a match appearance, batting or not. A side is all out at squad size − 1 wickets.
+                  </p>
+                </CollapsibleSection>
+
+                <div className="flex flex-wrap items-center gap-4">
+                  <button
+                    type="button"
+                    disabled={setupProblems.length > 0}
+                    onClick={() => patch({ phase: "innings1" })}
+                    className="flex items-center gap-2 px-6 py-3 rounded-xl btn-vibrant-blue font-black text-sm uppercase tracking-widest disabled:opacity-40"
+                  >
+                    <Play className="w-4 h-4" /> Start scoring
+                  </button>
+                  {setupProblems.length > 0 && (
+                    <p className="text-xs text-jcc-danger font-bold flex items-center gap-1.5">
+                      <AlertCircle className="w-4 h-4" /> {setupProblems[0]}
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+
+            {(draft.phase === "innings1" || draft.phase === "innings2") && (() => {
+              const second = draft.phase === "innings2";
+              const batting = second ? bat2 : bat1;
+              const bowling = second ? bat1 : bat2;
+              const idx = second ? 1 : 0;
+              return (
+                <>
+                  {second && (
+                    <p className="text-xs font-bold text-jcc-text-muted">
+                      {teamLabel(bat1)} made {inn1.runs}/{inn1.wickets} ({oversLabel(inn1.legalBalls)}).{" "}
+                      <button type="button" className="underline" onClick={() => patch({ phase: "innings1" })}>
+                        Back to 1st innings
+                      </button>
+                    </p>
+                  )}
+                  <Scorer
+                    key={draft.phase}
+                    inningsNo={second ? 2 : 1}
+                    events={draft.innings[idx]}
+                    onChange={(ev) => {
+                      const innings: Draft["innings"] = [...draft.innings];
+                      innings[idx] = ev;
+                      // Any change to the balls invalidates a result already reviewed.
+                      setDraft({ ...draft, innings, result: null });
+                    }}
+                    battingTeam={teamLabel(batting)}
+                    bowlingTeam={teamLabel(bowling)}
+                    battingSquad={squadOf(batting)}
+                    bowlingSquad={squadOf(bowling)}
+                    limits={{ overs: draft.overs, squadSize: squadOf(batting).length, target: second ? inn1.runs + 1 : null }}
+                    onEnd={() => (second ? startReview() : patch({ phase: "innings2" }))}
+                  />
+                  {!second && (
+                    <button type="button" onClick={() => patch({ phase: "setup" })} className="text-xs font-bold text-jcc-text-muted underline">
+                      Back to setup
+                    </button>
+                  )}
+                </>
+              );
+            })()}
+
+            {draft.phase === "review" && draft.result && (
+              <>
+                {[
+                  { s: inn1, team: bat1, opp: bat2 },
+                  { s: inn2, team: bat2, opp: bat1 },
+                ].map(({ s, team }, i) => (
+                  <CollapsibleSection key={i} title={`Innings ${i + 1} — ${teamLabel(team)} ${s.runs}/${s.wickets} (${oversLabel(s.legalBalls)})`}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="text-[10px] text-jcc-text-muted uppercase">
+                            <th className="text-left">Batter</th><th className="text-right">R</th><th className="text-right">B</th><th className="text-right">4s</th><th className="text-right">6s</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {s.batters.map((b) => (
+                            <tr key={b.name}>
+                              <td className="py-0.5 font-bold">{b.name}<span className="font-normal text-jcc-text-muted"> — {b.out ? b.out.type.replace("_", " ") : "not out"}</span></td>
+                              <td className="text-right font-black">{b.runs}</td><td className="text-right">{b.balls}</td><td className="text-right">{b.fours}</td><td className="text-right">{b.sixes}</td>
+                            </tr>
+                          ))}
+                          {squadOf(team).filter((p) => !s.batters.some((b) => b.name === p)).length > 0 && (
+                            <tr>
+                              <td colSpan={5} className="pt-1 text-jcc-text-muted">
+                                Did not bat: {squadOf(team).filter((p) => !s.batters.some((b) => b.name === p)).join(", ")}
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                      <table className="w-full">
+                        <thead>
+                          <tr className="text-[10px] text-jcc-text-muted uppercase">
+                            <th className="text-left">Bowler</th><th className="text-right">O</th><th className="text-right">M</th><th className="text-right">R</th><th className="text-right">W</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {s.bowlers.map((b) => (
+                            <tr key={b.name}>
+                              <td className="py-0.5 font-bold">{b.name}</td>
+                              <td className="text-right">{oversLabel(b.balls)}</td><td className="text-right">{b.maidens}</td><td className="text-right">{b.runs}</td><td className="text-right font-black">{b.wickets}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="text-[11px] text-jcc-text-muted">
+                      Extras: wd {s.extras.wd}, nb {s.extras.nb}, b {s.extras.b}, lb {s.extras.lb}
+                      {s.fow.length > 0 && ` · FoW: ${s.fow.map((f) => `${f.score}-${f.wkt} (${f.player}, ${f.overs})`).join(", ")}`}
+                    </p>
+                  </CollapsibleSection>
+                ))}
+
+                <CollapsibleSection title="Result">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div>
+                      <Label>Winner</Label>
+                      <Select
+                        value={draft.result.winner}
+                        disabled={draft.result.tie}
+                        onChange={(e) => patch({ result: { ...draft.result!, winner: e.target.value } })}
+                      >
+                        <option value="">—</option>
+                        {[draft.team1, draft.team2].map((t) => <option key={t} value={t}>{teamLabel(t)}</option>)}
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Margin</Label>
+                      <div className="flex gap-1">
+                        <Input
+                          type="number"
+                          disabled={draft.result.tie}
+                          value={draft.result.marginValue ?? ""}
+                          onChange={(e) => patch({ result: { ...draft.result!, marginValue: e.target.value ? +e.target.value : null } })}
+                        />
+                        <Select
+                          value={draft.result.marginType}
+                          disabled={draft.result.tie}
+                          onChange={(e) => patch({ result: { ...draft.result!, marginType: e.target.value as "runs" | "wickets" } })}
+                        >
+                          <option value="runs">runs</option>
+                          <option value="wickets">wkts</option>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="flex items-end pb-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={draft.result.tie}
+                          onChange={(e) => patch({ result: { ...draft.result!, tie: e.target.checked } })}
+                          className="accent-jcc-accent"
+                        />
+                        <span className="text-xs font-bold text-jcc-blue/70">Tie</span>
+                      </label>
+                    </div>
+                    <div>
+                      <Label>Player of the Match</Label>
+                      <Select value={draft.potm} onChange={(e) => patch({ potm: e.target.value })}>
+                        <option value="">—</option>
+                        {[...squadOf(draft.team1), ...squadOf(draft.team2)].map((p) => <option key={p} value={p}>{p}</option>)}
+                      </Select>
+                    </div>
+                    <div className="col-span-2 sm:col-span-4">
+                      <Label>Match Notes</Label>
+                      <Input value={draft.notes} onChange={(e) => patch({ notes: e.target.value })} placeholder="Key moments, context…" />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-jcc-text-muted">
+                    Worked out from the scoring: {autoResult?.tie ? "a tie" : `${teamLabel(autoResult?.winner)} by ${autoResult?.marginValue} ${autoResult?.marginType}`}.
+                    {(() => {
+                      const f = fixtures.find((x) => x.id === draft.fixtureId);
+                      return f && (f.winner_id || f.is_tie) ? " Saving replaces this fixture's existing scorecard." : "";
+                    })()}
+                  </p>
+                </CollapsibleSection>
+
+                <div className="flex flex-wrap items-center gap-4">
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="flex items-center gap-2 px-6 py-3 rounded-xl btn-vibrant-blue font-black text-sm uppercase tracking-widest disabled:opacity-50"
+                  >
+                    {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <><Save className="w-4 h-4" /> Save Match</>}
+                  </button>
+                  <button type="button" onClick={() => patch({ phase: "innings2" })} className="btn-ghost px-4 py-3 rounded-xl font-black text-xs uppercase tracking-widest">
+                    Back to scoring
+                  </button>
+                  {error && (
+                    <div className="flex items-center gap-2 text-xs text-jcc-danger">
+                      <AlertCircle className="w-4 h-4" /> {error}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </>
+        )}
 
         {/* ── Admin Tools ───────────────────────────────────────────────── */}
         <div className="mt-8 pt-8 border-t border-jcc-border space-y-4">
           <p className="text-[10px] font-black uppercase tracking-[0.4em] text-jcc-text-muted/70">Admin Tools</p>
 
-          {/* Update Series Articles */}
+          <CollapsibleSection title="Sync from /stats-preview" defaultOpen={false}>
+            <p className="text-xs text-jcc-text-muted">
+              Copies the CricHeroes matches behind /stats-preview into the active season&apos;s seeded fixtures, so /seasons
+              shows them too. Fixtures that already have a result are left alone. Check first, then sync.
+            </p>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => runSync(false)}
+                disabled={syncBusy}
+                className="btn-ghost px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest flex items-center gap-1.5 disabled:opacity-40"
+              >
+                {syncBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Check
+              </button>
+              <button
+                type="button"
+                onClick={() => runSync(true)}
+                disabled={syncBusy || !syncReport || syncReport.apply || (syncReport.summary.new ?? 0) === 0}
+                className="px-4 py-2 rounded-lg btn-vibrant-blue text-xs font-black uppercase tracking-widest disabled:opacity-40"
+              >
+                Sync {syncReport && !syncReport.apply ? syncReport.summary.new : ""} matches
+              </button>
+            </div>
+            {syncError && <p className="text-xs text-jcc-danger">{syncError}</p>}
+            {syncReport && (
+              <div className="space-y-2 text-xs">
+                <p className="font-bold">
+                  {syncReport.apply
+                    ? `Saved ${syncReport.summary.saved}, already recorded ${syncReport.summary.recorded}, unmatched ${syncReport.summary.unmatched}, errors ${syncReport.summary.error}.`
+                    : `${syncReport.summary.new} to add, ${syncReport.summary.recorded} already recorded, ${syncReport.summary.unmatched} with no matching fixture.`}
+                </p>
+                {syncReport.new_names.length > 0 && (
+                  <p className="text-jcc-text-muted">
+                    Names new to the database (check none is a respelling): {syncReport.new_names.join(", ")}
+                  </p>
+                )}
+                <div className="max-h-64 overflow-y-auto rounded-lg border border-jcc-border">
+                  <table className="w-full">
+                    <tbody>
+                      {syncReport.rows.filter((r) => r.status !== "recorded").map((r) => (
+                        <tr key={r.source_id} className="border-b border-jcc-border/50 last:border-0">
+                          <td className="px-2 py-1 tabular-nums">{r.date}</td>
+                          <td className="px-2 py-1">{r.teams}</td>
+                          <td className="px-2 py-1 text-jcc-text-muted">{r.result}</td>
+                          <td className="px-2 py-1">{r.week_no ? `W${r.week_no} M${r.match_no}` : "—"}</td>
+                          <td className={`px-2 py-1 font-black uppercase ${r.status === "error" || r.status === "unmatched" ? "text-jcc-danger" : "text-jcc-accent-dark"}`}>
+                            {r.status}{r.detail ? `: ${r.detail}` : ""}{r.warnings.length ? ` (${r.warnings.join("; ")})` : ""}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </CollapsibleSection>
+
           <CollapsibleSection title="Update Series Articles" defaultOpen={false}>
             <p className="text-xs text-jcc-text-muted mb-3">Load an existing series by its UUID and update its Boundary Banter article links.</p>
             <div className="flex gap-2 items-end mb-3">
@@ -1221,7 +1095,6 @@ export default function SeriesImportPage() {
               </div>
             ) : null}
           </CollapsibleSection>
-
         </div>
       </div>
     </div>

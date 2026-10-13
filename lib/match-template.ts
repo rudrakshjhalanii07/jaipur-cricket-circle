@@ -1,6 +1,7 @@
 // Canonical JCC match JSON template.
 // This is the single source of truth for the match import format.
-// Update this file whenever the schema changes — the import page copies from here.
+// Update this file whenever the schema changes. /admin/series-import now scores
+// matches ball by ball, but /api/series/save still takes exactly this shape.
 //
 // RULES:
 //   - overs notation: X.Y where Y is balls (0–5). "9.4" = 9 overs 4 balls.

@@ -208,7 +208,7 @@ export default function AdminPage() {
   ];
 
   const externalLinks = [
-    { href: "/admin/series-import", label: "Series Import", icon: FileJson },
+    { href: "/admin/series-import", label: "Match Scorer", icon: FileJson },
   ];
 
   return (
@@ -315,8 +315,8 @@ export default function AdminPage() {
                         <div className="w-14 h-14 rounded-2xl bg-jcc-accent-dark/10 border border-jcc-accent-dark/20 flex items-center justify-center mb-8 group-hover:scale-110 transition-all shadow-inner">
                           <FileJson className="w-7 h-7 text-jcc-accent-dark" />
                         </div>
-                        <h3 className="text-2xl font-black text-jcc-blue mb-3 uppercase tracking-tight">Series Import</h3>
-                        <p className="text-[15px] text-jcc-text-muted font-medium leading-relaxed">Import match scorecards via JSON — batting, bowling, and fall of wickets.</p>
+                        <h3 className="text-2xl font-black text-jcc-blue mb-3 uppercase tracking-tight">Match Scorer</h3>
+                        <p className="text-[15px] text-jcc-text-muted font-medium leading-relaxed">Score a fixture ball by ball — the scorecard, extras and fall of wickets build themselves.</p>
                       </a>
                     </div>
                   </div>
