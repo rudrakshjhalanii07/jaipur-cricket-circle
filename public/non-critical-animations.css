@@ -244,3 +244,16 @@
 .stagger-children > *:nth-child(3) { animation-delay: 0.15s; }
 .stagger-children > *:nth-child(4) { animation-delay: 0.20s; }
 .stagger-children > *:nth-child(5) { animation-delay: 0.25s; }
+
+/* Top ticker: a slow gold light sweeping across the bar. */
+@keyframes ticker-sheen {
+  0%   { transform: translateX(-100%); }
+  60%, 100% { transform: translateX(100%); }
+}
+.ticker-sheen {
+  background: linear-gradient(100deg, transparent 35%, rgba(243, 201, 106, 0.16) 50%, transparent 65%);
+  animation: ticker-sheen 7s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ticker-sheen { animation: none; opacity: 0; }
+}
