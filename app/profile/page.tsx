@@ -15,7 +15,6 @@ import {
   Sparkles,
   Lock,
   ArrowRight,
-  ShieldAlert,
   Flame,
   Send,
   BookOpen,
@@ -28,21 +27,14 @@ import { supabase } from "@/lib/supabase";
 import { getDisplayRole, getGovernanceRoleLabel } from "@/lib/member-role";
 import MyStats from "@/components/profile/MyStats";
 import Jaali from "@/components/Jaali";
+import { teamByName } from "@/lib/teams";
 import PhotoFramer from "@/components/PhotoFramer";
-import { insertPendingPlayer } from "@/lib/player-insert";
-import { SHARP_WIDTH, focusStyle, parseFocus, type PhotoFocus } from "@/lib/photo-focus";
+import { SHARP_WIDTH, focusStyle, parseFocus, withFocus, type PhotoFocus } from "@/lib/photo-focus";
 
 const LABEL = "text-[10px] sm:text-[11px] font-black uppercase tracking-[0.3em]";
 const FIELD_LABEL = "text-[10px] font-black uppercase tracking-[0.18em] text-jcc-blue/70";
 const INPUT =
   "w-full rounded-xl border border-jcc-blue/15 bg-jcc-navy px-4 py-3.5 text-sm font-semibold text-jcc-blue placeholder:text-jcc-blue/50 transition focus:border-jcc-accent focus:outline-none focus:ring-4 focus:ring-jcc-accent/15";
-
-/** Where to go after logging in — only same-site paths, never an open redirect. */
-function nextPath(): string | null {
-  if (typeof window === "undefined") return null;
-  const next = new URLSearchParams(window.location.search).get("next");
-  return next && next.startsWith("/") && !next.startsWith("//") ? next : null;
-}
 
 // Standard choice lists matching database values
 const CRICKET_ROLES = [
@@ -141,6 +133,31 @@ interface Player {
   approval_status: string;
 }
 
+// Why a Google sign-in came back without a session (?login_error= from
+// app/api/player/google/callback).
+const GOOGLE_LOGIN_ERRORS: Record<string, string> = {
+  cancelled: "Google sign-in was cancelled. Enter your number to try again.",
+  expired: "That sign-in took too long or was opened in another browser. Please try again.",
+  google: "Google couldn't confirm your account. Please try again.",
+  inactive: "Your membership is pending admin approval or has been deactivated. Please contact JCC Support.",
+  other_account:
+    "This number is linked to a different Google account. Sign in with that account, or ask an admin to reset the link.",
+  account_in_use:
+    "This Google account is already linked to another member. Use a different Google account, or ask an admin.",
+  server: "Something went wrong signing you in. Please try again.",
+};
+
+function GoogleMark() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 rounded-full bg-white p-[2px]">
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z" />
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z" />
+      <path fill="#FBBC05" d="M5.84 14.1A6.6 6.6 0 0 1 5.5 12c0-.73.13-1.44.34-2.1V7.06H2.18A11 11 0 0 0 1 12c0 1.77.43 3.45 1.18 4.94l3.66-2.84z" />
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+    </svg>
+  );
+}
+
 export default function ProfilePage() {
   // Session & UI Phase states
   const [sessionToken, setSessionToken] = useState<string | null>(null);
@@ -150,10 +167,6 @@ export default function ProfilePage() {
 
   // Authentication Flow States
   const [phone, setPhone] = useState("");
-  const [otpToken, setOtpToken] = useState<string | null>(null);
-  const [otpDigits, setOtpDigits] = useState<string[]>(Array(6).fill(""));
-  const [timerCount, setTimerCount] = useState(0);
-  const [debugOtpCode, setDebugOtpCode] = useState<string | null>(null);
 
   // Form Field States
   const [name, setName] = useState("");
@@ -214,18 +227,62 @@ export default function ProfilePage() {
     })();
   }, []);
 
-  // Timer countdown hook
-  useEffect(() => {
-    if (timerCount > 0) {
-      const interval = setInterval(() => {
-        setTimerCount((prev) => prev - 1);
-      }, 1000);
-      return () => clearInterval(interval);
+  // Back from Google — trade the handoff cookie for a session
+  const completeGoogleLogin = async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch("/api/player/google/complete", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Sign-in failed. Please try again.");
+
+      // Save tokens & hydrate
+      localStorage.setItem("jcc_verified_session", data.sessionToken);
+      localStorage.setItem("jcc_verified_player", JSON.stringify(data.player));
+      window.dispatchEvent(new Event("jcc-member"));
+
+      setSessionToken(data.sessionToken);
+      setVerifiedPlayer(data.player);
+
+      setName(data.player.name);
+      setCricketRole(data.player.cricket_role);
+      setBattingStyle(data.player.batting_style || "Right-hand Bat");
+      setBowlingStyle(data.player.bowling_style || "N/A");
+      setBio(data.player.bio || "");
+      setImageUrl(data.player.image_url);
+      setImageFocus(parseFocus(data.player.image_focus));
+
+      setPhone("");
+      setSuccessMsg("Signed in. Welcome to your profile board.");
+
+      // Every login lands on the profile overview, wherever it started.
+      setTab("overview");
+      window.scrollTo({ top: 0 });
+    } catch (err) {
+      setPortalMode("login");
+      setErrorMsg(err instanceof Error ? err.message : "Sign-in failed. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
-  }, [timerCount]);
+  };
 
   // Load session from localStorage on mount
   useEffect(() => {
+    // Back from Google (app/api/player/google/callback): finish signing in, or
+    // say why it didn't work. Either way, tidy the URL.
+    const params = new URLSearchParams(window.location.search);
+    const loginResult = params.get("login");
+    const loginError = params.get("login_error");
+    if (loginResult || loginError) window.history.replaceState(null, "", "/profile");
+    if (loginError) {
+      setPortalMode("login");
+      setErrorMsg(GOOGLE_LOGIN_ERRORS[loginError] ?? GOOGLE_LOGIN_ERRORS.server);
+    } else if (loginResult === "google") {
+      setPortalMode("login");
+      setIsInitializing(false);
+      completeGoogleLogin();
+      return;
+    }
+
     const savedToken = localStorage.getItem("jcc_verified_session");
     const savedPlayer = localStorage.getItem("jcc_verified_player");
     
@@ -245,7 +302,7 @@ export default function ProfilePage() {
         setImageFocus(parseFocus(parsedPlayer.image_focus));
 
         // Logins from before the member pass existed don't have one; mint it
-        // from the saved session so /stats and My Stats work without a fresh OTP.
+        // from the saved session so /stats and My Stats work without signing in again.
         // Then replace the saved copy with the current record: it was stored
         // at login and goes stale (an old season's captaincy, a team move).
         fetch("/api/player/session", {
@@ -260,42 +317,18 @@ export default function ProfilePage() {
             if (!data?.player) return;
             setVerifiedPlayer((prev) => (prev ? { ...prev, ...data.player } : data.player));
             localStorage.setItem("jcc_verified_player", JSON.stringify({ ...parsedPlayer, ...data.player }));
+            window.dispatchEvent(new Event("jcc-member"));
           })
           .catch(() => {});
       } catch (err) {
         // Clear corrupt data
         localStorage.removeItem("jcc_verified_session");
         localStorage.removeItem("jcc_verified_player");
+        window.dispatchEvent(new Event("jcc-member"));
       }
     }
     setIsInitializing(false);
   }, []);
-
-  // Autofocus shifting logic for separate OTP inputs
-  const handleOtpDigitChange = (index: number, value: string) => {
-    if (!/^[0-9]?$/.test(value)) return;
-    const newDigits = [...otpDigits];
-    newDigits[index] = value;
-    setOtpDigits(newDigits);
-
-    // Auto shift focus forward
-    if (value && index < 5) {
-      const nextInput = document.getElementById(`otp-input-${index + 1}`);
-      nextInput?.focus();
-    }
-  };
-
-  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Auto shift focus backward on backspace
-    if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
-      const prevInput = document.getElementById(`otp-input-${index - 1}`);
-      prevInput?.focus();
-      
-      const newDigits = [...otpDigits];
-      newDigits[index - 1] = "";
-      setOtpDigits(newDigits);
-    }
-  };
 
   // Sign-Up: Handle avatar file selection and optimization
   const handleSignupFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -380,24 +413,6 @@ export default function ProfilePage() {
     try {
       setIsSubmittingSignup(true);
 
-      const { data: existing, error: existErr } = await supabase
-        .from("players")
-        .select("id, approval_status")
-        .eq("phone", signupFormData.phone.trim())
-        .maybeSingle();
-
-      if (existErr) throw existErr;
-
-      if (existing) {
-        if (existing.approval_status === "approved") {
-          setSignupError("You are already an approved member. Please use the Login tab.");
-          setSignupStatus("error");
-        } else {
-          setSignupStatus("pending_approval");
-        }
-        return;
-      }
-
       let imageUrl = null;
       if (signupAvatarFile) {
         setSignupUploadStage("uploading");
@@ -406,16 +421,25 @@ export default function ProfilePage() {
         setSignupUploadStage("saving");
       }
 
-      const { error: createErr } = await insertPendingPlayer(supabase, {
-        name: signupFormData.name.trim(),
-        phone: signupFormData.phone.trim(),
-        cricket_role: signupFormData.cricket_role,
-        approval_status: "pending",
-        image_url: imageUrl,
-        ...(imageUrl && signupFocus ? { image_focus: signupFocus } : {}),
+      // app/api/player/signup also catches a number that is already a member
+      // or already waiting for approval.
+      const res = await fetch("/api/player/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: signupFormData.name.trim(),
+          phone: signupFormData.phone.trim(),
+          cricket_role: signupFormData.cricket_role,
+          image_url: imageUrl,
+          image_focus: imageUrl ? signupFocus : null,
+        }),
       });
-
-      if (createErr) throw createErr;
+      if (res.status === 409) {
+        setSignupError("You are already an approved member. Please use the Login tab.");
+        setSignupStatus("error");
+        return;
+      }
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Couldn't send your request.");
 
       handleRemoveSignupAvatar();
       setSignupFormData({ name: "", phone: "", cricket_role: "all-rounder" });
@@ -430,12 +454,13 @@ export default function ProfilePage() {
     }
   };
 
-  // 1. Action: Request OTP verification SMS
-  const handleRequestOtp = async (e: React.FormEvent) => {
+  // 1. Action: check the phone number, then off to Google (lib/google-login.ts).
+  // Coming back is handled by completeGoogleLogin, above.
+  const handleGoogleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
     setSuccessMsg("");
-    
+
     const cleanPhone = phone.trim();
     if (!cleanPhone) {
       setErrorMsg("Please enter your registered phone number.");
@@ -444,93 +469,17 @@ export default function ProfilePage() {
 
     try {
       setIsLoading(true);
-      const res = await fetch("/api/player/otp/send", {
+      const res = await fetch("/api/player/google/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: cleanPhone })
       });
       const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to trigger verification code.");
-      }
-
-      setOtpToken(data.token);
-      setDebugOtpCode(data.debugCode); // Load local developer simulator block
-      setTimerCount(60); // Set resend cooldown to 60s
-      setSuccessMsg("Verification code successfully generated.");
-      
-      // Auto focus first digit input block
-      setTimeout(() => {
-        document.getElementById("otp-input-0")?.focus();
-      }, 100);
-    } catch (err: any) {
-      setErrorMsg(err.message || "An unexpected network error occurred.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // 2. Action: Verify OTP entered by player
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg("");
-    setSuccessMsg("");
-
-    const submittedCode = otpDigits.join("");
-    if (submittedCode.length < 6) {
-      setErrorMsg("Please enter the complete 6-digit verification code.");
-      return;
-    }
-
-    if (!otpToken) {
-      setErrorMsg("Verification session has expired. Please request a new code.");
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      const res = await fetch("/api/player/otp/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: otpToken, code: submittedCode })
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Verification failed. Please double check the code.");
-      }
-
-      // Save tokens & hydrate
-      localStorage.setItem("jcc_verified_session", data.sessionToken);
-      localStorage.setItem("jcc_verified_player", JSON.stringify(data.player));
-      
-      setSessionToken(data.sessionToken);
-      setVerifiedPlayer(data.player);
-      
-      setName(data.player.name);
-      setCricketRole(data.player.cricket_role);
-      setBattingStyle(data.player.batting_style || "Right-hand Bat");
-      setBowlingStyle(data.player.bowling_style || "N/A");
-      setBio(data.player.bio || "");
-      setImageUrl(data.player.image_url);
-      setImageFocus(parseFocus(data.player.image_focus));
-
-      setPhone("");
-      setOtpToken(null);
-      setOtpDigits(Array(6).fill(""));
-      setDebugOtpCode(null);
-      setSuccessMsg("Verification successful! Welcome to your profile board.");
-
-      // Sent here from a members-only page (/stats) — go back to it.
-      const next = nextPath();
-      if (next) window.location.assign(next);
-    } catch (err: any) {
-      setErrorMsg(err.message || "Invalid code. Please try again.");
-      // Shaker effect visual support: reset inputs
-      setOtpDigits(Array(6).fill(""));
-      document.getElementById("otp-input-0")?.focus();
-    } finally {
+      if (!res.ok || !data.url) throw new Error(data.error || "Couldn't start sign-in. Please try again.");
+      // Leaves the page; isLoading stays on until Google takes over.
+      window.location.assign(data.url);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "An unexpected network error occurred.");
       setIsLoading(false);
     }
   };
@@ -644,6 +593,7 @@ export default function ProfilePage() {
 
       // Update local storage representation
       localStorage.setItem("jcc_verified_player", JSON.stringify(data.player));
+      window.dispatchEvent(new Event("jcc-member"));
       setVerifiedPlayer(data.player);
       setSuccessMsg("Profile dossier successfully updated!");
     } catch (err: any) {
@@ -668,6 +618,7 @@ export default function ProfilePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save your photo.");
       localStorage.setItem("jcc_verified_player", JSON.stringify(data.player));
+      window.dispatchEvent(new Event("jcc-member"));
       setVerifiedPlayer(data.player);
       setFraming(false);
       setSuccessMsg("Photo saved.");
@@ -684,6 +635,7 @@ export default function ProfilePage() {
     fetch("/api/player/logout", { method: "POST" }).catch(() => {});
     localStorage.removeItem("jcc_verified_session");
     localStorage.removeItem("jcc_verified_player");
+    window.dispatchEvent(new Event("jcc-member"));
     
     setSessionToken(null);
     setVerifiedPlayer(null);
@@ -696,8 +648,6 @@ export default function ProfilePage() {
     setErrorMsg("");
     setSuccessMsg("");
     setPhone("");
-    setOtpToken(null);
-    setOtpDigits(Array(6).fill(""));
   };
 
   // Loader screen while validating saved session keys
@@ -726,6 +676,11 @@ export default function ProfilePage() {
     ? getDisplayRole(verifiedPlayer.member_tag, verifiedPlayer.group_role, verifiedPlayer.cricket_role)
     : "";
   const avatarSrc = verifiedPlayer ? imageUrl || getDiceBearUrl(name || verifiedPlayer.name, verifiedPlayer.team) : "";
+  const fullName = verifiedPlayer ? name || verifiedPlayer.name : "";
+  const [firstName, ...restParts] = fullName.trim().split(/\s+/);
+  const restName = restParts.join(" ");
+  const team = teamByName(verifiedPlayer?.team);
+  const teamColor = team?.primary ?? "#D4AF37";
 
   const Alerts = (
     <AnimatePresence mode="wait">
@@ -839,9 +794,6 @@ export default function ProfilePage() {
                     if (mode === "login") {
                       setSignupStatus("idle");
                       setSignupError("");
-                    } else {
-                      setOtpToken(null);
-                      setOtpDigits(Array(6).fill(""));
                     }
                   }}
                   className={`relative rounded-xl py-3 text-[11px] font-black uppercase tracking-[0.18em] transition-colors ${
@@ -861,84 +813,34 @@ export default function ProfilePage() {
             <div className="mt-6 rounded-3xl border border-jcc-blue/10 bg-jcc-navy p-7 shadow-[0_30px_80px_-40px_rgba(18,35,63,0.45)] sm:p-9">
               <AnimatePresence mode="wait">
                 {portalMode === "login" ? (
-                  !otpToken ? (
-                    <motion.form key="phone" initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 12 }} onSubmit={handleRequestOtp} className="space-y-6">
-                      <div>
-                        <h2 className="font-heading text-3xl font-bold tracking-[-0.03em] text-jcc-blue">Welcome back.</h2>
-                        <p className="mt-2 text-sm text-jcc-text-muted">We&apos;ll text a 6-digit code to your registered number.</p>
-                      </div>
-                      <label className="block">
-                        <span className={FIELD_LABEL}>Phone number</span>
-                        <span className="relative mt-2 block">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-jcc-blue/70">+91</span>
-                          <input
-                            type="tel"
-                            required
-                            inputMode="numeric"
-                            autoComplete="tel-national"
-                            placeholder="9988776655"
-                            value={phone}
-                            onChange={(e) => setPhone(e.target.value.replace(/[^0-9+]/g, ""))}
-                            className={`${INPUT} pl-14 tracking-wide`}
-                          />
-                        </span>
-                      </label>
-                      <button type="submit" disabled={isLoading} className="btn-vibrant-blue w-full justify-center py-4">
-                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-                        <span>{isLoading ? "Finding you…" : "Send code"}</span>
-                      </button>
-                    </motion.form>
-                  ) : (
-                    <motion.form key="otp" initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 12 }} onSubmit={handleVerifyOtp} className="space-y-6">
-                      <div>
-                        <h2 className="font-heading text-3xl font-bold tracking-[-0.03em] text-jcc-blue">Check your phone.</h2>
-                        <p className="mt-2 text-sm text-jcc-text-muted">Enter the 6-digit code we sent.</p>
-                      </div>
-                      <div className="grid grid-cols-6 gap-2">
-                        {otpDigits.map((digit, idx) => (
-                          <input
-                            key={idx}
-                            id={`otp-input-${idx}`}
-                            type="text"
-                            inputMode="numeric"
-                            maxLength={1}
-                            required
-                            value={digit}
-                            onChange={(e) => handleOtpDigitChange(idx, e.target.value)}
-                            onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                            className={`${INPUT} h-14 px-0 text-center text-xl font-black`}
-                          />
-                        ))}
-                      </div>
-                      <button type="submit" disabled={isLoading} className="btn-vibrant-blue w-full justify-center py-4">
-                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                        <span>{isLoading ? "Verifying…" : "Verify & enter"}</span>
-                      </button>
-                      <div className="flex items-center justify-between text-xs text-jcc-text-muted">
-                        <button type="button" onClick={() => { setOtpToken(null); setOtpDigits(Array(6).fill("")); }} className="font-bold hover:text-jcc-blue">
-                          ← Change number
-                        </button>
-                        {timerCount > 0 ? (
-                          <span className="flex items-center gap-1 font-bold">
-                            <Clock className="h-3 w-3 text-jcc-accent-dark" /> Resend in {timerCount}s
-                          </span>
-                        ) : (
-                          <button type="button" onClick={handleRequestOtp} className="font-bold text-jcc-accent-dark hover:underline">
-                            Send a new code
-                          </button>
-                        )}
-                      </div>
-                      {debugOtpCode && (
-                        <div className="flex items-start gap-3 rounded-xl border border-jcc-accent/30 bg-jcc-accent/10 p-4">
-                          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-jcc-accent-dark" />
-                          <p className="text-xs text-jcc-blue/80">
-                            Test mode — your code is{" "}
-                            <span className="ml-1 rounded bg-jcc-navy px-2 py-0.5 font-mono text-sm font-black tracking-widest text-jcc-blue">{debugOtpCode}</span>
-                          </p>
-                        </div>
-                      )}
-                    </motion.form>
-                  )
+                  <motion.form key="phone" initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 12 }} onSubmit={handleGoogleLogin} className="space-y-6">
+                    <div>
+                      <h2 className="font-heading text-3xl font-bold tracking-[-0.03em] text-jcc-blue">Welcome back.</h2>
+                      <p className="mt-2 text-sm text-jcc-text-muted">
+                        Enter your registered number, then sign in with Google. The first Google account you use stays linked to your number.
+                      </p>
+                    </div>
+                    <label className="block">
+                      <span className={FIELD_LABEL}>Phone number</span>
+                      <span className="relative mt-2 block">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-jcc-blue/70">+91</span>
+                        <input
+                          type="tel"
+                          required
+                          inputMode="numeric"
+                          autoComplete="tel-national"
+                          placeholder="9988776655"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value.replace(/[^0-9+]/g, ""))}
+                          className={`${INPUT} pl-14 tracking-wide`}
+                        />
+                      </span>
+                    </label>
+                    <button type="submit" disabled={isLoading} className="btn-vibrant-blue w-full justify-center py-4">
+                      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleMark />}
+                      <span>{isLoading ? "Signing you in…" : "Continue with Google"}</span>
+                    </button>
+                  </motion.form>
                 ) : signupStatus === "pending_approval" ? (
                   <motion.div key="pending" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-5 py-4 text-center">
                     <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-jcc-accent text-[#FFFFFF] shadow-lg shadow-jcc-accent/40">
@@ -1045,7 +947,7 @@ export default function ProfilePage() {
             </div>
 
             <p className="mt-6 flex items-center justify-center gap-5 text-[10px] font-black uppercase tracking-[0.18em] text-jcc-blue/70">
-              <span className="flex items-center gap-1.5"><Lock className="h-3 w-3" /> OTP protected</span>
+              <span className="flex items-center gap-1.5"><Lock className="h-3 w-3" /> Google sign-in</span>
               <span className="flex items-center gap-1.5"><Award className="h-3 w-3" /> Approval only</span>
             </p>
           </motion.div>
@@ -1055,58 +957,138 @@ export default function ProfilePage() {
   }
 
   // ── Logged in: profile ────────────────────────────────────────────────────
+  // The overview ends on its own full-bleed finale, straight into the footer.
   return (
-    <div className="min-h-screen bg-jcc-navy-deep pb-24">
-      {/* Banner */}
-      <section className="theme-static-dark section-bg-royal relative overflow-hidden page-top">
-        <Jaali />
-        <div className="pointer-events-none absolute -right-40 -top-40 h-120 w-120 rounded-full bg-jcc-accent/15 blur-[120px]" />
-        <div className="relative mx-auto max-w-6xl px-5 pb-10 pt-6 sm:px-8 sm:pt-10">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-end">
-            {/* Photo — tap to change */}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="group relative h-32 w-32 shrink-0 overflow-hidden rounded-3xl border-2 border-jcc-accent/50 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.6)] sm:h-40 sm:w-40"
-              aria-label="Change profile photo"
+    <div className={`min-h-screen bg-jcc-navy-deep ${tab === "edit" ? "pb-24" : ""}`}>
+      {/* Hero: the member, big. Team-coloured light, the crest as a watermark,
+          a tall portrait and the name set in two weights. */}
+      <section className="theme-static-dark page-top relative overflow-hidden bg-[#0B1424]">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{ background: `radial-gradient(60% 90% at 12% 40%, ${teamColor}40, transparent 62%), radial-gradient(45% 60% at 100% 0%, rgba(212,175,55,0.16), transparent 60%)` }}
+        />
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-jcc-accent/50 to-transparent" />
+        {team && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={team.logo} alt="" aria-hidden className="pointer-events-none absolute -bottom-28 -right-24 h-[36rem] w-[36rem] select-none object-contain opacity-[0.07] grayscale" />
+        )}
+
+        <div className="relative mx-auto max-w-6xl px-5 pb-8 pt-6 sm:px-8 sm:pt-10">
+          {/* Account row */}
+          <div className="flex items-center justify-between gap-4">
+            <p className={`${LABEL} text-jcc-accent`}>My profile</p>
+            <div className="flex items-center gap-3">
+              <span className="hidden font-mono text-xs text-white/75 sm:inline">+91 {verifiedPlayer.phone}</span>
+              <button
+                type="button"
+                onClick={handleLogout}
+                aria-label="Sign out"
+                className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/[0.04] px-3.5 py-2 text-[11px] font-bold uppercase tracking-widest text-white transition-colors hover:border-jcc-danger/70"
+              >
+                <LogOut className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Sign out</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-8 grid items-end gap-8 md:mt-10 md:grid-cols-[minmax(0,290px)_minmax(0,1fr)] md:gap-14">
+            {/* Portrait — tap to change */}
+            <motion.div
+              initial={{ opacity: 0, y: 28, rotate: -2.5 }}
+              animate={{ opacity: 1, y: 0, rotate: -2.5 }}
+              whileHover={{ rotate: 0, scale: 1.02 }}
+              transition={{ type: "spring", stiffness: 140, damping: 16 }}
+              className="relative mx-auto w-full max-w-[260px] md:max-w-none"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={avatarSrc}
-                alt={name || verifiedPlayer.name}
-                className="h-full w-full object-cover"
-                style={imageUrl ? focusStyle(imageFocus) : undefined}
-                onError={(e) => {
-                  const fallback = getDiceBearUrl(name || verifiedPlayer.name, verifiedPlayer.team);
-                  if (e.currentTarget.src !== fallback) e.currentTarget.src = fallback;
-                }}
-              />
-              <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/55 opacity-0 transition-opacity group-hover:opacity-100">
-                <Camera className="h-5 w-5 text-white" />
-                <span className="text-[9px] font-black uppercase tracking-widest text-white">Change</span>
-              </span>
-              {uploadStage === "uploading" && (
-                <span className="absolute inset-x-0 bottom-0 h-1.5 bg-black/40">
-                  <span className="block h-full bg-jcc-accent transition-all" style={{ width: `${uploadProgress}%` }} />
+              <div aria-hidden className="absolute -inset-4 rounded-[40px] opacity-70 blur-2xl" style={{ background: `${teamColor}66` }} />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="group relative block aspect-[4/5] w-full overflow-hidden rounded-[30px] ring-2 ring-jcc-accent/60"
+                aria-label="Change profile photo"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={avatarSrc}
+                  alt={fullName}
+                  className="h-full w-full object-cover"
+                  style={imageUrl ? focusStyle(imageFocus, 0.42, 0.8) : undefined}
+                  onError={(e) => {
+                    const fallback = getDiceBearUrl(fullName, verifiedPlayer.team);
+                    if (e.currentTarget.src !== fallback) e.currentTarget.src = fallback;
+                  }}
+                />
+                <span aria-hidden className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#0B1424] via-[#0B1424]/50 to-transparent" />
+                {team && (
+                  <span className="absolute bottom-4 left-4 flex items-center gap-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={team.logo} alt="" className="h-9 w-9 object-contain" />
+                    <span className="text-[13px] font-bold text-white">{team.name}</span>
+                  </span>
+                )}
+                <span className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-black/55 opacity-0 transition-opacity group-hover:opacity-100">
+                  <Camera className="h-6 w-6 text-white" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white">Change photo</span>
                 </span>
+                {uploadStage === "uploading" && (
+                  <span className="absolute inset-x-0 bottom-0 h-1.5 bg-black/40">
+                    <span className="block h-full bg-jcc-accent transition-all" style={{ width: `${uploadProgress}%` }} />
+                  </span>
+                )}
+              </button>
+              {imageUrl && (
+                <div className="relative mt-4 flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFraming((f) => !f)}
+                    className="rounded-full bg-jcc-accent px-3.5 py-1.5 text-[10.5px] font-black uppercase tracking-widest text-[#0B1424] transition-transform hover:scale-[1.04]"
+                  >
+                    {framing ? "Close framing" : "Frame photo"}
+                  </button>
+                  {imageFocus && imageFocus.w < SHARP_WIDTH && (
+                    <span
+                      title={`Your photo is small (${imageFocus.w}px). Upload a sharper one for full-size story cards.`}
+                      className="rounded-full bg-amber-300/15 px-3 py-1.5 text-[10.5px] font-bold uppercase tracking-widest text-[#FCD983] ring-1 ring-amber-300/40"
+                    >
+                      Low-res · {imageFocus.w}px
+                    </span>
+                  )}
+                </div>
               )}
-            </button>
+            </motion.div>
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarSelect} className="hidden" />
 
-            <div className="min-w-0 flex-1">
-              <p className={`${LABEL} text-jcc-accent`}>My profile</p>
-              <h1 className="mt-3 font-heading text-[clamp(2.4rem,6vw,4.5rem)] font-bold leading-[0.95] tracking-[-0.04em] text-white">
-                {name || verifiedPlayer.name}
-              </h1>
-              <div className="mt-4 flex flex-wrap gap-2">
+            {/* Name and the rest of them */}
+            <div className="min-w-0 pb-2">
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="flex flex-wrap gap-2">
                 <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${getBadgeStyle(displayRole)}`}>{displayRole}</span>
-                <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white/80">{verifiedPlayer.team}</span>
                 {(verifiedPlayer.is_core_committee || verifiedPlayer.is_exec_committee) && (
-                  <span className="rounded-full border border-jcc-accent/40 bg-jcc-accent/15 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-jcc-accent">
+                  <span className="rounded-full border border-jcc-accent/60 bg-[#0B1424] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-jcc-accent-highlight">
                     {verifiedPlayer.is_core_committee ? "Core Committee" : "Executive Committee"}
                     {verifiedPlayer.governance_role ? ` · ${getGovernanceRoleLabel(verifiedPlayer)}` : ""}
                   </span>
                 )}
+              </motion.div>
+              <h1 className="mt-5 font-heading text-[clamp(3rem,8.5vw,6.75rem)] font-extrabold leading-[0.88] tracking-[-0.055em]">
+                {[firstName, restName].filter(Boolean).map((part, i) => (
+                  <span key={i} className="block overflow-hidden pb-[0.06em]">
+                    <motion.span
+                      className="block"
+                      initial={{ y: "105%" }}
+                      animate={{ y: 0 }}
+                      transition={{ delay: 0.15 + i * 0.1, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                      style={i === 1 ? { color: "transparent", WebkitTextStroke: "1.5px rgba(255,255,255,0.9)" } : { color: "#FFFFFF" }}
+                    >
+                      {part}
+                    </motion.span>
+                  </span>
+                ))}
+              </h1>
+              {bio && <p className="mt-6 max-w-xl text-lg italic leading-relaxed text-white/80">&ldquo;{bio}&rdquo;</p>}
+              <div className="mt-5 flex flex-wrap items-center gap-2">
+                {[battingStyle, bowlingStyle].filter((x) => x && x !== "N/A").map((x) => (
+                  <span key={x} className="rounded-full border border-white/20 bg-white/[0.05] px-3.5 py-1.5 text-[12.5px] font-semibold text-white">{x}</span>
+                ))}
               </div>
               {uploadStage !== "idle" && uploadStage !== "done" && (
                 <p className="mt-3 text-[11px] font-bold text-jcc-accent">
@@ -1116,46 +1098,28 @@ export default function ProfilePage() {
                   {uploadStage === "error" && "Photo upload failed."}
                 </p>
               )}
-              {imageUrl && (
-                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <button type="button" onClick={() => setFraming((f) => !f)} className="text-[11px] font-black uppercase tracking-widest text-jcc-accent underline-offset-4 hover:underline">
-                    {framing ? "Close framing" : "Adjust photo framing"}
-                  </button>
-                  {imageFocus && imageFocus.w < SHARP_WIDTH && (
-                    <span className="text-[11px] font-semibold text-amber-300">
-                      Your photo is small ({imageFocus.w}px). Upload a sharper one for full-size story cards.
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-              <span className="font-mono text-xs text-white/60">+91 {verifiedPlayer.phone}</span>
-              <button type="button" onClick={handleLogout} className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-white/80 transition-colors hover:border-jcc-danger/60 hover:text-white">
-                <LogOut className="h-3.5 w-3.5" /> Sign out
-              </button>
             </div>
           </div>
 
-          {/* Tabs */}
-          <div className="mt-10 flex gap-1 border-b border-white/15">
+          {/* View switch */}
+          <div className="mt-10 inline-flex rounded-full bg-white/[0.06] p-1 ring-1 ring-white/15">
             {(["overview", "edit"] as const).map((t) => (
               <button
                 key={t}
                 type="button"
                 onClick={() => setTab(t)}
-                className={`relative px-5 py-3 text-[11px] font-black uppercase tracking-[0.2em] transition-colors ${tab === t ? "text-white" : "text-white/70 hover:text-white/80"}`}
+                className={`relative rounded-full px-5 py-2.5 text-[11px] font-black uppercase tracking-[0.18em] transition-colors ${tab === t ? "text-[#0B1424]" : "text-white/80 hover:text-white"}`}
               >
-                {t === "overview" ? "Overview" : "Edit profile"}
-                {tab === t && <motion.span layoutId="profile-tab" className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-jcc-accent" />}
+                {tab === t && <motion.span layoutId="profile-tab" className="absolute inset-0 rounded-full bg-jcc-accent" transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }} />}
+                <span className="relative">{t === "overview" ? "My story" : "Edit profile"}</span>
               </button>
             ))}
           </div>
         </div>
       </section>
 
-      <div className="mx-auto mt-8 max-w-6xl space-y-6 px-5 sm:px-8">
+      {/* Framing and notices sit in the page column; the story below runs full width. */}
+      <div className="mx-auto max-w-6xl space-y-6 px-5 pt-8 sm:px-8 [&:empty]:hidden">
         {framing && imageUrl && (
           <section className="rounded-3xl border border-jcc-blue/10 bg-jcc-navy p-5 shadow-sm sm:p-7">
             <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
@@ -1178,32 +1142,14 @@ export default function ProfilePage() {
           </section>
         )}
         {Alerts}
-        <AnimatePresence mode="wait">
+      </div>
+      <AnimatePresence mode="wait">
           {tab === "overview" ? (
-            <motion.div key="overview" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="grid gap-6 lg:grid-cols-[1fr_20rem]">
-              <MyStats key={verifiedPlayer.id} />
-              <aside className="space-y-4">
-                <div className="rounded-3xl border border-jcc-blue/10 bg-jcc-navy p-6">
-                  <p className={`${LABEL} text-jcc-accent-dark`}>About me</p>
-                  <p className="mt-3 text-sm leading-relaxed text-jcc-blue/80">{bio || "No bio yet — add one under Edit profile."}</p>
-                  <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-jcc-blue/10 pt-4 text-xs">
-                    <div>
-                      <dt className="text-[9px] font-black uppercase tracking-widest text-jcc-text-muted">Batting</dt>
-                      <dd className="mt-1 font-bold text-jcc-blue">{battingStyle}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-[9px] font-black uppercase tracking-widest text-jcc-text-muted">Bowling</dt>
-                      <dd className="mt-1 font-bold text-jcc-blue">{bowlingStyle}</dd>
-                    </div>
-                  </dl>
-                  <button type="button" onClick={() => setTab("edit")} className="mt-5 text-[10px] font-black uppercase tracking-widest text-jcc-accent-dark hover:underline">
-                    Edit profile →
-                  </button>
-                </div>
-              </aside>
+            <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <MyStats key={verifiedPlayer.id} photo={imageUrl ? withFocus(imageUrl, imageFocus) : null} />
             </motion.div>
           ) : (
-            <motion.form key="edit" onSubmit={handleSaveProfile} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="rounded-3xl border border-jcc-blue/10 bg-jcc-navy p-6 sm:p-10">
+            <motion.form key="edit" onSubmit={handleSaveProfile} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="mx-auto mt-8 w-[calc(100%-2.5rem)] max-w-6xl rounded-3xl border border-jcc-blue/10 bg-jcc-navy p-6 sm:w-[calc(100%-4rem)] sm:p-10">
               <div className="grid gap-8 lg:grid-cols-2">
                 <label className="block lg:col-span-2">
                   <span className={FIELD_LABEL}>Display name</span>
@@ -1279,8 +1225,7 @@ export default function ProfilePage() {
               </div>
             </motion.form>
           )}
-        </AnimatePresence>
-      </div>
+      </AnimatePresence>
     </div>
   );
 }

@@ -68,15 +68,13 @@ export default function MemberRoleManagement({ adminPassword }: { adminPassword?
       setLoading(true);
       setError(null);
 
-      // 1. Get latest upcoming match
-      const { data: matchData, error: mError } = await supabase
-        .from("matches")
-        .select("*")
-        .order("match_date", { ascending: false })
-        .limit(1)
-        .single();
-
-      if (mError && mError.code !== "PGRST116") throw mError;
+      // 1 & 2. The latest match and its registrations (phone and status, with
+      // the players joined), through the admin API: the phone snapshot isn't
+      // readable from the browser.
+      const res = await fetch("/api/admin/registrations", { headers: { "x-admin-password": adminPassword || "" } });
+      const squad = await res.json();
+      if (!res.ok) throw new Error(squad.error || "Failed to load squad data.");
+      const matchData = squad.match;
 
       if (!matchData) {
         setMatch(null);
@@ -86,28 +84,7 @@ export default function MemberRoleManagement({ adminPassword }: { adminPassword?
       }
       setMatch(matchData);
 
-      // 2. Get registrations for this match (including phone and status, and join players for full profile & team status details)
-      const { data: regData, error: rError } = await supabase
-        .from("registrations")
-        .select(`
-          player_id,
-          name,
-          phone,
-          cricket_role,
-          status,
-          players:player_id (
-            image_url,
-            team,
-            member_tag,
-            batting_style,
-            bowling_style,
-            short_bio
-          )
-        `)
-        .eq("match_id", matchData.id);
-
-      if (rError) throw rError;
-      setPlayers(regData || []);
+      setPlayers(squad.registrations || []);
 
       // 3. Get leadership roles assigned for THIS match
       const { data: roleData, error: roleError } = await supabase

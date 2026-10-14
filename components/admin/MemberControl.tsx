@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/lib/supabase";
 import { AUCTION_SIGNINGS } from "@/lib/auction-squads";
 import { createRosterMatcher } from "@/lib/club-roster";
 import { TEAMS, TEAM_ORDER_ALL } from "@/lib/teams";
@@ -34,6 +33,13 @@ interface Player {
   batting_style?: string;
   bowling_style?: string;
   created_at: string;
+}
+
+interface GoogleLink {
+  player_id: string;
+  google_email: string | null;
+  linked_at: string;
+  last_login_at: string | null;
 }
 
 /* Team-identity dossier themes — each JCC team gets its own card
@@ -179,17 +185,29 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
 
   const [view, setView] = useState<"all" | "pending">("all");
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
+  const [googleLinks, setGoogleLinks] = useState<Map<string, GoogleLink>>(new Map());
+
+  // Which Google account each member signs in with (lib/google-login.ts).
+  // Kept out of the public players table, so it comes from an admin route.
+  async function fetchGoogleLinks() {
+    try {
+      const res = await fetch("/api/admin/google-links", { headers: { "x-admin-password": adminPassword || "" } });
+      if (!res.ok) return;
+      const { links } = (await res.json()) as { links: GoogleLink[] };
+      setGoogleLinks(new Map(links.map((l) => [l.player_id, l])));
+    } catch (err) {
+      console.error("Error fetching Google links:", err);
+    }
+  }
 
   async function fetchPlayers() {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("players")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setPlayers(data || []);
+      // Through the admin API: phone numbers aren't readable from the browser.
+      const res = await fetch("/api/admin/players", { headers: { "x-admin-password": adminPassword || "" } });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load members");
+      setPlayers(data.players || []);
     } catch (err) {
       console.error("Error fetching players:", err);
     } finally {
@@ -200,6 +218,7 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchPlayers();
+      fetchGoogleLinks();
     }, 0);
     return () => clearTimeout(timer);
   }, []);
@@ -293,6 +312,31 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
       setPlayers(players.map(p => p.id === id ? { ...p, is_exec_committee: !current } : p));
     } catch (err) {
       console.error("Error updating exec committee:", err);
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
+  const handleResetGoogle = async (player: Player) => {
+    const link = googleLinks.get(player.id);
+    if (!link) return;
+    if (!confirm(`Unlink ${link.google_email ?? "the Google account"} from ${player.name}? The next Google account they sign in with will be linked instead.`)) return;
+    setIsProcessing(player.id);
+    try {
+      const response = await fetch("/api/admin/google-links", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-password": adminPassword || "",
+        },
+        body: JSON.stringify({ playerId: player.id }),
+      });
+      if (!response.ok) throw new Error("Google unlink failed");
+      const next = new Map(googleLinks);
+      next.delete(player.id);
+      setGoogleLinks(next);
+    } catch (err) {
+      console.error("Error unlinking Google account:", err);
     } finally {
       setIsProcessing(null);
     }
@@ -452,6 +496,27 @@ export default function MemberControl({ adminPassword }: { adminPassword?: strin
                   <span className={`font-semibold capitalize truncate ${theme.value}`}>{roleLabel}</span>
                   <span className={`uppercase tracking-widest font-bold ${theme.label}`}>Phone</span>
                   <span className={`font-semibold truncate ${theme.value}`}>{player.phone}</span>
+                  {player.approval_status === "approved" && (
+                    <>
+                      <span className={`uppercase tracking-widest font-bold ${theme.label}`}>Google</span>
+                      <span className={`flex min-w-0 items-center gap-2 font-semibold ${theme.value}`}>
+                        <span className="truncate" title={googleLinks.get(player.id)?.google_email ?? undefined}>
+                          {googleLinks.has(player.id) ? googleLinks.get(player.id)!.google_email ?? "Linked" : "Not linked"}
+                        </span>
+                        {googleLinks.has(player.id) && (
+                          <button
+                            type="button"
+                            disabled={isProcessing === player.id}
+                            onClick={() => handleResetGoogle(player)}
+                            title="Unlink this Google account so the member can sign in with a different one"
+                            className="shrink-0 text-[10px] font-bold uppercase tracking-wider underline-offset-2 hover:underline disabled:opacity-50"
+                          >
+                            Reset
+                          </button>
+                        )}
+                      </span>
+                    </>
+                  )}
                 </div>
 
                 {(isFounder || inExec || player.approval_status === "rejected") && (

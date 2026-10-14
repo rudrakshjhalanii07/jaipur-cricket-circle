@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
 import { motion } from "framer-motion";
 import { Trash2, ArrowUpCircle, Loader2, CheckCircle2, Wifi, ClipboardX } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
@@ -24,24 +23,12 @@ export default function RegistrationControl({ adminPassword }: { adminPassword?:
 
   async function fetchRegistrations() {
     try {
-      // Get the latest match first
-      const { data: matchData } = await supabase
-        .from("matches")
-        .select("id")
-        .order("match_date", { ascending: false })
-        .limit(1)
-        .single();
-
-      if (matchData) {
-        const { data, error } = await supabase
-          .from("registrations")
-          .select("*")
-          .eq("match_id", matchData.id)
-          .order("created_at", { ascending: true });
-
-        if (error) throw error;
-        setRegistrations(data || []);
-      }
+      // The latest match's registrations, through the admin API: the phone
+      // snapshot isn't readable from the browser.
+      const res = await fetch("/api/admin/registrations", { headers: { "x-admin-password": adminPassword || "" } });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load registrations");
+      setRegistrations(data.registrations || []);
     } catch (err) {
       console.error("Error fetching registrations:", err);
     } finally {

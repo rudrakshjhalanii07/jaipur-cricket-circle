@@ -32,7 +32,6 @@ import { fadeUp, staggerContainer, VIEWPORT_CONFIG } from "@/lib/animations";
 import { optimizeImage } from "@/lib/image-optimize";
 import { getDiceBearUrl } from "@/lib/avatar";
 import PhotoFramer from "@/components/PhotoFramer";
-import { insertPendingPlayer } from "@/lib/player-insert";
 import type { PhotoFocus } from "@/lib/photo-focus";
 
 interface Match {
@@ -58,7 +57,6 @@ interface Registration {
   id: string;
   player_id: string;
   name: string;
-  phone: string;
   cricket_role: string;
   status: "registered" | "waitlist";
   players?: PlayerJoinedDetails | PlayerJoinedDetails[];
@@ -242,6 +240,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formStatus, setFormStatus] = useState<"idle" | "success" | "error" | "duplicate" | "pending_approval">("idle");
+  const [registeredStatus, setRegisteredStatus] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -382,7 +381,8 @@ export default function RegisterPage() {
       if (matchData) {
         const { data: regData, error: regError } = await supabase
           .from("registrations")
-          .select("*, players(image_url, team, member_tag, group_role, batting_style, bowling_style)")
+          // No phone: it isn't public (supabase/lock_down_member_data.sql).
+          .select("id, match_id, player_id, name, cricket_role, status, created_at, players(image_url, team, member_tag, group_role, batting_style, bowling_style)")
           .eq("match_id", matchData.id)
           .order("created_at", { ascending: true });
 
@@ -465,26 +465,6 @@ export default function RegisterPage() {
 
       // 3. New Member Mode: Just create player and wait for approval
       if (registrationMode === "new") {
-        // 1. Check if player exists by phone
-        const { data: playerData, error: playerError } = await supabase
-          .from("players")
-          .select("id, approval_status")
-          .eq("phone", formData.phone)
-          .maybeSingle();
-
-        if (playerError) throw playerError;
-
-        if (playerData) {
-          if (playerData.approval_status === "approved") {
-            setLookupError("You are already an approved member. Please use the 'Existing Member' tab.");
-            setSubmitting(false);
-            return;
-          }
-          setFormStatus("pending_approval");
-          setSubmitting(false);
-          return;
-        }
-
         // Upload image first if file selected
         let imageUrl = null;
         if (avatarFile) {
@@ -501,17 +481,25 @@ export default function RegisterPage() {
           }
         }
 
-        // 2. Create new player with pending status and avatar url
-        const { error: createError } = await insertPendingPlayer(supabase, {
-          name: formData.name,
-          phone: formData.phone,
-          cricket_role: formData.cricket_role,
-          approval_status: "pending",
-          image_url: imageUrl,
-          ...(imageUrl && avatarFocus ? { image_focus: avatarFocus } : {}),
+        // 2. Ask to join (app/api/player/signup) — it also catches a number
+        // that is already a member or already waiting for approval.
+        const signupRes = await fetch("/api/player/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: formData.name,
+            phone: formData.phone,
+            cricket_role: formData.cricket_role,
+            image_url: imageUrl,
+            image_focus: imageUrl ? avatarFocus : null,
+          }),
         });
-
-        if (createError) throw createError;
+        if (signupRes.status === 409) {
+          setLookupError("You are already an approved member. Please use the 'Existing Member' tab.");
+          setSubmitting(false);
+          return;
+        }
+        if (!signupRes.ok) throw new Error((await signupRes.json().catch(() => ({}))).error || "Couldn't send your request.");
         
         // Clean up avatar state on success
         setAvatarFile(null);
@@ -531,7 +519,7 @@ export default function RegisterPage() {
       if (!player_id) throw new Error("Player context lost");
 
       // 3. Check for duplicate registration for same match
-      const isDuplicate = registrations.some((r) => r.phone === formData.phone);
+      const isDuplicate = registrations.some((r) => r.player_id === player_id);
       if (isDuplicate) {
         setFormStatus("duplicate");
         setSubmitting(false);
@@ -555,6 +543,7 @@ export default function RegisterPage() {
 
       if (regError) throw regError;
 
+      setRegisteredStatus(registrationStatus);
       setFormStatus("success");
       setFormData({ name: "", phone: "", cricket_role: "all-rounder" });
       setExistingPlayer(null);
@@ -1005,7 +994,7 @@ export default function RegisterPage() {
                      <CheckCircle2 className="w-7 h-7 text-black" />
                    </div>
                    <h4 className="text-2xl font-black text-white mb-2 uppercase tracking-tight">Registration Successful!</h4>
-                   <p className="text-white/60 text-[14px] mb-8 font-medium">You&apos;ve been added to the {registrations.filter(r => r.phone === formData.phone)[0]?.status || 'match'} list. See you on the pitch!</p>
+                   <p className="text-white/60 text-[14px] mb-8 font-medium">You&apos;ve been added to the {registeredStatus || 'match'} list. See you on the pitch!</p>
                    <button 
                     onClick={() => setFormStatus("idle")}
                     className="text-[11px] font-black text-jcc-accent hover:underline uppercase tracking-widest"
