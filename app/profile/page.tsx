@@ -189,6 +189,14 @@ export default function ProfilePage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStage, setUploadStage] = useState<"idle" | "optimizing" | "uploading" | "saving" | "done" | "error">("idle");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // A local copy of the photo being changed, shown until the page is left.
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const showPreview = (url: string | null) => setPhotoPreview(url);
+  // Revokes each local copy once it's replaced, and the last on leaving.
+  useEffect(() => () => { if (photoPreview) URL.revokeObjectURL(photoPreview); }, [photoPreview]);
+  // An uploaded photo waiting to be saved, and a nudge to try saving it.
+  const pendingPhoto = useRef<string | null>(null);
+  const [autoSaveTick, setAutoSaveTick] = useState(0);
 
   // Sign-Up Mode States
   const [portalMode, setPortalMode] = useState<"login" | "signup">("signup");
@@ -484,51 +492,47 @@ export default function ProfilePage() {
     }
   };
 
-  // 3. Action: Handle Client-Side Image Selection & Compression & Upload
+  // 3. Action: change photo. The new photo shows at once from a local copy and
+  // framing starts on it while the upload runs; once uploaded, the photo and
+  // its framing save themselves so the navbar, members wall and cards update
+  // without waiting on the "Save photo" button.
   const handleAvatarSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    // Clear the input so picking the same file again still fires onChange.
+    e.target.value = "";
     if (!file) return;
 
     setErrorMsg("");
     setSuccessMsg("");
     setUploadStage("optimizing");
     setUploadProgress(0);
+    pendingPhoto.current = null;
+    showPreview(URL.createObjectURL(file));
 
     try {
-      // Step-down quality compression and WebP formatting under 500KB client-side
       const compressed = await optimizeImage(file);
-      
+      // Same pixels as the upload, so the framing's measurements match it.
+      showPreview(compressed.previewUrl);
+      setImageFocus(null);
+      setFraming(true);
       setUploadStage("uploading");
-      
-      // Perform XHR request with progress tracking
+
       const xhr = new XMLHttpRequest();
       xhr.open("POST", "/api/player/upload-avatar");
       if (sessionToken) xhr.setRequestHeader("x-session-token", sessionToken);
-      
+
       xhr.upload.onprogress = (progressEvent) => {
         if (progressEvent.lengthComputable) {
-          const percentage = Math.round((progressEvent.loaded / progressEvent.total) * 100);
-          setUploadProgress(percentage);
+          setUploadProgress(Math.round((progressEvent.loaded / progressEvent.total) * 100));
         }
       };
 
       const uploadPromise = new Promise<{ publicUrl: string }>((resolve, reject) => {
         xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              const resData = JSON.parse(xhr.responseText);
-              resolve(resData);
-            } catch (err) {
-              reject(new Error("Response parsing failed."));
-            }
-          } else {
-            try {
-              const resData = JSON.parse(xhr.responseText);
-              reject(new Error(resData.error || `Upload failed with status code ${xhr.status}.`));
-            } catch (err) {
-              reject(new Error(`Upload failed with status code ${xhr.status}.`));
-            }
-          }
+          let resData: { publicUrl?: string; error?: string } | null = null;
+          try { resData = JSON.parse(xhr.responseText); } catch {}
+          if (xhr.status >= 200 && xhr.status < 300 && resData?.publicUrl) resolve({ publicUrl: resData.publicUrl });
+          else reject(new Error(resData?.error || `Upload failed with status code ${xhr.status}.`));
         };
         xhr.onerror = () => reject(new Error("Network error during avatar upload."));
       });
@@ -538,18 +542,49 @@ export default function ProfilePage() {
       xhr.send(formData);
 
       const result = await uploadPromise;
-      
-      setUploadStage("saving");
       setImageUrl(result.publicUrl);
-      setImageFocus(null);
-      setFraming(true);
-      setUploadStage("done");
-      setSuccessMsg("Photo uploaded. Check the framing below, then save.");
-    } catch (err: any) {
+      setUploadStage("saving");
+      // Saved by the effect below as soon as the framer has placed the circle.
+      pendingPhoto.current = result.publicUrl;
+      setAutoSaveTick((t) => t + 1);
+    } catch (err: unknown) {
       setUploadStage("error");
-      setErrorMsg(err.message || "Failed to process profile photo.");
+      showPreview(null);
+      setFraming(false);
+      setErrorMsg(err instanceof Error ? err.message : "Failed to process profile photo.");
     }
   };
+
+  // Saves the photo and its framing to the profile.
+  const persistPhoto = async (url: string, focus: PhotoFocus | null) => {
+    const res = await fetch("/api/player/update-profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionToken, updates: { image_url: url, image_focus: focus } }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to save your photo.");
+    localStorage.setItem("jcc_verified_player", JSON.stringify(data.player));
+    window.dispatchEvent(new Event("jcc-member"));
+    setVerifiedPlayer(data.player);
+  };
+
+  // Auto-save a freshly uploaded photo once its framing is known.
+  useEffect(() => {
+    const url = pendingPhoto.current;
+    if (!url || !sessionToken || !imageFocus) return;
+    pendingPhoto.current = null;
+    persistPhoto(url, imageFocus)
+      .then(() => {
+        setUploadStage("done");
+        setSuccessMsg("Photo updated everywhere. Move the circle if it's off, then save.");
+      })
+      .catch((err: unknown) => {
+        setUploadStage("error");
+        setErrorMsg(err instanceof Error ? err.message : "Failed to save your photo.");
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSaveTick, imageFocus, sessionToken]);
 
   // 4. Action: Save updated profile details back to DB
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -610,16 +645,9 @@ export default function ProfilePage() {
     setSuccessMsg("");
     try {
       setSavingFraming(true);
-      const res = await fetch("/api/player/update-profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionToken, updates: { image_url: imageUrl, image_focus: imageFocus } }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to save your photo.");
-      localStorage.setItem("jcc_verified_player", JSON.stringify(data.player));
-      window.dispatchEvent(new Event("jcc-member"));
-      setVerifiedPlayer(data.player);
+      pendingPhoto.current = null;
+      await persistPhoto(imageUrl, imageFocus);
+      setUploadStage("idle");
       setFraming(false);
       setSuccessMsg("Photo saved.");
     } catch (err: unknown) {
@@ -644,6 +672,8 @@ export default function ProfilePage() {
     setImageUrl(null);
     setImageFocus(null);
     setFraming(false);
+    showPreview(null);
+    pendingPhoto.current = null;
     
     setErrorMsg("");
     setSuccessMsg("");
@@ -1009,10 +1039,10 @@ export default function ProfilePage() {
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={avatarSrc}
+                  src={photoPreview || avatarSrc}
                   alt={fullName}
                   className="h-full w-full object-cover"
-                  style={imageUrl ? focusStyle(imageFocus, 0.42, 0.8) : undefined}
+                  style={photoPreview || imageUrl ? focusStyle(imageFocus, 0.42, 0.8) : undefined}
                   onError={(e) => {
                     const fallback = getDiceBearUrl(fullName, verifiedPlayer.team);
                     if (e.currentTarget.src !== fallback) e.currentTarget.src = fallback;
@@ -1030,13 +1060,13 @@ export default function ProfilePage() {
                   <Camera className="h-6 w-6 text-white" />
                   <span className="text-[10px] font-black uppercase tracking-widest text-white">Change photo</span>
                 </span>
-                {uploadStage === "uploading" && (
+                {(uploadStage === "optimizing" || uploadStage === "uploading" || uploadStage === "saving") && (
                   <span className="absolute inset-x-0 bottom-0 h-1.5 bg-black/40">
                     <span className="block h-full bg-jcc-accent transition-all" style={{ width: `${uploadProgress}%` }} />
                   </span>
                 )}
               </button>
-              {imageUrl && (
+              {(photoPreview || imageUrl) && (
                 <div className="relative mt-4 flex flex-wrap items-center justify-center gap-2">
                   <button
                     type="button"
@@ -1120,7 +1150,7 @@ export default function ProfilePage() {
 
       {/* Framing and notices sit in the page column; the story below runs full width. */}
       <div className="mx-auto max-w-6xl space-y-6 px-5 pt-8 sm:px-8 [&:empty]:hidden">
-        {framing && imageUrl && (
+        {framing && (photoPreview || imageUrl) && (
           <section className="rounded-3xl border border-jcc-blue/10 bg-jcc-navy p-5 shadow-sm sm:p-7">
             <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
               <div>
@@ -1131,14 +1161,14 @@ export default function ProfilePage() {
               <button
                 type="button"
                 onClick={saveFraming}
-                disabled={savingFraming || !imageFocus}
+                disabled={savingFraming || uploadStage === "optimizing" || uploadStage === "uploading"}
                 className="btn-vibrant-blue disabled:opacity-50"
               >
-                {savingFraming ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Save photo
+                {savingFraming || uploadStage === "uploading" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {uploadStage === "uploading" ? `Uploading… ${uploadProgress}%` : "Save photo"}
               </button>
             </div>
-            <PhotoFramer key={imageUrl} src={imageUrl} name={name || verifiedPlayer.name} initial={imageFocus} onChange={setImageFocus} />
+            <PhotoFramer key={photoPreview || imageUrl!} src={photoPreview || imageUrl!} name={name || verifiedPlayer.name} initial={imageFocus} onChange={setImageFocus} />
           </section>
         )}
         {Alerts}

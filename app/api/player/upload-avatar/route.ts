@@ -43,6 +43,24 @@ function validSession(token: string | null) {
   }
 }
 
+// Checked once per function instance, not on every upload: listing buckets
+// cost a round trip to storage before each photo.
+let bucketReady: Promise<void> | null = null;
+function ensureBucket() {
+  bucketReady ??= (async () => {
+    const { data: buckets, error: listError } = await supabaseAdmin.storage.listBuckets();
+    if (listError) throw listError;
+    if (buckets.some((b) => b.name === BUCKET)) return;
+    const { error } = await supabaseAdmin.storage.createBucket(BUCKET, { public: true, allowedMimeTypes: ALLOWED });
+    if (error) throw error;
+  })().catch((err) => {
+    bucketReady = null;
+    console.error("Avatar bucket check error:", err);
+    throw err;
+  });
+  return bucketReady;
+}
+
 /** The image type the bytes actually are, or null. */
 function sniff(b: Buffer): string | null {
   if (b.length > 12 && b.toString("ascii", 0, 4) === "RIFF" && b.toString("ascii", 8, 12) === "WEBP") return "image/webp";
@@ -81,22 +99,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "That file isn't a valid image." }, { status: 400 });
     }
 
-    // Ensure bucket exists
-    const { data: buckets, error: listError } = await supabaseAdmin.storage.listBuckets();
-    if (listError) {
-      console.error("List buckets error:", listError);
-      throw listError;
-    }
-    if (!buckets.some((b) => b.name === BUCKET)) {
-      const { error: createBucketError } = await supabaseAdmin.storage.createBucket(BUCKET, {
-        public: true,
-        allowedMimeTypes: ALLOWED,
-      });
-      if (createBucketError) {
-        console.error("Create bucket error:", createBucketError);
-        throw createBucketError;
-      }
-    }
+    await ensureBucket();
 
     // The extension comes from the sniffed type, never the client's file name.
     const ext = kind === "image/jpeg" ? "jpg" : kind.split("/")[1];
