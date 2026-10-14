@@ -33,6 +33,7 @@ import {
   type ScoreEvent,
 } from "@/lib/ball-by-ball";
 import Scorer from "./Scorer";
+import ScorecardEditor from "./ScorecardEditor";
 
 const TEAM_LABELS: Record<string, string> = Object.fromEntries(
   TEAM_ORDER_ALL.map((id) => [id, TEAM_CONFIG[id].name]),
@@ -285,6 +286,9 @@ export default function SeriesImportPage() {
   const [allSeries, setAllSeries] = useState<Series[]>([]);
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [pickedWeekId, setWeekId] = useState("");
+  const [pickedSeasonId, setSeasonId] = useState("");
+  // A saved match open in the scorecard editor.
+  const [editing, setEditing] = useState<string | null>(null);
 
   const refreshSeries = useCallback(() => {
     fetchAllSeries().then(setAllSeries).catch(() => {});
@@ -296,9 +300,13 @@ export default function SeriesImportPage() {
   }, [refreshSeries]);
 
   const activeSeason = seasons.find((s) => s.status === "active") ?? null;
+  // Any season with fixtures can be opened; the active one by default.
+  const seasonsWithSeries = seasons.filter((se) => allSeries.some((s) => s.season_id === se.id));
+  const season = seasonsWithSeries.find((se) => se.id === pickedSeasonId) ?? activeSeason;
+  // Season 2's tri-series predate week numbers: they're ordered by start date.
   const weeks = allSeries
-    .filter((s) => s.week_no != null && s.season_id === activeSeason?.id)
-    .sort((a, b) => (a.week_no ?? 0) - (b.week_no ?? 0));
+    .filter((s) => s.season_id === season?.id && (s.week_no != null || season?.id !== activeSeason?.id))
+    .sort((a, b) => (a.week_no ?? 0) - (b.week_no ?? 0) || (a.started_at ?? "").localeCompare(b.started_at ?? ""));
   // Until one is picked, open on this week's matchday: the first week starting
   // no more than a few days ago, else the last one.
   const [today] = useState(() => new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10));
@@ -336,10 +344,17 @@ export default function SeriesImportPage() {
   const openFixture = (f: SeriesMatch) => {
     if (!week) return;
     const saved = loadDraft(f.id);
-    if (f.winner_id || f.is_tie) {
-      if (!confirm(`M${f.match_no} already has a result. Scoring it again replaces that scorecard. Continue?`)) return;
+    // A match with a result opens in the scorecard editor, with everything saved so far.
+    if ((f.winner_id || f.is_tie) && !saved) {
+      setEditing(f.id);
+      return;
     }
     setDraft(saved ?? newDraft(week, f));
+  };
+  const rescore = (f: SeriesMatch) => {
+    if (!week) return;
+    if (!confirm(`Score M${f.match_no} again ball by ball? Saving replaces the current scorecard.`)) return;
+    setDraft(loadDraft(f.id) ?? newDraft(week, f));
   };
 
   const discardDraft = () => {
@@ -631,16 +646,26 @@ export default function SeriesImportPage() {
           </div>
         </div>
 
-        {!draft ? (
+        {editing ? (
+          <ScorecardEditor matchId={editing} password={password} onClose={() => setEditing(null)} onSaved={refreshFixtures} />
+        ) : !draft ? (
           // ── Fixture picker ──
           <CollapsibleSection title="Choose a fixture">
+            <div>
+              <Label>Season</Label>
+              <Select value={season?.id ?? ""} onChange={(e) => { setSeasonId(e.target.value); setWeekId(""); }}>
+                {seasonsWithSeries.map((se) => (
+                  <option key={se.id} value={se.id}>{se.title}{se.status === "active" ? " (current)" : ""}</option>
+                ))}
+              </Select>
+            </div>
             <div>
               <Label>Season Week</Label>
               <Select value={weekId} onChange={(e) => setWeekId(e.target.value)}>
                 <option value="">— Choose a week —</option>
-                {weeks.map((w) => (
+                {weeks.map((w, i) => (
                   <option key={w.id} value={w.id}>
-                    {w.name}{w.started_at ? ` — ${w.started_at.slice(0, 10)}` : ""}
+                    {w.week_no == null ? `Week ${i + 1} · ` : ""}{w.name}{w.started_at ? ` — ${w.started_at.slice(0, 10)}` : ""}
                   </option>
                 ))}
               </Select>
@@ -652,12 +677,11 @@ export default function SeriesImportPage() {
               {fixtures.map((f) => {
                 const played = !!(f.winner_id || f.is_tie);
                 const hasDraft = typeof window !== "undefined" && loadDraft(f.id) !== null;
+                const status = hasDraft ? "Draft in progress" : played ? "Result in" : "To play";
                 return (
-                  <button
+                  <div
                     key={f.id}
-                    type="button"
-                    onClick={() => openFixture(f)}
-                    className="text-left rounded-xl border border-jcc-border hover:border-jcc-accent/50 bg-jcc-navy-light/40 p-4 transition-colors"
+                    className="flex flex-col rounded-2xl border border-jcc-border bg-[#FFFFFF] p-4 shadow-sm transition-colors hover:border-jcc-accent/50"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-jcc-text-muted">
@@ -668,18 +692,36 @@ export default function SeriesImportPage() {
                           hasDraft ? "bg-jcc-blue/10 text-jcc-blue" : played ? "bg-jcc-accent/10 text-jcc-accent-dark" : "bg-jcc-border/40 text-jcc-text-muted"
                         }`}
                       >
-                        {hasDraft ? "Draft in progress" : played ? "Result in" : "To play"}
+                        {status}
                       </span>
                     </div>
-                    <p className="mt-2 text-sm font-black">
-                      {teamLabel(f.team1_id)} <span className="text-jcc-text-muted font-bold">v</span> {teamLabel(f.team2_id)}
+                    <p className="mt-3 text-base font-black leading-snug">
+                      <span className={played && !f.is_tie && f.winner_id !== f.team1_id ? "text-jcc-text-muted" : ""}>{teamLabel(f.team1_id)}</span>
+                      <span className="mx-1.5 text-xs font-bold text-jcc-text-muted">v</span>
+                      <span className={played && !f.is_tie && f.winner_id !== f.team2_id ? "text-jcc-text-muted" : ""}>{teamLabel(f.team2_id)}</span>
                     </p>
-                    {played && (
-                      <p className="text-[11px] text-jcc-text-muted mt-0.5">
-                        {f.is_tie ? "Tied" : `${teamLabel(f.winner_id)} won by ${f.margin_value} ${f.margin_type}`}
-                      </p>
-                    )}
-                  </button>
+                    <p className="mt-1 text-[12px] text-jcc-text-muted">
+                      {played ? (f.is_tie ? "Tied" : `${teamLabel(f.winner_id)} won by ${f.margin_value} ${f.margin_type}`) : "Not played yet"}
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-2 border-t border-jcc-border pt-3">
+                      <button
+                        type="button"
+                        onClick={() => openFixture(f)}
+                        className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-jcc-blue px-3.5 text-[11px] font-black uppercase tracking-widest !text-[#FFFFFF] transition-opacity hover:opacity-90"
+                      >
+                        {hasDraft ? <><Play className="h-3.5 w-3.5" /> Resume draft</> : played ? "Edit scorecard" : <><Play className="h-3.5 w-3.5" /> Score match</>}
+                      </button>
+                      {played && !hasDraft && (
+                        <button
+                          type="button"
+                          onClick={() => rescore(f)}
+                          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-jcc-accent/30 px-3.5 text-[11px] font-black uppercase tracking-widest text-jcc-blue/80 transition-colors hover:border-jcc-accent hover:bg-jcc-accent/10"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" /> Re-score ball by ball
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 );
               })}
             </div>
