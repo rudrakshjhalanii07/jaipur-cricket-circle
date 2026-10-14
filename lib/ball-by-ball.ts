@@ -26,6 +26,7 @@ const BOWLER_WICKETS = new Set<WicketKind>(["bowled", "caught", "lbw", "stumped"
 export interface BallEvent {
   t: "ball";
   striker: string;
+  /** "" when the last batter is batting alone (last man stands). */
   nonStriker: string;
   bowler: string;
   /** Runs off the bat — also on a no-ball. */
@@ -168,7 +169,9 @@ export function replayInnings(events: ScoreEvent[]): InningsState {
     }
 
     const striker = batter(e.striker);
-    batter(e.nonStriker);
+    // Last man stands: the lone batter faces with nobody at the other end.
+    const alone = !e.nonStriker;
+    if (!alone) batter(e.nonStriker);
     const bowler = bowlerLine(e.bowler);
     if (s.bowler !== e.bowler) overConceded = 0;
     s.bowler = e.bowler;
@@ -194,9 +197,10 @@ export function replayInnings(events: ScoreEvent[]): InningsState {
     s.thisOver.push(ballLabel(e));
 
     // Crossing, then the dismissal, then the end of the over.
+    // Alone, there's no one to cross with: the batter keeps the strike.
     let onStrike: string | null = e.striker;
-    let offStrike: string | null = e.nonStriker;
-    if (runsRun(e) % 2 === 1) [onStrike, offStrike] = [offStrike, onStrike];
+    let offStrike: string | null = alone ? null : e.nonStriker;
+    if (!alone && runsRun(e) % 2 === 1) [onStrike, offStrike] = [offStrike, onStrike];
 
     if (e.wicket) {
       const w = e.wicket;
@@ -215,7 +219,7 @@ export function replayInnings(events: ScoreEvent[]): InningsState {
     if (isLegal(e) && s.legalBalls % 6 === 0) {
       if (overConceded === 0) bowler.maidens++;
       overConceded = 0;
-      [onStrike, offStrike] = [offStrike, onStrike];
+      if (!alone) [onStrike, offStrike] = [offStrike, onStrike];
       s.lastOverBowler = e.bowler;
       s.bowler = null;
       s.thisOver = [];
@@ -228,8 +232,13 @@ export function replayInnings(events: ScoreEvent[]): InningsState {
 
 export interface InningsLimits {
   overs: number;
-  /** Players in the batting side — all out at squad − 1 wickets. */
+  /** Players in the batting side — all out at squad − 1 wickets, or at squad with lastManStands. */
   squadSize: number;
+  /**
+   * Last man stands: when one batter is left they bat on alone, and the side
+   * is all out only once every batter is out.
+   */
+  lastManStands?: boolean;
   /** Second innings only: runs needed to win. */
   target: number | null;
 }
@@ -237,11 +246,12 @@ export interface InningsLimits {
 /** Why the innings is over, or null while it goes on. */
 export function inningsOver(s: InningsState, lim: InningsLimits): "overs" | "all_out" | "target" | null {
   if (lim.target != null && s.runs >= lim.target) return "target";
-  if (s.wickets >= Math.max(1, lim.squadSize - 1)) return "all_out";
-  // Retirements leave the crease empty without a wicket; the last batter
-  // can't continue alone either.
+  const lms = !!lim.lastManStands;
+  if (s.wickets >= Math.max(1, lim.squadSize - (lms ? 0 : 1))) return "all_out";
+  // Retirements leave the crease short without a wicket. Normally the last
+  // batter can't continue alone; under last man stands they can.
   const left = lim.squadSize - s.batters.filter((b) => b.out).length;
-  if (s.batters.length > 0 && left < 2) return "all_out";
+  if (s.batters.length > 0 && left < (lms ? 1 : 2)) return "all_out";
   if (s.legalBalls >= lim.overs * 6) return "overs";
   return null;
 }
@@ -307,13 +317,14 @@ export function toSaveInnings(
 /** Result from the two innings, the way the club scores margins. */
 export function matchResult(
   first: { team: string; runs: number },
-  second: { team: string; runs: number; wickets: number; squadSize: number },
+  second: { team: string; runs: number; wickets: number; squadSize: number; lastManStands?: boolean },
 ): { winner: string | null; marginType: "runs" | "wickets" | null; marginValue: number | null; tie: boolean } {
   if (second.runs > first.runs) {
     return {
       winner: second.team,
       marginType: "wickets",
-      marginValue: Math.max(0, second.squadSize - 1 - second.wickets),
+      // Wickets in hand: under last man stands the last batter is one too.
+      marginValue: Math.max(0, second.squadSize - (second.lastManStands ? 0 : 1) - second.wickets),
       tie: false,
     };
   }

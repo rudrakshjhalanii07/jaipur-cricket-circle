@@ -7,6 +7,6 @@ export const metadata: Metadata = {
   description: "Matchday reports from every Jaipur Cricket Circle week, written from the official scorecard — plus features, columns and the occasional roast.",
 };
 
-export default function BoundaryBanterPage() {
-  return <BoundaryBanterClient reports={dayReportPreviews()} />;
+export default async function BoundaryBanterPage() {
+  return <BoundaryBanterClient reports={await dayReportPreviews()} />;
 }

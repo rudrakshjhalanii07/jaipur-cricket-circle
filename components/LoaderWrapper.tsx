@@ -1,110 +1,109 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { gsap, useGSAP } from "@/components/motion/gsap";
 
 const LOADER_DURATION_MS = 2000;
 
-/** Pages that run their own entrance and skip the site intro. */
-const NO_LOADER = ["/stats-preview"];
+/** Pages that skip the site intro: their own entrance, or admin tooling. */
+const NO_LOADER = ["/stats", "/admin"];
+
+/** Set once the intro has played, so it runs once per browser session. */
+const SEEN_KEY = "jcc_intro_seen";
+
+function introSeen(): boolean {
+  try {
+    return sessionStorage.getItem(SEEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markIntroSeen() {
+  try {
+    sessionStorage.setItem(SEEN_KEY, "1");
+  } catch {
+    // Storage blocked — the intro just plays on each load, as before.
+  }
+}
 
 export default function LoaderWrapper({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Default false so SSR HTML never includes the overlay — LCP element is
-  // immediately visible in the static HTML. The intro fires only on the
-  // client, on every full page load/reload (this component only remounts
-  // on a hard navigation, not client-side route changes within the app).
+  // Default false so SSR HTML never includes the overlay — the LCP element is
+  // visible in the static HTML. The intro fires only on the client, on the
+  // first full page load of a browser session (sessionStorage); client-side
+  // route changes never remount this component.
   const [loading, setLoading] = useState(false);
   const pathname = usePathname();
+  const curtain = useRef<HTMLDivElement>(null);
+  const count = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
-    if (NO_LOADER.some((p) => pathname.startsWith(p))) return;
-    setLoading(true);
-    const t = setTimeout(() => setLoading(false), LOADER_DURATION_MS);
-    return () => clearTimeout(t);
+    if (NO_LOADER.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return;
+    if (introSeen()) return;
+    // Marked inside the frame, so a StrictMode double-run (whose first frame is
+    // cancelled) can't use the intro up without showing it.
+    const id = requestAnimationFrame(() => {
+      markIntroSeen();
+      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) setLoading(true);
+    });
+    return () => cancelAnimationFrame(id);
     // Hard loads only: later client-side navigations must not replay it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 00 → 100, the wordmark rises, then the curtain lifts off the page.
+  useGSAP(
+    () => {
+      if (!loading || !curtain.current) return;
+      const q = gsap.utils.selector(curtain);
+      const n = { v: 0 };
+      gsap
+        .timeline({ onComplete: () => setLoading(false) })
+        .fromTo(q("[data-intro-word]"), { yPercent: 110 }, { yPercent: 0, duration: 0.9, ease: "expo.out", stagger: 0.06 }, 0)
+        .to(n, { v: 100, duration: LOADER_DURATION_MS / 1000 - 0.6, ease: "power2.inOut", onUpdate: () => { if (count.current) count.current.textContent = String(Math.round(n.v)).padStart(2, "0"); } }, 0)
+        .fromTo(q("[data-intro-bar]"), { scaleX: 0 }, { scaleX: 1, duration: LOADER_DURATION_MS / 1000 - 0.6, ease: "power2.inOut" }, 0)
+        .to(q("[data-intro-inner]"), { yPercent: -30, opacity: 0, duration: 0.5, ease: "expo.in" })
+        .to(curtain.current, { clipPath: "inset(0 0 100% 0)", duration: 0.8, ease: "expo.inOut" }, "-=0.25");
+    },
+    { dependencies: [loading] },
+  );
+
   return (
     <>
-      <AnimatePresence mode="wait">
-        {loading && (
-          <motion.div
-            key="loader"
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden select-none"
-            style={{ background: "var(--jcc-bg)" }}
-          >
-            <motion.img
-              src="/jcc_logo.png"
-              alt="Jaipur Cricket Circle"
-              width={280}
-              height={280}
-              className="object-contain"
-              style={{
-                width: 280,
-                height: 280,
-                filter:
-                  "drop-shadow(0 6px 22px color-mix(in srgb, var(--jcc-accent) 35%, transparent))",
-              }}
-              initial={{ scale: 0.6, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
-            />
-
-            {/* JCC — gold, luxury display serif */}
-            <motion.span
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.12, duration: 0.4 }}
-              style={{
-                marginTop: 14,
-                fontFamily: "var(--font-heading)",
-                fontWeight: 700,
-                fontSize: "2.75rem",
-                letterSpacing: "0.08em",
-                color: "var(--jcc-accent)",
-              }}
-            >
-              JCC
-            </motion.span>
-
-            {/* Glowing progress bar, timed to the loader's full duration */}
-            <div
-              className="mt-8"
-              style={{
-                width: 160,
-                height: 2,
-                borderRadius: 2,
-                background: "var(--jcc-border)",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  height: "100%",
-                  borderRadius: 2,
-                  background:
-                    "linear-gradient(90deg, var(--jcc-accent), var(--jcc-gold))",
-                  boxShadow: "0 0 10px var(--jcc-accent)",
-                  transformOrigin: "left",
-                  animation: `loader-progress ${LOADER_DURATION_MS}ms linear forwards`,
-                }}
-              />
+      {loading && (
+        <div
+          ref={curtain}
+          className="theme-static-dark fixed inset-0 z-[100] flex select-none items-end overflow-hidden bg-[#0B1424] px-5 pb-10 md:px-10 md:pb-14"
+          style={{ clipPath: "inset(0 0 0% 0)" }}
+        >
+          <div aria-hidden className="pitch-grid absolute inset-0" />
+          <div data-intro-inner className="relative w-full">
+            <div className="flex items-end justify-between gap-6">
+              <div>
+                <img src="/jcc_logo.png" alt="" width={120} height={120} className="h-16 w-16 object-contain md:h-24 md:w-24" />
+                <p className="mt-6 overflow-hidden font-heading text-4xl font-extrabold leading-none tracking-[-0.05em] text-white md:text-7xl">
+                  <span data-intro-word className="inline-block">Every&nbsp;ball,</span>{" "}
+                  <span data-intro-word className="inline-block text-white/40">counted.</span>
+                </p>
+              </div>
+              <span ref={count} className="font-heading text-[22vw] font-extrabold leading-[0.75] tracking-[-0.05em] tabular-nums text-gold-foil md:text-[14vw]">
+                00
+              </span>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <div className="mt-8 h-px w-full bg-white/10">
+              <div data-intro-bar className="h-full origin-left bg-jcc-accent" />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Content renders immediately at full opacity so the LCP element paints
-          right away — the intro overlay simply sits on top and fades out. */}
+          right away — the intro overlay simply sits on top and lifts away. */}
       {children}
     </>
   );

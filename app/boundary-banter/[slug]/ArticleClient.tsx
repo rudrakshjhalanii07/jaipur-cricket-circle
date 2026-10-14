@@ -7,7 +7,9 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
+import { articleCover } from "@/lib/article-covers";
 import remarkGfm from "remark-gfm";
+import { SectionShare } from "@/app/stats/SectionShare";
 
 interface Article {
   id: string;
@@ -53,7 +55,8 @@ export default function ArticleClient({ slug }: { slug: string }) {
           ...data,
           isDb: true,
           date: data.match_date || data.published_at || data.created_at,
-          coverImage: data.cover_image_url
+          // Stock cricket photography only — see lib/article-covers.ts.
+          coverImage: articleCover(slug),
         });
       }
     } catch (err) {
@@ -133,6 +136,34 @@ export default function ArticleClient({ slug }: { slug: string }) {
             <span className="px-3 py-1 bg-jcc-accent/10 text-jcc-accent text-[10px] font-black uppercase tracking-widest rounded-sm border border-jcc-accent/20">
               {post.tone || "Sarcastic Investigative Report"}
             </span>
+            <SectionShare
+              dark
+              label="Share"
+              className="ml-auto"
+              fileBase={`jcc-banter-${post.slug}`}
+              build={() => [
+                {
+                  id: post.slug,
+                  label: "Article",
+                  text: `${post.title}\n${post.subtitle || post.excerpt}\n${window.location.href}`,
+                  spec: {
+                    kicker: `Boundary Banter · ${post.category}`,
+                    title: post.title,
+                    body: post.subtitle || post.excerpt,
+                    // The cover photo fills the top; the card isn't about one person.
+                    person: post.coverImage ? { name: post.title, photo: post.coverImage } : null,
+                    facts: [
+                      { label: "Editor", value: post.editor_name || "Boundary Desk" },
+                      { label: "Reporter", value: post.reporter_alias || "Anonymous Source" },
+                      { label: "Date", value: new Date(post.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) },
+                    ],
+                    byline: "Boundary Banter",
+                    team: post.tone || "Jaipur Cricket Circle",
+                    footer: `${window.location.host}/boundary-banter`,
+                  },
+                },
+              ]}
+            />
           </div>
 
           <h1 className="text-4xl sm:text-5xl md:text-7xl font-black text-white leading-[1.05] mb-8 news-headline tracking-tight uppercase">

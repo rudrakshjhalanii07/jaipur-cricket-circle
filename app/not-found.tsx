@@ -1,358 +1,89 @@
 "use client";
 
-import { useState, useEffect } from "react";
+// 404: stumped. The ball comes in, the bails fly, the scoreboard reads 404.
+// Tap the stumps to bowl again.
+
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
-import { Home, Trophy, UserPlus, RefreshCw } from "lucide-react";
-import { SMOOTH_EASE, fadeUp, scaleIn, staggerContainer } from "@/lib/animations";
+import { ArrowUpRight } from "lucide-react";
+import Magnetic from "@/components/motion/Magnetic";
+import { gsap, useGSAP, reduceMotion } from "@/components/motion/gsap";
 
 export default function NotFound() {
-  const [isHit, setIsHit] = useState(false);
-  const [triggerCount, setTriggerCount] = useState(0);
+  const root = useRef<HTMLElement>(null);
+  const [take, setTake] = useState(0);
 
-  // Trigger the bowling animation shortly after mounting
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsHit(true);
-    }, 600);
-    return () => clearTimeout(timer);
-  }, [triggerCount]);
-
-  const handleResetAnimation = () => {
-    setIsHit(false);
-    // Tiny delay before starting the next animation to allow the reset state to take effect
-    setTimeout(() => {
-      setTriggerCount((prev) => prev + 1);
-    }, 100);
-  };
+  useGSAP(
+    () => {
+      const q = gsap.utils.selector(root);
+      if (reduceMotion()) return;
+      gsap
+        .timeline()
+        .set(q("[data-bail]"), { x: 0, y: 0, rotate: 0, opacity: 1 })
+        .fromTo(q("[data-ball]"), { x: -420, y: -160, opacity: 0, rotate: -360 }, { x: 0, y: 0, opacity: 1, rotate: 0, duration: 0.7, ease: "power2.in" })
+        .to(q("[data-stumps]"), { x: 6, duration: 0.06, yoyo: true, repeat: 3, ease: "none" })
+        .to(q("[data-bail='l']"), { x: -90, y: -140, rotate: -260, duration: 0.9, ease: "power3.out" }, "<")
+        .to(q("[data-bail='r']"), { x: 110, y: -170, rotate: 300, duration: 0.9, ease: "power3.out" }, "<")
+        .to(q("[data-bail]"), { y: 60, opacity: 0, duration: 0.6, ease: "power2.in" })
+        .to(q("[data-ball]"), { x: 160, y: 30, opacity: 0, duration: 0.6, ease: "power2.out" }, "<-0.5")
+        .fromTo(q("[data-digit]"), { yPercent: 110 }, { yPercent: 0, duration: 1, ease: "expo.out", stagger: 0.08 }, take ? 0.6 : 0.5);
+    },
+    { scope: root, dependencies: [take] },
+  );
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-start page-top pb-20 overflow-hidden px-4 sm:px-6 lg:px-8 bg-jcc-bg">
-      {/* Stadium ambient light effect */}
-      <div className="stadium-glow opacity-60 pointer-events-none" />
-      
-      {/* Interactive lighting sweeps */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-jcc-accent/10 rounded-full blur-[120px] animate-stadium-sweep-left" />
-        <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-jcc-accent/5 rounded-full blur-[120px] animate-stadium-sweep-right" />
-        
-        {/* Subtle glowing ray lines */}
-        <div className="light-ray left-1/3 bg-gradient-to-b from-jcc-accent/20 to-transparent h-full w-[2px] opacity-20" />
-        <div className="light-ray left-2/3 bg-gradient-to-b from-jcc-accent/20 to-transparent h-full w-[2px] opacity-20" style={{ animationDelay: "4s" }} />
-      </div>
-
-      {/* Grid Pattern overlay */}
-      <div className="absolute inset-0 dot-pattern opacity-[0.06] pointer-events-none" />
-      <div className="absolute inset-0 noise-overlay opacity-[0.04] pointer-events-none" />
-
-      <motion.div 
-        variants={staggerContainer}
-        initial="hidden"
-        animate="visible"
-        className="relative z-10 w-full max-w-4xl mx-auto text-center flex flex-col items-center"
-      >
-        {/* Flag Tag */}
-        <motion.div 
-          variants={fadeUp}
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-jcc-ball-red/20 bg-jcc-ball-red/5 backdrop-blur-md mb-6"
-        >
-          <span className="w-2 h-2 rounded-full bg-jcc-ball-red animate-live-blink" />
-          <span className="text-[10px] font-black uppercase tracking-widest text-jcc-ball-red">CREASE VIOLATION — OUT!</span>
-        </motion.div>
-
-        {/* Big Bold Headline */}
-        <motion.h1 
-          variants={fadeUp}
-          className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight text-white mb-4 leading-none uppercase"
-        >
-          CLEAN <span className="text-gradient-red">BOWLED!</span>
-        </motion.h1>
-
-        {/* Sports Scoreboard Decision Container */}
-        <motion.div
-          variants={scaleIn}
-          className="w-full max-w-md bg-jcc-navy/60 border border-white/10 backdrop-blur-2xl rounded-2xl p-6 mb-8 shadow-2xl relative overflow-hidden card-shimmer"
-        >
-          {/* Neon digital screen headers */}
-          <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-white/40 border-b border-white/5 pb-3 mb-4">
-            <span>DECISION SYSTEM</span>
-            <span className="text-jcc-accent">DRS v1.0</span>
+    <main ref={root} className="theme-static-dark print-grain relative flex min-h-svh items-center overflow-hidden bg-[#0B1424] px-5 py-32 md:px-10">
+      <div aria-hidden className="pitch-grid absolute inset-0" />
+      <div aria-hidden className="pointer-events-none absolute -right-40 -top-40 h-[34rem] w-[34rem] rounded-full bg-jcc-accent/15 blur-[140px]" />
+      <div className="relative mx-auto grid w-full max-w-[88rem] items-center gap-16 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+        <div>
+          <p className="kicker text-jcc-accent">Error 404 · Out, stumped</p>
+          <p aria-hidden className="mt-6 flex overflow-hidden font-heading text-[clamp(7rem,24vw,22rem)] font-extrabold leading-[0.78] tracking-[-0.08em]">
+            {["4", "0", "4"].map((d, i) => (
+              <span key={i} data-digit className={i === 1 ? "text-outline text-white/60" : "text-gold-foil"}>
+                {d}
+              </span>
+            ))}
+          </p>
+          <h1 className="mt-8 font-heading text-4xl font-extrabold leading-[0.95] tracking-[-0.05em] text-white md:text-6xl">
+            Stumped. This page has walked off.
+          </h1>
+          <p className="mt-5 max-w-lg text-lg leading-relaxed text-white/65">
+            It isn&apos;t on the scorecard. The numbers you&apos;re after are probably in the stats.
+          </p>
+          <div className="mt-10 flex flex-wrap gap-4">
+            <Magnetic>
+              <Link href="/stats" className="btn-gold group">
+                Enter the stats
+                <ArrowUpRight className="h-4 w-4 transition-transform group-hover:rotate-45" />
+              </Link>
+            </Magnetic>
+            <Magnetic strength={0.25}>
+              <Link href="/" className="btn-ghost">
+                Back to home
+              </Link>
+            </Magnetic>
           </div>
+        </div>
 
-          <div className="space-y-4">
-            {/* Blinking decision light box */}
-            <div className="theme-static-dark bg-[#050E17] border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center relative overflow-hidden min-h-[90px]">
-              <AnimatePresence mode="wait">
-                {isHit ? (
-                  <motion.div
-                    key="decision-out"
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.8, opacity: 0 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                    className="flex flex-col items-center"
-                  >
-                    <span className="text-4xl md:text-5xl font-black text-jcc-ball-red tracking-wider font-[var(--font-heading)] animate-pulse">
-                      OUT
-                    </span>
-                    <span className="text-[9px] font-black tracking-widest text-white/50 uppercase mt-1">
-                      Wickets Broken
-                    </span>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="decision-checking"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="flex flex-col items-center"
-                  >
-                    <span className="text-xl md:text-2xl font-black text-jcc-gold tracking-widest font-[var(--font-heading)] uppercase animate-pulse">
-                      CHECKING...
-                    </span>
-                    <span className="text-[9px] font-black tracking-widest text-white/40 uppercase mt-1">
-                      Analyzing Crease
-                    </span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Scorecard data row */}
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="bg-white/5 rounded-xl p-3 border border-white/5">
-                <div className="text-[8px] font-bold text-white/40 uppercase tracking-wider mb-0.5">Decision</div>
-                <div className="text-xs font-black text-white font-mono uppercase">DRS OUT</div>
-              </div>
-              <div className="bg-white/5 rounded-xl p-3 border border-white/5">
-                <div className="text-[8px] font-bold text-white/40 uppercase tracking-wider mb-0.5">Error Code</div>
-                <div className="text-xs font-black text-jcc-accent font-mono">404</div>
-              </div>
-              <div className="bg-white/5 rounded-xl p-3 border border-white/5">
-                <div className="text-[8px] font-bold text-white/40 uppercase tracking-wider mb-0.5">Delivery</div>
-                <div className="text-xs font-black text-jcc-green font-mono">148.5 KMH</div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Dynamic Stumps and Ball SVG Container */}
-        <motion.div 
-          variants={fadeUp}
-          className="relative w-full max-w-sm h-52 bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex items-center justify-center mb-8 backdrop-blur-sm group hover:border-jcc-accent/20 transition-colors duration-300"
-        >
-          {/* Interactive replay button floating inside */}
-          <button 
-            onClick={handleResetAnimation}
-            className="absolute top-3 right-3 p-2 bg-white/5 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-all border border-white/5 hover:border-white/10 z-20 group-hover:scale-105 active:scale-95"
-            title="Bowl again"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${!isHit ? "animate-spin" : ""}`} />
-          </button>
-
-          <svg 
-            width="280" 
-            height="160" 
-            viewBox="0 0 280 160" 
-            className="overflow-visible select-none"
-          >
-            <defs>
-              {/* Ball glowing red filter */}
-              <filter id="ball-glow" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="6" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-              
-              {/* Cyber stump glowing cyan filter */}
-              <filter id="cyber-glow" x="-30%" y="-30%" width="160%" height="160%">
-                <feGaussianBlur stdDeviation="2" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-
-            {/* Crease line (crease marking) */}
-            <line x1="20" y1="140" x2="260" y2="140" stroke="rgba(255,255,255,0.2)" strokeWidth="3" strokeLinecap="round" />
-            <text x="35" y="152" fill="rgba(255,255,255,0.25)" className="text-[8px] font-black uppercase tracking-widest font-mono">POPPING CREASE</text>
-
-            {/* Wickets & Stumps with Framer Motion animations */}
-            
-            {/* Left Stump */}
-            <motion.rect
-              width="8"
-              height="80"
-              rx="3"
-              fill="#14B8FF"
-              filter="url(#cyber-glow)"
-              style={{ originX: "114px", originY: "140px" }}
-              animate={isHit ? {
-                x: 110,
-                y: 60,
-                rotate: -22,
-                opacity: 0.9,
-              } : {
-                x: 110,
-                y: 60,
-                rotate: 0,
-                opacity: 0.8,
-              }}
-              transition={{ type: "spring", stiffness: 120, damping: 15 }}
-            />
-
-            {/* Middle Stump (Direct impact) */}
-            <motion.rect
-              width="8"
-              height="80"
-              rx="3"
-              fill="#14B8FF"
-              filter="url(#cyber-glow)"
-              style={{ originX: "136px", originY: "140px" }}
-              animate={isHit ? {
-                x: 136,
-                y: 64,
-                rotate: 8,
-                opacity: 0.9,
-              } : {
-                x: 136,
-                y: 60,
-                rotate: 0,
-                opacity: 0.8,
-              }}
-              transition={{ type: "spring", stiffness: 150, damping: 10 }}
-            />
-
-            {/* Right Stump */}
-            <motion.rect
-              width="8"
-              height="80"
-              rx="3"
-              fill="#14B8FF"
-              filter="url(#cyber-glow)"
-              style={{ originX: "162px", originY: "140px" }}
-              animate={isHit ? {
-                x: 162,
-                y: 60,
-                rotate: 26,
-                opacity: 0.9,
-              } : {
-                x: 162,
-                y: 60,
-                rotate: 0,
-                opacity: 0.8,
-              }}
-              transition={{ type: "spring", stiffness: 100, damping: 12 }}
-            />
-
-            {/* Bails */}
-            {/* Left Bail */}
-            <motion.rect
-              width="26"
-              height="4"
-              rx="1"
-              fill="#FFD700"
-              animate={isHit ? {
-                x: 95,
-                y: 10,
-                rotate: -130,
-                opacity: 0,
-              } : {
-                x: 111,
-                y: 56,
-                rotate: 0,
-                opacity: 1,
-              }}
-              transition={{ duration: 0.6, ease: SMOOTH_EASE }}
-            />
-
-            {/* Right Bail */}
-            <motion.rect
-              width="26"
-              height="4"
-              rx="1"
-              fill="#FFD700"
-              animate={isHit ? {
-                x: 185,
-                y: 20,
-                rotate: 150,
-                opacity: 0,
-              } : {
-                x: 137,
-                y: 56,
-                rotate: 0,
-                opacity: 1,
-              }}
-              transition={{ duration: 0.6, ease: SMOOTH_EASE }}
-            />
-
-            {/* Glowing Ball */}
-            <motion.circle
-              r="9"
-              fill="#FF4D4D"
-              filter="url(#ball-glow)"
-              animate={isHit ? {
-                cx: [10, 140, 195],
-                cy: [140, 68, 40],
-                opacity: [0, 1, 0],
-              } : {
-                cx: 10,
-                cy: 140,
-                opacity: 0,
-              }}
-              transition={{ 
-                duration: 0.8, 
-                times: [0, 0.6, 1],
-                ease: "easeOut"
-              }}
-            />
-
-            {/* Ground Stand */}
-            <rect x="94" y="139" width="92" height="4" fill="rgba(255,255,255,0.1)" rx="2" />
+        <button type="button" onClick={() => setTake((t) => t + 1)} aria-label="Bowl again" className="relative mx-auto h-80 w-64 cursor-pointer">
+          <svg viewBox="0 0 200 260" className="absolute inset-0 h-full w-full overflow-visible" aria-hidden>
+            <ellipse cx="100" cy="250" rx="90" ry="8" fill="rgba(255,255,255,0.06)" />
+            <g data-stumps>
+              {[62, 100, 138].map((x) => (
+                <rect key={x} x={x - 5} y={60} width="10" height="190" rx="4" fill="#F7F5EF" />
+              ))}
+            </g>
+            <rect data-bail="l" x="58" y="50" width="44" height="8" rx="4" fill="#D4AF37" style={{ transformBox: "fill-box", transformOrigin: "center" }} />
+            <rect data-bail="r" x="98" y="50" width="44" height="8" rx="4" fill="#D4AF37" style={{ transformBox: "fill-box", transformOrigin: "center" }} />
+            <g data-ball style={{ transformBox: "fill-box", transformOrigin: "center" }}>
+              <circle cx="100" cy="200" r="16" fill="#A3262A" />
+              <path d="M 88 190 C 96 198, 96 206, 88 214 M 112 190 C 104 198, 104 206, 112 214" stroke="#F3C96A" strokeWidth="1.5" fill="none" strokeDasharray="2 3" />
+            </g>
           </svg>
-        </motion.div>
-
-        {/* Interactive instruction caption */}
-        <motion.div
-          variants={fadeUp}
-          className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-6 flex items-center gap-1.5"
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-jcc-accent animate-pulse" />
-          <span>{isHit ? "Click the refresh icon on the card to bowl again" : "Preparing delivery..."}</span>
-        </motion.div>
-
-        {/* Dynamic fun warning copy */}
-        <motion.p 
-          variants={fadeUp}
-          className="text-base sm:text-lg text-jcc-text-muted max-w-lg mb-10 leading-relaxed"
-        >
-          Howzat! You&rsquo;ve wandered way outside the crease, and the bails are off. This page is not in our playbook and has been retired back to the pavilion.
-        </motion.p>
-
-        {/* Action Button Navigation Pathways */}
-        <motion.div 
-          variants={fadeUp}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full px-4"
-        >
-          <Link href="/" className="btn-vibrant-blue w-full sm:w-auto min-w-[200px]">
-            <Home className="w-4 h-4" />
-            <span>Return to Crease</span>
-          </Link>
-          
-          <Link href="/seasons" className="btn-ghost w-full sm:w-auto min-w-[200px]">
-            <Trophy className="w-4 h-4" />
-            <span>Season Hub</span>
-          </Link>
-          
-          <Link href="/register" className="btn-ghost w-full sm:w-auto min-w-[200px]">
-            <UserPlus className="w-4 h-4" />
-            <span>Register Now</span>
-          </Link>
-        </motion.div>
-      </motion.div>
-    </div>
+          <span className="kicker absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-white/45">Tap to bowl again</span>
+        </button>
+      </div>
+    </main>
   );
 }

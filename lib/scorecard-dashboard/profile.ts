@@ -1076,7 +1076,16 @@ export type AttendanceRow = Attendance & { p: number; teams: string[] };
 export type ChanceRow = Chances & { p: number; team: string; sr: number | null; econ: number | null; balls: number; bowlBalls: number };
 export type DnaRow = { p: number; team: string; role: PlayerAgg["role"]; tags: string[] };
 
+// Memoised per CardData and season set, like getScope: the stats page asks
+// for the same insights from several sections at once.
+const insightsCache = new WeakMap<CardData, Map<string, ReturnType<typeof computeLeagueInsights>>>();
 export function leagueInsights(d: CardData, seasons: number[]) {
+  const k = seasons.join(",");
+  const byData = insightsCache.get(d) ?? insightsCache.set(d, new Map()).get(d)!;
+  return byData.get(k) ?? byData.set(k, computeLeagueInsights(d, seasons)).get(k)!;
+}
+
+function computeLeagueInsights(d: CardData, seasons: number[]) {
   const S = getScope(d, seasons);
   const M = d.matches;
   const ps = [...S.players.values()].filter((x) => x.matches > 0);

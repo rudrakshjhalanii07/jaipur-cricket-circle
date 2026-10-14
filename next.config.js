@@ -27,6 +27,13 @@ const nextConfig = {
     return [
       { source: "/chewvana-times", destination: "/boundary-banter", permanent: true },
       { source: "/chewvana-times/:slug*", destination: "/boundary-banter/:slug*", permanent: true },
+      // /seasons was replaced by /stats; the old preview URL went the same way.
+      { source: "/seasons", destination: "/stats", permanent: true },
+      { source: "/seasons/:path*", destination: "/stats", permanent: true },
+      { source: "/stats-preview", destination: "/stats", permanent: true },
+      // Hidden for now — temporary, so browsers don't remember it once they're back.
+      { source: "/toss", destination: "/", permanent: false },
+      { source: "/register", destination: "/", permanent: false },
     ];
   },
   images: {

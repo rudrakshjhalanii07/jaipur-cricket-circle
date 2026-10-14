@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { refreshScorecards } from "@/lib/scorecards-cache";
 import { buildDashboardMatches, type DashboardMatch } from "@/lib/scorecard-dashboard/series-sync";
 
-// Copies the CricHeroes matches behind /stats-preview into a season's fixtures,
-// so /seasons (which reads the database) shows them too. The export is the
+// Copies the CricHeroes matches behind /stats into a season's fixtures, so the
+// database holds them too. The export is the
 // standard: with overwrite, a fixture that already has a scorecard is rewritten
 // from it.
 //
@@ -223,7 +223,7 @@ export async function POST(request: Request) {
       if (error) row.detail = error.message;
     }
 
-    if (apply && rows.some((r) => r.status === "saved")) revalidatePath("/", "layout");
+    if (apply && rows.some((r) => r.status === "saved")) refreshScorecards();
 
     // Database matches of this season the export doesn't have — left alone.
     const untouched = fixtures

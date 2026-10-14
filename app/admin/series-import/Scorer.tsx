@@ -73,7 +73,14 @@ export default function Scorer({
     override && override.at === events.length
       ? override
       : { striker: s.striker ?? "", nonStriker: s.nonStriker ?? "", bowler: s.bowler ?? "" };
-  const { striker, nonStriker, bowler } = crease;
+  // Last man stands: with one batter left, they bat on alone — no
+  // non-striker, and they keep the strike.
+  const outNames = new Set(s.batters.filter((b) => b.out).map((b) => b.name));
+  const available = battingSquad.filter((p) => !outNames.has(p));
+  const alone = !!limits.lastManStands && available.length === 1;
+  const striker = alone ? available[0] : crease.striker;
+  const nonStriker = alone ? "" : crease.nonStriker;
+  const { bowler } = crease;
   const setCrease = (p: Partial<typeof crease>) => setOverride({ ...crease, ...p, at: events.length });
   const setStriker = (v: string) => setCrease({ striker: v });
   const setNonStriker = (v: string) => setCrease({ nonStriker: v });
@@ -82,9 +89,7 @@ export default function Scorer({
   const [extra, setExtra] = useState<Extra | null>(null);
   const [wicket, setWicket] = useState<WicketDraft | null>(null);
 
-  const outNames = new Set(s.batters.filter((b) => b.out).map((b) => b.name));
-  const available = battingSquad.filter((p) => !outNames.has(p));
-  const ready = !!striker && !!nonStriker && !!bowler && striker !== nonStriker && !over;
+  const ready = !!striker && !!bowler && !over && (alone || (!!nonStriker && striker !== nonStriker));
 
   const record = (bat: number, w: BallEvent["wicket"] = null) => {
     if (!ready) return;
@@ -226,6 +231,7 @@ export default function Scorer({
             </div>
             <button
               type="button"
+              disabled={alone}
               onClick={() => setCrease({ striker: nonStriker, nonStriker: striker })}
               title="Swap strike"
               className="btn-ghost h-10 px-3 rounded-xl flex items-center justify-center"
@@ -234,7 +240,13 @@ export default function Scorer({
             </button>
             <div>
               <label className="admin-label">Non-striker</label>
-              {sel(nonStriker, setNonStriker, available.filter((p) => p !== striker), "— New batter —")}
+              {alone ? (
+                <p className="flex h-10 items-center rounded-xl border border-jcc-accent/40 bg-jcc-accent/10 px-3 text-xs font-black uppercase tracking-widest text-jcc-accent-dark">
+                  Last man stands — batting alone
+                </p>
+              ) : (
+                sel(nonStriker, setNonStriker, available.filter((p) => p !== striker), "— New batter —")
+              )}
             </div>
             <div>
               <label className="admin-label">
@@ -312,7 +324,7 @@ export default function Scorer({
                       onChange={(e) => setWicket({ ...wicket, out: e.target.value as WicketDraft["out"] })}
                     >
                       <option value="striker">{striker || "Striker"}</option>
-                      <option value="nonStriker">{nonStriker || "Non-striker"}</option>
+                      {!alone && <option value="nonStriker">{nonStriker || "Non-striker"}</option>}
                     </select>
                   </div>
                 )}
@@ -370,7 +382,7 @@ export default function Scorer({
             )}
             {!ready && (
               <p className="text-xs text-jcc-danger font-bold">
-                {striker && striker === nonStriker ? "Striker and non-striker must be different." : "Pick the striker, non-striker and bowler."}
+                {alone ? "Pick the bowler." : striker && striker === nonStriker ? "Striker and non-striker must be different." : "Pick the striker, non-striker and bowler."}
               </p>
             )}
           </div>

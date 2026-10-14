@@ -16,6 +16,7 @@
 // economy. Standings use the site's points-table rule (points % then NRR).
 
 import { buildCardData } from "@/lib/scorecard-dashboard/compute";
+import { fetchDbOnlyMatches } from "@/lib/scorecard-dashboard/db-matches.server";
 import { manOfTheMatch, ov, type CardData, type CardKind } from "@/lib/scorecard-dashboard/profile";
 
 // ─── Output shapes ───────────────────────────────────────────────────────────
@@ -517,9 +518,8 @@ type Piece = {
   records: string[];
 };
 
-function buildReports(): DayReport[] {
+function buildReports(raw: CardData): DayReport[] {
   // CricHeroes keeps names as typed; "Mahesh kumar" reads as a typo in a headline.
-  const raw = buildCardData();
   const d: CardData = { ...raw, players: raw.players.map((n) => n.replace(/(^|\s)(\p{Ll})/gu, (_, sp, ch) => sp + ch.toUpperCase())) };
   const moms = manOfTheMatch(d);
   const reports: DayReport[] = [];
@@ -952,20 +952,29 @@ function buildReports(): DayReport[] {
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
-let cache: DayReport[] | null = null;
-const all = () => (cache ??= buildReports());
+// Built from the CricHeroes export plus every match scored in the admin since,
+// so a new week gets its report as soon as its matches are saved. The build is
+// memoised on the set of extra matches: the same data never builds twice.
+let memo: { key: string; reports: DayReport[] } | null = null;
 
-export function dayReports(): DayReport[] {
+async function all(): Promise<DayReport[]> {
+  const extra = await fetchDbOnlyMatches();
+  const key = (extra?.matches ?? []).map((m) => m.matchId).join(",");
+  if (memo?.key !== key) memo = { key, reports: buildReports(buildCardData(extra)) };
+  return memo.reports;
+}
+
+export async function dayReports(): Promise<DayReport[]> {
   return all();
 }
 
-export function dayReportBySlug(slug: string): DayReport | null {
-  return all().find((r) => r.slug === slug) ?? null;
+export async function dayReportBySlug(slug: string): Promise<DayReport | null> {
+  return (await all()).find((r) => r.slug === slug) ?? null;
 }
 
 /** Newest first, trimmed to what the listing page renders. */
-export function dayReportPreviews(): DayPreview[] {
-  return [...all()].reverse().map((r) => ({
+export async function dayReportPreviews(): Promise<DayPreview[]> {
+  return [...(await all())].reverse().map((r) => ({
     slug: r.slug, season: r.season, week: r.week, date: r.date, venue: r.venue,
     kicker: r.kicker, headline: r.headline, dek: r.dek,
     matches: r.matches.map((m) => ({

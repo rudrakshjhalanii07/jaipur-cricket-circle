@@ -1,223 +1,230 @@
 "use client";
 
-import { useState, useEffect, useRef, useId } from "react";
+// The site bar: a floating capsule that tucks away as you read down the page
+// and comes back the moment you scroll up. Stats is the headline act, so it
+// gets its own gold pill rather than a place in the link row. On phones the
+// links live in a full-screen menu that deals its items in.
+
+import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X } from "lucide-react";
-import { fadeDown } from "@/lib/animations";
-import LiveTicker, { type TickerMatch } from "./LiveTicker";
+import { ArrowUpRight, UserRound } from "lucide-react";
+import { gsap, useGSAP, reduceMotion } from "@/components/motion/gsap";
 
 const navLinks = [
   { href: "/", label: "Home" },
   { href: "/members", label: "Members" },
   { href: "/boundary-banter", label: "Boundary Banter" },
-  { href: "/seasons", label: "Seasons" },
   { href: "/about", label: "About" },
 ];
+const STATS = { href: "/stats", label: "Stats" };
+const PROFILE = { href: "/profile", label: "Profile" };
+const WHATSAPP_URL = "https://chat.whatsapp.com/LtuFpx2EcKO4E5yZWP8aue?mode=gi_t";
 
-const menuLinks = [
-  { href: "/toss", label: "Toss" },
-  { href: "/register", label: "Register" },
-  { href: "/profile", label: "Profile" },
-];
-
-export default function Navbar({ nextMatch }: { nextMatch: TickerMatch | null }) {
+export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
   const menuId = useId();
-  const panelRef = useRef<HTMLDivElement>(null);
-  const desktopTriggerRef = useRef<HTMLButtonElement>(null);
-  const mobileTriggerRef = useRef<HTMLButtonElement>(null);
+  const overlay = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
 
-  const focusVisibleTrigger = () => {
-    const desktop = desktopTriggerRef.current;
-    const mobile = mobileTriggerRef.current;
-    if (desktop && desktop.offsetParent !== null) desktop.focus();
-    else if (mobile && mobile.offsetParent !== null) mobile.focus();
-  };
+  // /stats has its own sticky section capsule, so the site bar scrolls away
+  // with the page there instead of staying pinned.
+  const pinned = !(pathname === "/stats" || pathname.startsWith("/stats/"));
 
+  // Hide on the way down, show on the way up. One read per frame.
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  // Close whenever the route changes.
-  useEffect(() => {
-    setIsOpen(false);
-  }, [pathname]);
-
-  // Escape to close + return focus to the trigger.
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setIsOpen(false);
-        focusVisibleTrigger();
+    let last = window.scrollY;
+    let frame = 0;
+    const read = () => {
+      frame = 0;
+      const y = window.scrollY;
+      setScrolled(y > 24);
+      if (Math.abs(y - last) > 6) {
+        setHidden(y > last && y > 160);
+        last = y;
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen]);
-
-  // Click/tap outside to close.
-  useEffect(() => {
-    if (!isOpen) return;
-    const handlePointerDown = (e: PointerEvent) => {
-      const target = e.target as Node;
-      if (
-        panelRef.current?.contains(target) ||
-        desktopTriggerRef.current?.contains(target) ||
-        mobileTriggerRef.current?.contains(target)
-      ) return;
-      setIsOpen(false);
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(read);
     };
-    window.addEventListener("pointerdown", handlePointerDown);
-    return () => window.removeEventListener("pointerdown", handlePointerDown);
-  }, [isOpen]);
-
-  // Lock body scroll while the panel is open.
-  useEffect(() => {
-    if (!isOpen) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
-      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  // Close on navigation (deferred a frame, per the project's set-state-in-effect convention).
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setIsOpen(false));
+    return () => cancelAnimationFrame(id);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsOpen(false);
+        trigger.current?.focus();
+      }
+    };
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
     };
   }, [isOpen]);
 
-  const isMenuActive = menuLinks.some((link) => link.href === pathname);
+  // The menu: a curtain drops, then the links rise out of their masks.
+  useGSAP(
+    () => {
+      const el = overlay.current;
+      if (!el) return;
+      const q = gsap.utils.selector(el);
+      if (reduceMotion()) {
+        gsap.set(el, { autoAlpha: isOpen ? 1 : 0, clipPath: "inset(0 0 0% 0)" });
+        return;
+      }
+      if (isOpen) {
+        gsap
+          .timeline()
+          .set(el, { autoAlpha: 1 })
+          .fromTo(el, { clipPath: "inset(0 0 100% 0)" }, { clipPath: "inset(0 0 0% 0)", duration: 0.7, ease: "expo.inOut" })
+          .fromTo(q("[data-menu-link]"), { yPercent: 110 }, { yPercent: 0, duration: 0.9, ease: "expo.out", stagger: 0.06 }, 0.35)
+          .fromTo(q("[data-menu-foot]"), { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.6, ease: "expo.out" }, 0.6);
+      } else {
+        gsap.to(el, { clipPath: "inset(0 0 100% 0)", duration: 0.5, ease: "expo.inOut", onComplete: () => void gsap.set(el, { autoAlpha: 0 }) });
+      }
+    },
+    { dependencies: [isOpen] },
+  );
 
-  // /stats-preview has its own sticky section capsule, so the site bar
-  // scrolls away with the page there instead of staying pinned.
-  const pinned = !pathname.startsWith("/stats-preview");
+  const show = !hidden || isOpen;
 
   return (
-    <motion.nav
-      variants={fadeDown}
-      initial="hidden"
-      animate="visible"
-      className={`${pinned ? "fixed" : "absolute"} top-0 left-0 right-0 z-50 transition-all duration-500 border-b ${scrolled ? "bg-jcc-navy/90 backdrop-blur-xl border-jcc-accent/30 shadow-[0_4px_24px_rgba(18,35,63,0.08)]" : "bg-jcc-navy border-jcc-accent/15"}`}
-    >
-      <LiveTicker match={nextMatch} isNavbarScrolled={scrolled} />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 sm:h-20">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <img src="/jcc_logo.png" alt="JCC Logo" width={96} height={96} fetchPriority="high" className="w-14 h-14 sm:w-16 sm:h-16 object-contain group-hover:scale-110 transition-transform duration-300" />
-            <div className="flex flex-col">
-              <span className="text-sm font-bold italic text-white tracking-wider uppercase" style={{ fontFamily: "var(--font-heading)" }}>Jaipur Cricket Circle</span>
-              <span className="text-[10px] text-white/65 tracking-[0.25em] uppercase leading-none font-bold">Est. 2026</span>
-            </div>
+    <>
+      <nav
+        aria-label="Main"
+        className={`${pinned ? "fixed" : "absolute"} inset-x-0 top-0 z-50 px-3 pt-3 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] sm:px-5 sm:pt-4`}
+        style={{ transform: pinned && !show ? "translateY(-130%)" : undefined }}
+      >
+        <div
+          className={`theme-static-dark mx-auto flex h-14 max-w-[88rem] items-center justify-between gap-3 rounded-full border pl-2 pr-2 transition-[background-color,border-color,box-shadow] duration-500 sm:h-16 sm:pl-3 ${
+            scrolled || !pinned
+              ? "border-white/10 bg-[#0B1424]/85 shadow-[0_20px_50px_-20px_rgba(11,20,36,0.7)] backdrop-blur-xl"
+              : "border-white/10 bg-[#0B1424]/70 backdrop-blur-md"
+          }`}
+        >
+          <Link href="/" className="group flex min-w-0 items-center gap-2.5">
+            <img src="/jcc_logo.png" alt="JCC" width={96} height={96} fetchPriority="high" className="h-10 w-10 object-contain transition-transform duration-500 group-hover:rotate-[-8deg] group-hover:scale-110 sm:h-12 sm:w-12" />
+            <span className="hidden flex-col leading-none sm:flex">
+              <span className="font-heading text-[15px] font-bold tracking-[-0.02em] text-white">Jaipur Cricket Circle</span>
+              <span className="mt-1 font-mono text-[9.5px] uppercase tracking-[0.2em] text-white/50">Est. 2026 · Jaipur</span>
+            </span>
           </Link>
 
-          <div className="hidden md:flex items-center flex-1 justify-evenly mx-6 lg:mx-10">
+          <ul className="hidden items-center gap-1 lg:flex">
             {navLinks.map((link) => {
-              const isActive = pathname === link.href;
+              const active = pathname === link.href;
               return (
-                <Link key={link.href} href={link.href} className={`relative px-5 py-2.5 text-[11px] font-black uppercase tracking-[0.3em] transition-all duration-300 rounded-xl group ${isActive ? "text-jcc-accent" : "text-white/60 hover:text-white"}`}>
-                  <span className="relative z-10">{link.label}</span>
-                  {isActive && (
-                    <motion.span
-                      layoutId="nav-active-pill"
-                      className="absolute inset-0 bg-jcc-accent/5 border border-jcc-accent/20 rounded-xl -z-10 shadow-[0_0_20px_rgba(212,175,55,0.15)]"
-                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    />
-                  )}
-                  {!isActive && (
-                    <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-0 h-px bg-jcc-accent group-hover:w-4 transition-all duration-300" />
-                  )}
-                </Link>
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    aria-current={active ? "page" : undefined}
+                    className={`group relative block rounded-full px-4 py-2 text-[13.5px] font-semibold tracking-tight transition-colors duration-300 ${active ? "text-white" : "text-white/60 hover:text-white"}`}
+                  >
+                    <span className="relative block overflow-hidden">
+                      <span className="block transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-y-full">{link.label}</span>
+                      <span aria-hidden className="absolute inset-0 translate-y-full text-jcc-accent transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-y-0">
+                        {link.label}
+                      </span>
+                    </span>
+                    {active && <span className="absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-jcc-accent" />}
+                  </Link>
+                </li>
               );
             })}
-          </div>
+          </ul>
 
-          <div className="hidden md:flex items-center">
+          <div className="flex items-center gap-1.5">
+            <Link
+              href={STATS.href}
+              aria-current={pathname === STATS.href ? "page" : undefined}
+              className="group inline-flex items-center gap-2 rounded-full bg-jcc-accent px-4 py-2.5 text-[13px] font-bold tracking-tight text-[#0B1424] transition-[background-color,transform] duration-300 hover:scale-[1.04] hover:bg-jcc-accent-highlight sm:px-5"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#0B1424] opacity-40" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#0B1424]" />
+              </span>
+              {STATS.label}
+              <ArrowUpRight className="hidden h-3.5 w-3.5 transition-transform duration-300 group-hover:rotate-45 sm:block" />
+            </Link>
+            <Link
+              href={PROFILE.href}
+              aria-label="Profile"
+              aria-current={pathname === PROFILE.href ? "page" : undefined}
+              className={`grid h-10 w-10 place-items-center rounded-full border transition-colors duration-300 sm:h-11 sm:w-11 ${
+                pathname === PROFILE.href ? "border-jcc-accent text-jcc-accent" : "border-white/15 text-white/75 hover:border-jcc-accent hover:text-jcc-accent"
+              }`}
+            >
+              <UserRound className="h-4 w-4" />
+            </Link>
             <button
-              ref={desktopTriggerRef}
-              onClick={() => setIsOpen((prev) => !prev)}
+              ref={trigger}
+              type="button"
+              onClick={() => setIsOpen((v) => !v)}
               aria-expanded={isOpen}
               aria-controls={menuId}
               aria-label={isOpen ? "Close menu" : "Open menu"}
-              className={`relative flex items-center justify-center w-10 h-10 rounded-xl border transition-all duration-300 ${isOpen || isMenuActive ? "text-jcc-accent bg-jcc-accent/5 border-jcc-accent/20" : "text-white/60 hover:text-white border-white/10 hover:border-white/20"}`}
+              className="relative grid h-10 w-10 place-items-center rounded-full border border-white/15 text-white lg:hidden sm:h-11 sm:w-11"
             >
-              <AnimatePresence mode="wait" initial={false}>
-                {isOpen ? (
-                  <motion.div key="close" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.2 }}><X className="w-5 h-5" /></motion.div>
-                ) : (
-                  <motion.div key="menu" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.2 }}><Menu className="w-5 h-5" /></motion.div>
-                )}
-              </AnimatePresence>
-              {isMenuActive && !isOpen && (
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-jcc-accent shadow-[0_0_8px_rgba(212,175,55,0.6)]" />
-              )}
+              <span className={`absolute h-[1.5px] w-4 bg-current transition-transform duration-500 ${isOpen ? "rotate-45" : "-translate-y-[4px]"}`} />
+              <span className={`absolute h-[1.5px] w-4 bg-current transition-transform duration-500 ${isOpen ? "-rotate-45" : "translate-y-[4px]"}`} />
             </button>
           </div>
+        </div>
+      </nav>
 
-          <button
-            ref={mobileTriggerRef}
-            onClick={() => setIsOpen((prev) => !prev)}
-            aria-expanded={isOpen}
-            aria-controls={menuId}
-            aria-label={isOpen ? "Close menu" : "Open menu"}
-            className="md:hidden relative p-2 text-white/70 hover:text-white transition-colors"
-          >
-            <AnimatePresence mode="wait" initial={false}>
-              {isOpen ? (
-                <motion.div key="close" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.2 }}><X className="w-5 h-5" /></motion.div>
-              ) : (
-                <motion.div key="menu" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.2 }}><Menu className="w-5 h-5" /></motion.div>
-              )}
-            </AnimatePresence>
-            {isMenuActive && !isOpen && (
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-jcc-accent shadow-[0_0_8px_rgba(212,175,55,0.6)]" />
-            )}
-          </button>
+      <div
+        id={menuId}
+        ref={overlay}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menu"
+        className="theme-static-dark fixed inset-0 z-40 flex flex-col overflow-y-auto bg-[#0B1424] px-6 pb-10 pt-28 lg:hidden"
+        style={{ visibility: "hidden", clipPath: "inset(0 0 100% 0)" }}
+      >
+        <div aria-hidden className="pitch-grid absolute inset-0" />
+        <ul className="relative space-y-1">
+          {[...navLinks, STATS, PROFILE].map((link, i) => {
+            const active = pathname === link.href;
+            return (
+              <li key={link.href} className="overflow-hidden">
+                <Link
+                  data-menu-link
+                  href={link.href}
+                  onClick={() => setIsOpen(false)}
+                  className={`flex items-baseline gap-4 py-1 font-heading text-5xl font-extrabold tracking-[-0.05em] sm:text-6xl ${active ? "text-jcc-accent" : "text-white"}`}
+                >
+                  <span className="font-mono text-xs font-medium tracking-normal text-white/40">{String(i + 1).padStart(2, "0")}</span>
+                  {link.label}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+        <div data-menu-foot className="relative mt-auto flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6">
+          <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="kicker text-white/70 hover:text-jcc-accent">
+            WhatsApp group ↗
+          </a>
+          <span className="kicker text-white/40">Every ball, counted.</span>
         </div>
       </div>
-
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            id={menuId}
-            ref={panelRef}
-            role="menu"
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute inset-x-0 top-full md:inset-x-auto md:right-4 lg:right-8 md:top-[calc(100%+0.5rem)] md:w-80 bg-jcc-navy/98 md:bg-jcc-navy backdrop-blur-2xl border-b md:border border-white/10 md:rounded-2xl md:shadow-[0_16px_48px_-8px_rgba(18,35,63,0.25)] max-h-[calc(100vh-4rem)] overflow-y-auto"
-          >
-            <div className="px-4 py-6 md:p-3 space-y-1">
-              {/* Primary links duplicate here only for small screens, where the top bar hides them. */}
-              <div className="md:hidden space-y-1 pb-3 mb-3 border-b border-white/10">
-                {navLinks.map((link, i) => {
-                  const isActive = pathname === link.href;
-                  return (
-                    <motion.div key={link.href} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03, duration: 0.3 }}>
-                      <Link href={link.href} role="menuitem" onClick={() => setIsOpen(false)} className={`flex items-center gap-3 px-4 py-4 rounded-xl text-[13px] font-black uppercase tracking-widest transition-all duration-200 ${isActive ? "text-jcc-accent bg-white/[0.05] border border-white/10" : "text-white/60 hover:text-white hover:bg-white/[0.03]"}`}>
-                        {link.label}
-                      </Link>
-                    </motion.div>
-                  );
-                })}
-              </div>
-
-              {menuLinks.map((link, i) => {
-                const isActive = pathname === link.href;
-                return (
-                  <motion.div key={link.href} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: (i + navLinks.length) * 0.03, duration: 0.3 }}>
-                    <Link href={link.href} role="menuitem" onClick={() => setIsOpen(false)} className={`flex items-center gap-3 px-4 py-4 md:py-3 rounded-xl text-[13px] font-black uppercase tracking-widest transition-all duration-200 ${isActive ? "text-jcc-accent bg-jcc-accent/5 border border-jcc-accent/20" : "text-white/60 hover:text-white hover:bg-white/[0.03]"}`}>
-                      {link.label}
-                    </Link>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.nav>
+    </>
   );
 }

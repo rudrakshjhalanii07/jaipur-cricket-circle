@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { canonicalPlayerName, canonicalNamesInText } from "@/lib/player-names";
+import { refreshScorecards } from "@/lib/scorecards-cache";
 
 interface NewSeriesInput {
   name: string;
@@ -129,6 +130,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Failed to save match", detail: error?.message }, { status: 500 });
     }
 
+    // /stats, the matchday reports and the home page all read scorecards.
+    refreshScorecards();
     return NextResponse.json({ ok: true, match_id: data.match_id, series_id: data.series_id });
   } catch (err) {
     console.error("series/save error:", err);

@@ -48,7 +48,8 @@ export interface GovernanceFields {
 }
 
 export function getGovernanceRoleLabel(p: GovernanceFields): string {
-  if (p.governance_role === "co-founder") return "Co-Founder";
+  // The DB value is "co-founder"; the club calls every one of them a Founder.
+  if (p.governance_role === "co-founder") return "Founder";
   if (p.governance_role === "permanent-member") return "Permanent Member";
   return "Committee Member";
 }

@@ -39,5 +39,5 @@ export const fetchClubRoster = unstable_cache(
       }));
   },
   ["club-roster-v1"],
-  { revalidate: 300 },
+  { revalidate: 300, tags: ["members"] },
 );

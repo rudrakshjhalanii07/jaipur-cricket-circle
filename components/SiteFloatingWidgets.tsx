@@ -7,7 +7,7 @@
 // /auctionos route, not just the hall.
 
 import { usePathname } from "next/navigation";
-import LazyFloatingMatchButton from "./LazyFloatingMatchButton";
+import type LazyFloatingMatchButton from "./LazyFloatingMatchButton";
 import LazyFloatingWhatsApp from "./LazyFloatingWhatsApp";
 import type { ComponentProps } from "react";
 
@@ -17,10 +17,12 @@ export default function SiteFloatingWidgets(
   const pathname = usePathname();
   if (pathname?.startsWith("/auctionos")) return null;
 
-  return (
-    <>
-      <LazyFloatingMatchButton {...props} />
-      <LazyFloatingWhatsApp />
-    </>
-  );
+  // The match button's panel is all registration, which is hidden for now (see
+  // next.config redirects), so the trophy leads to /stats instead. Swap
+  // FloatingStatsButton back for <LazyFloatingMatchButton {...props} /> when
+  // /register returns.
+  // Stats now has its own gold pill in the navbar, so the floating trophy
+  // (FloatingStatsButton) is parked as well.
+  void props;
+  return <LazyFloatingWhatsApp />;
 }

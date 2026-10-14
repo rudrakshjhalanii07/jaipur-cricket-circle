@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Cormorant_Garamond, IBM_Plex_Mono } from "next/font/google";
+import { Inter, Inter_Tight, Cormorant_Garamond, IBM_Plex_Mono } from "next/font/google";
 import { unstable_cache } from "next/cache";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
@@ -8,10 +8,10 @@ import SiteFloatingWidgets from "@/components/SiteFloatingWidgets";
 import LoaderWrapper from "@/components/LoaderWrapper";
 import PageTransition from "@/components/PageTransition";
 import { Providers } from "@/components/Providers";
-import LazyMotionCanvas from "@/components/LazyMotionCanvas";
 import ScrollSystem from "@/components/ScrollSystem";
 import SectionProgress from "@/components/SectionProgress";
 import DeferredStyles from "@/components/DeferredStyles";
+import Cursor from "@/components/motion/Cursor";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getClubStatistics } from "@/lib/statistics";
 
@@ -57,16 +57,24 @@ const inter = Inter({
   display: "swap",
 });
 
-// High-contrast classical serif for all display type (headlines, match names,
-// tournament/section titles) — the "editorial institution" register. Weights
-// capped at 700 (Cormorant Garamond has no true black); italic is loaded
-// since most headline treatments in the design system are italic.
+// The display face for every headline and big numeral, site-wide: a tight
+// grotesk, first used on /stats and now the whole site's voice.
+const grotesk = Inter_Tight({
+  variable: "--font-grotesk",
+  subsets: ["latin"],
+  weight: ["500", "600", "700", "800"],
+  display: "swap",
+});
+
+// Classical serif, kept only for pull quotes in the club's story (--font-serif).
+// Not preloaded: nothing above the fold uses it.
 const displaySerif = Cormorant_Garamond({
   variable: "--font-display",
   subsets: ["latin"],
-  weight: ["500", "600", "700"],
+  weight: ["500", "600"],
   style: ["normal", "italic"],
   display: "swap",
+  preload: false,
 });
 
 // Mono is only used in below-the-fold tickers/labels — don't preload it so it
@@ -105,7 +113,7 @@ export default async function RootLayout({
     <html
       lang="en"
       data-scroll-behavior="smooth"
-      className={`${inter.variable} ${displaySerif.variable} ${plexMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${grotesk.variable} ${displaySerif.variable} ${plexMono.variable} h-full antialiased`}
     >
       <head>
         {/* Some non-homepage pages still fetch from Supabase client-side.
@@ -117,9 +125,8 @@ export default async function RootLayout({
         <DeferredStyles />
         <Providers>
           <ScrollSystem>
-            <LazyMotionCanvas />
             <LoaderWrapper>
-              <Navbar nextMatch={nextMatch} />
+              <Navbar />
               <main className="flex-1">
                 <PageTransition>{children}</PageTransition>
               </main>
@@ -131,6 +138,7 @@ export default async function RootLayout({
                 stats={{ totalMembers: clubStats.activeMembers, matchesPlayed: clubStats.matchesPlayed }}
               />
               <SectionProgress />
+              <Cursor />
             </LoaderWrapper>
           </ScrollSystem>
         </Providers>

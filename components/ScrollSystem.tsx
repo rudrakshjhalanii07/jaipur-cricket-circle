@@ -3,13 +3,13 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
+// Scroll-past order: analytics straight after home, the club after that.
 export const NAV_ROUTES = [
   { href: "/", label: "Home" },
-  { href: "/boundary-banter", label: "Boundary Banter" },
+  { href: "/stats", label: "Stats" },
   { href: "/members", label: "Members" },
-  { href: "/seasons", label: "Seasons" },
+  { href: "/boundary-banter", label: "Boundary Banter" },
   { href: "/tournament", label: "Tournament" },
-  { href: "/register", label: "Register" },
   { href: "/profile", label: "Profile" },
   { href: "/about", label: "About" },
 ];

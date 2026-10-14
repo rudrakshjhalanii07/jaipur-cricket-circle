@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/expire-past-matches",
       "schedule": "30 18 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-banter",
+      "schedule": "30 3 * * 0"
     }
   ]
 }

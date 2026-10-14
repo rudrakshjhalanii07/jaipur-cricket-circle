@@ -5,6 +5,7 @@ import type { DayMatch, DayReport, ReportInnings } from "@/lib/match-reports";
 import { ov } from "@/lib/scorecard-dashboard/profile";
 import { teamByName } from "@/lib/teams";
 import Jaali from "@/components/Jaali";
+import ReportShare, { ScorecardLink } from "./ReportShare";
 
 const LABEL = "font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-jcc-text-muted";
 
@@ -127,7 +128,7 @@ function Innings({ inn }: { inn: ReportInnings }) {
   );
 }
 
-export default function DayReportView({ report }: { report: DayReport }) {
+export default function DayReportView({ report, photos = {} }: { report: DayReport; photos?: Record<string, string | null> }) {
   const playing = new Set(report.matches.flatMap((m) => m.innings.map((i) => i.team)));
   const seasonHref = `/boundary-banter?season=${report.season}#match-reports`;
 
@@ -135,7 +136,12 @@ export default function DayReportView({ report }: { report: DayReport }) {
     <article className="relative">
       {/* ── Masthead + the day's results ── */}
       <header className="theme-static-dark section-bg-royal page-top relative overflow-hidden pb-14">
-        <Jaali intensity={3} weight={1.6} fade="0.88 0.4" drift={[0.95, 0.15, 0.72, 0.85]} />
+        <Jaali intensity={1.6} weight={1.2} fade="0.92 0.3" drift={[0.95, 0.15, 0.85, 0.6]} />
+        {/* A navy wash under the copy so the lattice never fights the headline or the scores. */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{ background: "linear-gradient(90deg, rgba(13,23,40,0.92) 0%, rgba(13,23,40,0.78) 55%, rgba(13,23,40,0.35) 100%), linear-gradient(0deg, rgba(13,23,40,0.7) 0%, transparent 45%)" }}
+        />
         <div
           className="pointer-events-none absolute -top-24 right-0 h-[420px] w-[620px] max-w-full"
           style={{ background: "radial-gradient(ellipse at top right, rgba(212,175,55,0.16), transparent 65%)" }}
@@ -156,6 +162,7 @@ export default function DayReportView({ report }: { report: DayReport }) {
             <span className={LABEL}>
               Season {report.season} · Week {report.week} · {report.matches.length} {report.matches.length === 1 ? "match" : "matches"}
             </span>
+            <ReportShare report={report} photos={photos} dark className="ml-auto" />
           </div>
 
           <h1 className="max-w-4xl font-heading text-4xl leading-[1.04] tracking-tight text-white sm:text-6xl lg:text-[4.25rem]">
@@ -202,6 +209,10 @@ export default function DayReportView({ report }: { report: DayReport }) {
                   {m.paragraphs.map((p, j) => (
                     <p key={j} className="mb-5 text-[17px] leading-[1.8] text-white/80">{p}</p>
                   ))}
+                  <div className="mb-5 flex flex-wrap items-center gap-2.5">
+                    <ReportShare report={report} photos={photos} match={m.matchNo} />
+                    <ScorecardLink match={m.matchNo} />
+                  </div>
                   {m.potm && (
                     <p className="flex flex-wrap items-center gap-x-2 text-sm text-jcc-text-muted">
                       <Trophy className="h-3.5 w-3.5 text-jcc-accent" />
@@ -299,7 +310,7 @@ export default function DayReportView({ report }: { report: DayReport }) {
           {report.matches.map((m) => {
             const [a, b] = m.innings;
             return (
-              <details key={m.matchNo} className="group border-t border-jcc-border last:border-b">
+              <details key={m.matchNo} id={`scorecard-${m.matchNo}`} className="group scroll-mt-28 border-t border-jcc-border last:border-b">
                 <summary className="flex cursor-pointer list-none items-center gap-4 py-5 [&::-webkit-details-marker]:hidden">
                   <span className="font-mono text-[10.5px] text-jcc-text-muted">M{m.matchNo}</span>
                   <span className="flex-1 font-heading text-lg tracking-tight text-white sm:text-xl">

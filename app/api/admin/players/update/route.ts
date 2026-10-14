@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { refreshMembers } from "@/lib/members-cache";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export async function POST(request: Request) {
@@ -23,6 +24,7 @@ export async function POST(request: Request) {
 
     if (error) throw error;
 
+    refreshMembers();
     return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error("Admin Player Update Error:", error);

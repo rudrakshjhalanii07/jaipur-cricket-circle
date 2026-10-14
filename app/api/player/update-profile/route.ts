@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { profilePayload } from "@/lib/player-profile.server";
 import { decrypt } from "@/lib/auth-crypto";
+import { parseFocus } from "@/lib/photo-focus";
+import { refreshMembers } from "@/lib/members-cache";
 
 export async function POST(request: Request) {
   try {
@@ -47,6 +50,16 @@ export async function POST(request: Request) {
       }
     }
 
+    // Photo framing: validated, or cleared when a new photo arrives unframed.
+    if (updates.image_focus !== undefined) {
+      filteredUpdates.image_focus = updates.image_focus === null ? null : parseFocus(updates.image_focus);
+      if (updates.image_focus !== null && !filteredUpdates.image_focus) {
+        return NextResponse.json({ error: "Invalid photo framing." }, { status: 400 });
+      }
+    } else if (filteredUpdates.image_url !== undefined) {
+      filteredUpdates.image_focus = null;
+    }
+
     if (Object.keys(filteredUpdates).length === 0) {
       return NextResponse.json({ error: "No valid profile update fields provided." }, { status: 400 });
     }
@@ -61,14 +74,23 @@ export async function POST(request: Request) {
     }
 
     // 4. Safely execute update in Supabase players table using the admin client scoped ONLY to the validated playerId
-    const { data: updatedPlayer, error } = await supabaseAdmin
-      .from("players")
-      .update(filteredUpdates)
-      .eq("id", playerId)
-      // select("*") rather than an explicit column list so this keeps working
-      // whether or not supabase/add_governance_fields.sql has been run yet.
-      .select("*")
-      .maybeSingle();
+    const save = (fields: typeof filteredUpdates) =>
+      supabaseAdmin
+        .from("players")
+        .update(fields)
+        .eq("id", playerId)
+        // select("*") rather than an explicit column list so this keeps working
+        // whether or not supabase/add_governance_fields.sql has been run yet.
+        .select("*")
+        .maybeSingle();
+    let { data: updatedPlayer, error } = await save(filteredUpdates);
+    // Before supabase/add_player_image_focus.sql is run there's no image_focus
+    // column: save everything else rather than failing the whole edit.
+    if (error && "image_focus" in filteredUpdates && /image_focus/i.test(error.message)) {
+      const rest = { ...filteredUpdates };
+      delete rest.image_focus;
+      ({ data: updatedPlayer, error } = await save(rest));
+    }
 
     if (error) {
       console.error("Player DB update error:", error);
@@ -79,26 +101,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Target player record not found." }, { status: 404 });
     }
 
-    // 5. Return success and new player state
+    // 5. Return success and new player state; photo changes reach /stats and the home page now.
+    if ("image_url" in filteredUpdates || "image_focus" in filteredUpdates) refreshMembers();
     return NextResponse.json({
       success: true,
-      player: {
-        id: updatedPlayer.id,
-        name: updatedPlayer.name,
-        phone: updatedPlayer.phone,
-        cricket_role: updatedPlayer.cricket_role,
-        batting_style: updatedPlayer.batting_style,
-        bowling_style: updatedPlayer.bowling_style,
-        bio: updatedPlayer.short_bio,
-        image_url: updatedPlayer.image_url,
-        team: updatedPlayer.team,
-        member_tag: updatedPlayer.member_tag,
-        group_role: updatedPlayer.group_role || "member",
-        governance_role: updatedPlayer.governance_role || null,
-        is_core_committee: updatedPlayer.is_core_committee || false,
-        is_exec_committee: updatedPlayer.is_exec_committee || false,
-        approval_status: updatedPlayer.approval_status
-      }
+      // Captaincy from the active season, not the stale group_role.
+      player: await profilePayload(updatedPlayer),
     });
   } catch (error) {
     console.error("Profile update server error:", error);

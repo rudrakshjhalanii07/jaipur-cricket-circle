@@ -18,6 +18,7 @@ import { fetchSeasons, type Season } from "@/lib/seasons";
 import { createRosterMatcher } from "@/lib/club-roster";
 import { AUCTION_SIGNINGS, AUCTION_SEASON } from "@/lib/auction-squads";
 import MembersClient from "./MembersClient";
+import { parseFocus, withFocus } from "@/lib/photo-focus";
 
 export const metadata: Metadata = {
   title: "Members",
@@ -107,7 +108,8 @@ const getMembers = unstable_cache(
             ? getGovernanceRoleLabel(p)
             : getDisplayRole(p.member_tag, groupRole, p.cricket_role),
         tags,
-        image: p.image_url || p.image,
+        // The face position rides along as a URL fragment (lib/photo-focus.ts).
+        image: (p.image_url || p.image) ? withFocus(p.image_url || p.image, parseFocus(p.image_focus)) : p.image_url || p.image,
         cricketRole: p.cricket_role as Member["cricketRole"],
         battingStyle: p.batting_style || "Right-hand bat",
         bowlingStyle: p.bowling_style || "N/A",
@@ -119,7 +121,8 @@ const getMembers = unstable_cache(
     });
   },
   ["members-page-players"],
-  { revalidate: 300 }
+  // Tagged so admin approvals show up at once (lib/members-cache.ts).
+  { revalidate: 300, tags: ["members"] }
 );
 
 /**

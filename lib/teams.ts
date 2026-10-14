@@ -74,9 +74,10 @@ export const TEAMS: Record<TeamId, TeamConfig> = {
     name: "Vikings",
     shortName: "VIK",
     logo: "/teams/vikings-logo.png",
-    captain: "Bhairav Deep",
-    captainShort: "BHAIRAV",
-    jerseyNumber: 100,
+    // Navin Gurjar took over from Bhairav Deep during Season 3.
+    captain: "Navin Gurjar",
+    captainShort: "NAVIN",
+    jerseyNumber: null,
     primary: "#176178",
     secondary: "#0B1620",
     accent: "#BB7E42",

@@ -1,5 +1,5 @@
-// Converts the CricHeroes matches behind /stats-preview into scorecards for the
-// series tables, so /seasons (which reads the database) can catch up with them.
+// Converts the CricHeroes matches behind /stats into scorecards for the series
+// tables, so the database holds every match the stats page shows.
 //
 // Pure — no I/O. app/api/series/sync-dashboard decides which seeded fixture
 // each match fills and does the writing; this only builds the payload the

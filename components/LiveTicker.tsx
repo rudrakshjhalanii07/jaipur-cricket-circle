@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Crown, Flame, Swords, Zap } from "lucide-react";
+import { daysToSeason4 } from "@/lib/season4";
 
 export interface TickerMatch {
   id: string;
@@ -11,10 +12,6 @@ export interface TickerMatch {
   player_limit: number;
   status: string;
 }
-
-// Season 4 opener. Until then the ticker leads with the countdown; from the
-// day after, the promo drops out on its own and the ticker is back to fixtures.
-const SEASON_4_START = "2026-11-13";
 
 // Short and loud — the bar is 36px tall and scrolling, so every line has to
 // land in a glance.
@@ -28,21 +25,11 @@ const SEASON_4_LINES = [
 ];
 const SEPARATORS = [Flame, Swords, Zap, Crown];
 
-/** Whole days from today (local) to the opener; negative once it has passed. */
-function daysToSeason4(): number {
-  const [y, m, d] = SEASON_4_START.split("-").map(Number);
-  const start = new Date(y, m - 1, d);
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  return Math.round((start.getTime() - today.getTime()) / 86400000);
-}
-
 interface LiveTickerProps {
   match: TickerMatch | null;
-  isNavbarScrolled?: boolean;
 }
 
-const LINE = "text-[10px] sm:text-[11px] font-mono font-black tracking-[0.2em] uppercase";
+const LINE = "text-[11px] sm:text-[13px] font-mono font-black tracking-[0.2em] uppercase";
 
 // The colours that carry the bar's contrast are inline rather than in a
 // stylesheet: the text is light-on-dark, so if the background ever failed to
@@ -70,7 +57,9 @@ const FADE_STYLE: React.CSSProperties = { maskImage: FADE_MASK, WebkitMaskImage:
 const WHITE = "#FFFFFF";
 const WHITE_SOFT = "rgba(255,255,255,0.72)";
 
-export default function LiveTicker({ match, isNavbarScrolled = false }: LiveTickerProps) {
+// Sits in the page flow on the home page, straight after the hero — it used to
+// ride along in the fixed navbar on every page.
+export default function LiveTicker({ match }: LiveTickerProps) {
   const matchDateFormatted = match
     ? new Date(match.match_date).toLocaleDateString("en-IN", {
         weekday: "short",
@@ -82,7 +71,6 @@ export default function LiveTicker({ match, isNavbarScrolled = false }: LiveTick
   const daysLeft = daysToSeason4();
   const showSeason4 = daysLeft >= 0;
 
-  const visibilityClass = isNavbarScrolled ? "h-0 opacity-0 border-b-0" : "h-9 opacity-100";
 
   const renderSeason4Lines = () => (
     <div className="flex items-center gap-5">
@@ -90,14 +78,19 @@ export default function LiveTicker({ match, isNavbarScrolled = false }: LiveTick
         const Icon = SEPARATORS[i % SEPARATORS.length];
         return (
           <span key={line} className="flex items-center gap-5">
-            <Icon className="w-3 h-3 text-jcc-accent shrink-0" strokeWidth={2.5} aria-hidden />
+            <Icon
+              className="ticker-bob w-4 h-4 text-jcc-accent shrink-0"
+              style={{ animationDelay: `${i * 0.35}s` }}
+              strokeWidth={2.5}
+              aria-hidden
+            />
             <span className={LINE} style={i % 2 ? { color: WHITE } : GOLD_TEXT}>
               {line}
             </span>
           </span>
         );
       })}
-      <span className="inline-flex items-center px-2 py-0.5 rounded-sm border border-jcc-accent/40 bg-jcc-accent/10 text-jcc-accent-highlight text-[9px] font-black tracking-[0.3em] tabular-nums">
+      <span className="inline-flex items-center px-3 py-1 rounded-md border border-jcc-accent/40 bg-jcc-accent/10 text-jcc-accent-highlight text-[11px] font-black tracking-[0.3em] tabular-nums">
         13 · 11 · 26
       </span>
     </div>
@@ -120,12 +113,12 @@ export default function LiveTicker({ match, isNavbarScrolled = false }: LiveTick
       {m.status === "open" ? (
         <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-jcc-green/10 border border-jcc-green/30 text-jcc-green text-[9px] font-black tracking-widest uppercase">
           <span className="w-1.5 h-1.5 rounded-full bg-jcc-green animate-pulse shrink-0" />
-          REGISTRATION OPEN (REGISTER NOW)
+          SPOTS OPEN
         </span>
       ) : (
         <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-jcc-gold/10 border border-jcc-gold/30 text-jcc-gold text-[9px] font-black tracking-widest uppercase">
           <span className="w-1.5 h-1.5 rounded-full bg-jcc-gold shrink-0" />
-          REGISTRATION CLOSED (ROSTER LOCKED)
+          ROSTER LOCKED
         </span>
       )}
     </div>
@@ -155,28 +148,32 @@ export default function LiveTicker({ match, isNavbarScrolled = false }: LiveTick
     <>
       {/* Slow gold light sweeping across the bar */}
       <div className="ticker-sheen pointer-events-none absolute inset-0" aria-hidden />
-      <div className="absolute bottom-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-jcc-accent/50 to-transparent pointer-events-none" />
+      {/* Gold light flowing along both edges */}
+      <div className="ticker-flow absolute top-0 left-0 right-0 h-px pointer-events-none" aria-hidden />
+      <div className="ticker-flow ticker-flow-rev absolute bottom-0 left-0 right-0 h-px pointer-events-none" aria-hidden />
 
       <div className="relative h-full max-w-480 mx-auto flex items-center">
         {showSeason4 && (
           // Pinned: the badge and countdown stay put while the lines scroll.
-          <div style={BADGE_STYLE} className="relative z-10 h-full shrink-0 flex items-center gap-2 sm:gap-3 pl-3 sm:pl-5 pr-6 sm:pr-8">
-            <Crown className="w-3.5 h-3.5 text-jcc-accent-highlight shrink-0" strokeWidth={2.5} aria-hidden />
-            <span className="text-[11px] sm:text-xs font-black tracking-[0.22em] uppercase" style={GOLD_TEXT}>
+          <div style={BADGE_STYLE} className="relative z-10 h-full shrink-0 flex items-center gap-2.5 sm:gap-4 pl-4 sm:pl-8 pr-8 sm:pr-12">
+            <span className="ticker-pulse relative flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full border border-jcc-accent/50 bg-jcc-accent/10">
+              <Crown className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-jcc-accent-highlight" strokeWidth={2.5} aria-hidden />
+            </span>
+            <span className="text-xs sm:text-sm font-black tracking-[0.22em] uppercase" style={GOLD_TEXT}>
               Season 4
             </span>
             <span className="w-px h-4 bg-jcc-accent/40" aria-hidden />
             <span suppressHydrationWarning className="flex items-baseline gap-1">
               {daysLeft === 0 ? (
-                <span className="text-[11px] sm:text-xs font-black tracking-[0.2em] uppercase" style={{ color: WHITE }}>
+                <span className="text-xs sm:text-sm font-black tracking-[0.2em] uppercase" style={{ color: WHITE }}>
                   First ball tonight
                 </span>
               ) : (
                 <>
-                  <span className="text-base sm:text-lg leading-none font-black tabular-nums" style={{ color: WHITE }}>
+                  <span className="ticker-shimmer text-2xl sm:text-3xl leading-none font-black tabular-nums">
                     {daysLeft}
                   </span>
-                  <span className="text-[9px] font-black tracking-[0.2em] uppercase" style={{ color: WHITE_SOFT }}>
+                  <span className="text-[10px] sm:text-[11px] font-black tracking-[0.2em] uppercase" style={{ color: WHITE_SOFT }}>
                     {daysLeft === 1 ? "day" : "days"} to go
                   </span>
                 </>
@@ -196,11 +193,12 @@ export default function LiveTicker({ match, isNavbarScrolled = false }: LiveTick
     </>
   );
 
-  const barClass = `theme-static-dark relative w-full border-b border-jcc-accent/20 overflow-hidden transition-all duration-500 ease-in-out z-40 select-none ${visibilityClass}`;
+  const barClass = "theme-static-dark relative w-full h-14 sm:h-[4.5rem] border-y border-jcc-accent/25 overflow-hidden z-10 select-none";
 
   // A live fixture links to registration; otherwise the promo links to the
-  // seasons page, where the new season will show up.
-  const href = match ? "/register" : showSeason4 ? "/seasons" : null;
+  // stats page, where the new season will show up.
+  // Registration is hidden for now, so a live fixture doesn't link anywhere.
+  const href = showSeason4 ? "/stats" : null;
   if (href) {
     return (
       <Link href={href} style={BAR_STYLE} className={`${barClass} block cursor-pointer hover:border-jcc-accent/45`}>

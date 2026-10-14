@@ -70,7 +70,7 @@ export const fallbackSeasons: Season[] = [
       team("neurostrikers", "Saurabh Charan", 0),
       team("mavericks", "Nitesh Jhurani", 1),
       team("outliers", "Naman Saini", 2),
-      team("vikings", "Bhairav Deep", 3),
+      team("vikings", "Navin Gurjar", 3),
     ],
     total_matches_played: 0,
     started_at: "2026-07-24",

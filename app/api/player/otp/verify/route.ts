@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { decrypt, encrypt } from "@/lib/auth-crypto";
+import { issueMemberPass, MEMBER_COOKIE, memberCookieOptions } from "@/lib/member-session";
+import { profilePayload } from "@/lib/player-profile.server";
+import { getStatsAccess } from "@/lib/stats-access";
 
 export async function POST(request: Request) {
   try {
@@ -74,28 +77,18 @@ export async function POST(request: Request) {
 
     const sessionToken = encrypt(sessionPayload);
 
-    // 6. Return response containing token and full editable profile details
-    return NextResponse.json({
+    // 6. Return response containing token and full editable profile details,
+    // plus the member pass that opens members-only pages like /stats.
+    const response = NextResponse.json({
       success: true,
       sessionToken,
-      player: {
-        id: player.id,
-        name: player.name,
-        phone: player.phone,
-        cricket_role: player.cricket_role,
-        batting_style: player.batting_style || "Right-hand Bat",
-        bowling_style: player.bowling_style || "N/A",
-        bio: player.short_bio || "",
-        image_url: player.image_url || null,
-        team: player.team || "Unassigned",
-        member_tag: player.member_tag || "member",
-        group_role: player.group_role || "member",
-        governance_role: player.governance_role || null,
-        is_core_committee: player.is_core_committee || false,
-        is_exec_committee: player.is_exec_committee || false,
-        approval_status: player.approval_status
-      }
+      // Captaincy from the active season, not the stale group_role.
+      player: await profilePayload(player),
     });
+    response.cookies.set(MEMBER_COOKIE, issueMemberPass(player.id), memberCookieOptions);
+    // A first login starts the member's 14 days of stats access.
+    await getStatsAccess(player.id);
+    return response;
   } catch (error) {
     console.error("OTP verification server error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

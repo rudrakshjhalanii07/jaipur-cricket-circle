@@ -89,21 +89,20 @@ export default function GallerySection() {
         }}
       />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
-        <AnimateIn className="text-center mb-14">
-          <span className="inline-flex items-center gap-2.5 text-[11px] uppercase tracking-[0.5em] text-jcc-accent font-black">
-            <Camera className="w-5 h-5" />
-            TEAM GALLERY
-          </span>
-          <h2 className="text-4xl min-[380px]:text-5xl sm:text-6xl lg:text-7xl font-black text-white tracking-tighter mt-6 uppercase italic leading-tight">
-            Beyond the <span className="text-gradient-cyan">Scorecard</span>
-          </h2>
-          <p className="mt-6 text-white/70 text-xl max-w-2xl mx-auto font-medium leading-relaxed">
-            Matches don&apos;t end at the scoreline.
-            <br />
-            This is the Circle — on the pitch, in the huddle, living it.
+      <div className="max-w-[88rem] mx-auto px-5 md:px-10 relative z-10">
+        <div className="mb-14 grid items-end gap-6 md:grid-cols-[minmax(0,1fr)_auto]">
+          <div>
+            <p data-reveal className="kicker inline-flex items-center gap-2 text-jcc-accent">
+              <Camera className="h-3.5 w-3.5" /> 09 · Beyond the scorecard
+            </p>
+            <h2 data-split className="mt-5 font-heading text-[clamp(2.8rem,7vw,7rem)] font-extrabold leading-[0.88] tracking-[-0.042em] text-white">
+              The Circle, off the sheet.
+            </h2>
+          </div>
+          <p data-reveal className="max-w-xs text-sm leading-relaxed text-white/60 md:pb-3 md:text-right">
+            On the pitch, in the huddle, living it.
           </p>
-        </AnimateIn>
+        </div>
 
         <AnimateIn delay={200} direction="scale">
           <div className="relative overflow-hidden rounded-none sm:rounded-[48px] border-0 sm:border sm:border-jcc-accent/30 shadow-none sm:shadow-[inset_0_0_60px_rgba(212,175,55,0.12),0_20px_60px_rgba(0,0,0,0.25)] p-0 sm:p-8 lg:p-10">
@@ -167,7 +166,7 @@ export default function GallerySection() {
               {/* Luxury overlay tagline — fixed to the center stage */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30 px-6">
                 <AnimateIn delay={450} direction="scale">
-                  <p className="text-center text-2xl sm:text-4xl lg:text-6xl font-black uppercase italic tracking-[0.03em] text-white drop-shadow-[0_4px_28px_rgba(0,0,0,0.55)]">
+                  <p className="text-center text-2xl sm:text-4xl lg:text-6xl font-heading font-extrabold tracking-[-0.04em] text-white drop-shadow-[0_4px_28px_rgba(0,0,0,0.55)]">
                     Play. <span className="text-gradient-cyan">Connect.</span>{" "}
                     Thrive.
                   </p>

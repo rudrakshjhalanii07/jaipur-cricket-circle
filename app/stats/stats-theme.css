@@ -1,0 +1,20 @@
+/* /stats only (imported by its layout): the page's paper texture and a
+   brighter muted tone on its Royal Blue bands. The grotesk, mono labels and
+   the shared utilities (.text-outline, .edge-fade, .print-grain, …) live in
+   globals.css. */
+.jcc-stats-page .theme-static-dark {
+  --color-jcc-text-muted: rgba(255, 255, 255, 0.76);
+}
+.jcc-stats-page {
+  background-color: var(--color-jcc-navy-deep);
+  /* Uncoated-paper grain: navy specks at a few percent, so the white reads
+     as printed stock rather than a flat screen. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .07 0 0 0 0 .14 0 0 0 0 .25 .09 0 0 0 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+@layer base {
+  .jcc-stats-page :is(h1, h2, h3, h4) {
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    text-transform: none;
+  }
+}

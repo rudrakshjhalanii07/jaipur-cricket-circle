@@ -13,7 +13,9 @@ import {
   Loader2,
   Newspaper,
   FileJson,
-  History
+  History,
+  Timer,
+  ScanFace,
 } from "lucide-react";
 import MatchControl from "@/components/admin/MatchControl";
 import RegistrationControl from "@/components/admin/RegistrationControl";
@@ -21,12 +23,14 @@ import MemberRoleManagement from "@/components/admin/MemberRoleManagement";
 import MemberControl from "@/components/admin/MemberControl";
 import BoundaryBanterControl from "@/components/admin/BoundaryBanterControl";
 import SeasonTransitionControl from "@/components/admin/SeasonTransitionControl";
+import StatsAccessControl from "@/components/admin/StatsAccessControl";
+import PhotoFramingControl from "@/components/admin/PhotoFramingControl";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminStatCard from "@/components/admin/AdminStatCard";
 import { supabase } from "@/lib/supabase";
 import { HONORARY_GOVERNANCE_MEMBERS } from "@/lib/member-role";
 
-type AdminSection = "dashboard" | "match" | "registrations" | "members" | "roles" | "chewvana" | "seasons";
+type AdminSection = "dashboard" | "match" | "registrations" | "members" | "roles" | "statsAccess" | "photos" | "chewvana" | "seasons";
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -203,6 +207,8 @@ export default function AdminPage() {
     { id: "registrations", label: "Registrations", icon: ClipboardList },
     { id: "members", label: "Members", icon: Users },
     { id: "roles", label: "Member Roles", icon: ShieldCheck },
+    { id: "statsAccess", label: "Stats Access", icon: Timer },
+    { id: "photos", label: "Photo Framing", icon: ScanFace },
     { id: "chewvana", label: "Boundary Banter", icon: Newspaper },
     { id: "seasons", label: "Seasons", icon: History },
   ];
@@ -326,6 +332,8 @@ export default function AdminPage() {
                 {activeSection === "registrations" && <RegistrationControl adminPassword={password} />}
                 {activeSection === "members" && <MemberControl adminPassword={password} />}
                 {activeSection === "roles" && <MemberRoleManagement adminPassword={password} />}
+                {activeSection === "statsAccess" && <StatsAccessControl adminPassword={password} />}
+                {activeSection === "photos" && <PhotoFramingControl adminPassword={password} />}
                 {activeSection === "chewvana" && <BoundaryBanterControl adminPassword={password} />}
                 {activeSection === "seasons" && <SeasonTransitionControl adminPassword={password} />}
               </motion.div>

@@ -73,32 +73,33 @@ export default function OurStorySection() {
   return (
     <section
       id="our-story"
-      className="py-24 sm:py-32 relative overflow-hidden section-bg-navy"
+      // overflow-x-clip, not overflow-hidden: hidden makes this section the
+      // scroll container, and the photo's sticky would stick to it instead of
+      // the viewport — it scrolled away with the text.
+      className="py-24 sm:py-32 relative overflow-x-clip section-bg-navy"
     >
       <div className="absolute top-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-jcc-accent/20 to-transparent" />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-32 bg-jcc-accent/10 blur-[100px] pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 w-80 h-40 bg-jcc-accent/[0.06] blur-[120px] pointer-events-none" />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
-        <AnimateIn className="text-center mb-16 sm:mb-20">
-          <span className="inline-flex items-center gap-2.5 text-[11px] uppercase tracking-[0.5em] text-jcc-accent font-black">
-            <BookOpen className="w-5 h-5" />
-            OUR STORY
-          </span>
-          <h2 className="text-3xl min-[380px]:text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tighter mt-6 uppercase italic leading-tight">
-            Five Friends. <span className="text-gradient-cyan">One Ball.</span>
-          </h2>
-          <p
-            className="mt-6 text-white/70 text-xl sm:text-2xl max-w-2xl mx-auto italic leading-relaxed"
-            style={{ fontFamily: "var(--font-heading)" }}
-          >
+      <div className="max-w-[88rem] mx-auto px-5 md:px-10 relative z-10">
+        <div className="mb-16 grid items-end gap-6 sm:mb-24 md:grid-cols-[minmax(0,1fr)_auto]">
+          <div>
+            <p data-reveal className="kicker inline-flex items-center gap-2 text-jcc-accent-dark">
+              <BookOpen className="h-3.5 w-3.5" /> 06 · Our story
+            </p>
+            <h2 data-split className="mt-5 font-heading text-[clamp(2.8rem,7vw,7rem)] font-extrabold leading-[0.88] tracking-[-0.042em] text-jcc-blue">
+              Five friends. One ball.
+            </h2>
+          </div>
+          <p data-reveal className="max-w-xs text-xl italic leading-snug text-jcc-text-muted md:pb-3 md:text-right" style={{ fontFamily: "var(--font-serif)" }}>
             The ordinary Sunday that became Jaipur Cricket Circle.
           </p>
-        </AnimateIn>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] gap-12 lg:gap-16 items-start">
           {/* ── Photo plate ─────────────────────────────────────────────── */}
-          <AnimateIn direction="left" className="lg:sticky lg:top-32">
+          <AnimateIn direction="left" className="lg:sticky lg:top-28 self-start">
             <div className="relative">
               <div className="pointer-events-none absolute -inset-3 rounded-[36px] border border-jcc-accent/20" />
               <div className="relative rounded-[28px] overflow-hidden border border-jcc-accent/30 shadow-[0_25px_70px_rgba(0,0,0,0.4)] bg-jcc-blue-deep">
@@ -115,7 +116,7 @@ export default function OurStorySection() {
               </div>
               <div className="mt-5 flex items-center gap-3 justify-center">
                 <span className="w-8 h-px bg-jcc-accent/50" />
-                <p className="text-[11px] font-black uppercase tracking-[0.35em] text-jcc-accent/80 whitespace-nowrap">
+                <p className="kicker whitespace-nowrap text-jcc-accent-dark">
                   8th March 2026 — Where It Began
                 </p>
                 <span className="w-8 h-px bg-jcc-accent/50" />
@@ -135,10 +136,7 @@ export default function OurStorySection() {
                       On 8th March 2026, the five of us —{" "}
                       {FOUNDERS.map((name, idx) => (
                         <span key={name}>
-                          <span
-                            className="text-jcc-accent-highlight font-black not-italic"
-                            style={{ fontFamily: "var(--font-heading)" }}
-                          >
+                          <span className="font-heading font-bold text-jcc-accent-dark">
                             {name}
                           </span>
                           {idx < FOUNDERS.length - 2
@@ -157,10 +155,10 @@ export default function OurStorySection() {
               if (block.type === "quote") {
                 return (
                   <AnimateIn key={i} delay={delay} direction="right">
-                    <blockquote className="relative pl-6 sm:pl-8 border-l-2 border-jcc-accent/50 py-1">
+                    <blockquote data-story-line className="relative pl-6 sm:pl-8 border-l-2 border-jcc-accent/50 py-1">
                       <p
-                        className="text-xl sm:text-2xl lg:text-3xl italic font-medium text-white leading-snug"
-                        style={{ fontFamily: "var(--font-heading)" }}
+                        className="text-2xl sm:text-3xl lg:text-4xl italic font-medium text-jcc-blue leading-snug"
+                        style={{ fontFamily: "var(--font-serif)" }}
                       >
                         {block.text}
                       </p>
@@ -171,7 +169,7 @@ export default function OurStorySection() {
 
               return (
                 <AnimateIn key={i} delay={delay}>
-                  <p className="text-white/75 text-base sm:text-lg font-medium leading-relaxed">
+                  <p data-story-line className="text-white/75 text-base sm:text-lg font-medium leading-relaxed">
                     {block.text}
                   </p>
                 </AnimateIn>
@@ -188,7 +186,7 @@ export default function OurStorySection() {
                 {PILLARS.map((pillar) => (
                   <span
                     key={pillar}
-                    className="inline-flex items-center px-4 py-2 rounded-full border border-jcc-accent/25 bg-jcc-accent/[0.06] text-[11px] sm:text-xs font-black uppercase tracking-[0.15em] text-jcc-accent-highlight"
+                    className="inline-flex items-center px-4 py-2 rounded-full border border-jcc-blue/15 bg-jcc-navy font-mono text-[11px] uppercase tracking-[0.14em] text-jcc-blue"
                   >
                     {pillar}
                   </span>
@@ -199,15 +197,12 @@ export default function OurStorySection() {
             {/* ── Closing signature ─────────────────────────────────────── */}
             <AnimateIn delay={150} direction="scale">
               <div className="pt-6">
-                <p
-                  className="text-2xl sm:text-3xl lg:text-4xl italic font-black leading-tight text-gradient-cyan"
-                  style={{ fontFamily: "var(--font-heading)" }}
-                >
+                <p className="font-heading text-3xl font-extrabold leading-[0.95] tracking-[-0.045em] text-jcc-blue sm:text-5xl">
                   Cricket brings people together.
                   <br />
                   Community keeps them together.
                 </p>
-                <p className="mt-6 text-lg sm:text-xl font-black uppercase italic text-white tracking-tight">
+                <p className="mt-6 text-lg font-semibold tracking-tight text-jcc-blue sm:text-xl">
                   Welcome to{" "}
                   <span className="text-gradient-cyan">
                     Jaipur Cricket Circle.

@@ -47,14 +47,23 @@ function compressToBlob(
     // Draw image onto canvas
     ctx.drawImage(img, 0, 0, width, height);
 
-    // Export to WebP with requested quality
+    // Export to WebP. Safari can't encode WebP and silently hands back a
+    // PNG, which is huge for a photo, so fall back to JPEG there.
     canvas.toBlob(
       (blob) => {
         if (!blob) {
           reject(new Error("Failed to convert image to WebP blob."));
           return;
         }
-        resolve({ blob, width, height });
+        if (blob.type === "image/webp") {
+          resolve({ blob, width, height });
+          return;
+        }
+        canvas.toBlob(
+          (jpeg) => (jpeg ? resolve({ blob: jpeg, width, height }) : reject(new Error("Failed to encode image."))),
+          "image/jpeg",
+          quality
+        );
       },
       "image/webp",
       quality
@@ -63,15 +72,21 @@ function compressToBlob(
 }
 
 /**
- * Optimizes an image client-side dynamically:
- * - Resizes longest side to 512px, convert to WebP, quality 0.8
- * - If size > 500KB, decriment quality down to 0.7, 0.6, 0.5
- * - If size > 500KB still, resize longest side to 384px, quality 0.5
- * - Reject only if final optimized file is above 2MB
+ * Optimizes an image client-side:
+ * - WebP, longest side 1440px, so photos stay sharp on 1080px story cards
+ * - Steps down quality, then size (1200, 1024px) until it's under 900KB
+ * - Reject only if the final file is above 2MB (the upload route's limit)
  *
  * @param file The original image file selected by the user.
  * @returns A Promise resolving to the optimized File, preview URL, and size statistics.
  */
+const TARGET_BYTES = 900 * 1024;
+const LADDER: [number, number][] = [
+  [1440, 0.82], [1440, 0.74], [1440, 0.66],
+  [1200, 0.74], [1200, 0.66],
+  [1024, 0.66], [1024, 0.58],
+];
+
 export function optimizeImage(file: File): Promise<OptimizationResult> {
   return new Promise((resolve, reject) => {
     const originalSize = file.size;
@@ -84,56 +99,16 @@ export function optimizeImage(file: File): Promise<OptimizationResult> {
         // Run optimization passes sequentially in an async IIFE
         (async () => {
           try {
-            let resultBlob: Blob | null = null;
-            let resultWidth = img.width;
-            let resultHeight = img.height;
-            let finalDimension = 512;
-            let finalQuality = 0.8;
-
-            // Pass 1: 512px, Q=0.8
-            let attempt = await compressToBlob(img, 512, 0.8);
-            resultBlob = attempt.blob;
-            resultWidth = attempt.width;
-            resultHeight = attempt.height;
-            finalDimension = 512;
-            finalQuality = 0.8;
-
-            // Pass 2: 512px, Q=0.7 (if needed)
-            if (resultBlob.size > 500 * 1024) {
-              attempt = await compressToBlob(img, 512, 0.7);
-              resultBlob = attempt.blob;
-              resultWidth = attempt.width;
-              resultHeight = attempt.height;
-              finalQuality = 0.7;
+            let attempt = await compressToBlob(img, LADDER[0][0], LADDER[0][1]);
+            let [finalDimension, finalQuality] = LADDER[0];
+            for (const [dim, q] of LADDER.slice(1)) {
+              if (attempt.blob.size <= TARGET_BYTES) break;
+              attempt = await compressToBlob(img, dim, q);
+              [finalDimension, finalQuality] = [dim, q];
             }
-
-            // Pass 3: 512px, Q=0.6 (if needed)
-            if (resultBlob.size > 500 * 1024) {
-              attempt = await compressToBlob(img, 512, 0.6);
-              resultBlob = attempt.blob;
-              resultWidth = attempt.width;
-              resultHeight = attempt.height;
-              finalQuality = 0.6;
-            }
-
-            // Pass 4: 512px, Q=0.5 (if needed)
-            if (resultBlob.size > 500 * 1024) {
-              attempt = await compressToBlob(img, 512, 0.5);
-              resultBlob = attempt.blob;
-              resultWidth = attempt.width;
-              resultHeight = attempt.height;
-              finalQuality = 0.5;
-            }
-
-            // Pass 5: 384px, Q=0.5 (if needed)
-            if (resultBlob.size > 500 * 1024) {
-              attempt = await compressToBlob(img, 384, 0.5);
-              resultBlob = attempt.blob;
-              resultWidth = attempt.width;
-              resultHeight = attempt.height;
-              finalDimension = 384;
-              finalQuality = 0.5;
-            }
+            const resultBlob = attempt.blob;
+            const resultWidth = attempt.width;
+            const resultHeight = attempt.height;
 
             // Reject if final optimized image is still > 2MB
             const maxOptimizedSize = 2 * 1024 * 1024; // 2MB
@@ -144,8 +119,9 @@ export function optimizeImage(file: File): Promise<OptimizationResult> {
 
             // Create File from Blob
             const originalBaseName = file.name.substring(0, file.name.lastIndexOf(".")) || file.name;
-            const optimizedFile = new File([resultBlob], `${originalBaseName}.webp`, {
-              type: "image/webp",
+            const jpeg = resultBlob.type === "image/jpeg";
+            const optimizedFile = new File([resultBlob], `${originalBaseName}.${jpeg ? "jpg" : "webp"}`, {
+              type: jpeg ? "image/jpeg" : "image/webp",
               lastModified: Date.now(),
             });
 

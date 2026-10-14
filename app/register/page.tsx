@@ -31,6 +31,9 @@ import { supabase } from "@/lib/supabase";
 import { fadeUp, staggerContainer, VIEWPORT_CONFIG } from "@/lib/animations";
 import { optimizeImage } from "@/lib/image-optimize";
 import { getDiceBearUrl } from "@/lib/avatar";
+import PhotoFramer from "@/components/PhotoFramer";
+import { insertPendingPlayer } from "@/lib/player-insert";
+import type { PhotoFocus } from "@/lib/photo-focus";
 
 interface Match {
   id: string;
@@ -251,6 +254,7 @@ export default function RegisterPage() {
   const [lookupError, setLookupError] = useState("");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string>("");
+  const [avatarFocus, setAvatarFocus] = useState<PhotoFocus | null>(null);
   const [avatarError, setAvatarError] = useState<string>("");
   const [registrationError, setRegistrationError] = useState<string>("");
   const [isOptimizing, setIsOptimizing] = useState(false);
@@ -286,6 +290,7 @@ export default function RegisterPage() {
       .then((result) => {
         setAvatarFile(result.file);
         setAvatarPreview(result.previewUrl);
+        setAvatarFocus(null);
         console.log(`[JCC Image Optimizer] Original size: ${Math.round(result.originalSize / 1024)}KB | Optimized WebP size: ${Math.round(result.optimizedSize / 1024)}KB (${result.width}x${result.height})`);
       })
       .catch((err: unknown) => {
@@ -302,6 +307,7 @@ export default function RegisterPage() {
 
   const handleRemoveAvatar = () => {
     setAvatarFile(null);
+    setAvatarFocus(null);
     if (avatarPreview) {
       URL.revokeObjectURL(avatarPreview);
       setAvatarPreview("");
@@ -496,17 +502,14 @@ export default function RegisterPage() {
         }
 
         // 2. Create new player with pending status and avatar url
-        const { error: createError } = await supabase
-          .from("players")
-          .insert([
-            {
-              name: formData.name,
-              phone: formData.phone,
-              cricket_role: formData.cricket_role,
-              approval_status: "pending",
-              image_url: imageUrl
-            },
-          ]);
+        const { error: createError } = await insertPendingPlayer(supabase, {
+          name: formData.name,
+          phone: formData.phone,
+          cricket_role: formData.cricket_role,
+          approval_status: "pending",
+          image_url: imageUrl,
+          ...(imageUrl && avatarFocus ? { image_focus: avatarFocus } : {}),
+        });
 
         if (createError) throw createError;
         
@@ -589,7 +592,7 @@ export default function RegisterPage() {
 
     const secondaryActions = [
       { href: "https://chat.whatsapp.com/LtuFpx2EcKO4E5yZWP8aue?mode=gi_t", label: "Join WhatsApp Updates", icon: MessageCircle, external: true },
-      { href: "/seasons", label: "Explore Seasons", icon: Swords, external: false },
+      { href: "/stats", label: "Explore Stats", icon: Swords, external: false },
       { href: "/members", label: "Meet the Members", icon: UsersRound, external: false },
       { href: "/boundary-banter", label: "Read Boundary Banter", icon: Newspaper, external: false },
     ];
@@ -1226,7 +1229,7 @@ export default function RegisterPage() {
                         </div>
                         <p className="text-[10px] text-white/40 font-bold uppercase tracking-wider leading-relaxed">
                           Accepted: JPG, JPEG, PNG, WEBP (Max 10MB). <br />
-                          <span className="text-jcc-accent">Automatically optimized to WebP (512x512) before upload.</span>
+                          <span className="text-jcc-accent">Automatically optimized before upload.</span>
                         </p>
                         {avatarError && (
                           <p className="text-[11px] text-jcc-ball-red font-black uppercase tracking-wider flex items-center justify-center sm:justify-start gap-1">
@@ -1235,6 +1238,12 @@ export default function RegisterPage() {
                         )}
                       </div>
                     </div>
+                    {avatarPreview && !isOptimizing && (
+                      <div className="mt-5 rounded-2xl border border-white/10 p-4">
+                        <p className="mb-3 text-[11px] font-black uppercase tracking-wider text-white/80">Frame your photo</p>
+                        <PhotoFramer key={avatarPreview} src={avatarPreview} name={formData.name} onChange={setAvatarFocus} compact />
+                      </div>
+                    )}
                   </div>
 
                   {formStatus === "duplicate" && (

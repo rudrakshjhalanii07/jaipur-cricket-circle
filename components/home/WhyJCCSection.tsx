@@ -1,154 +1,55 @@
-import { PitchDivider } from "./CricketDecorations";
-import { AnimateIn } from "@/components/AnimateIn";
+// The club's eleven values as one typographic index. Each row opens on hover
+// (and is always open on touch screens, where there is no hover) — the full
+// text is there without eleven screens of scrolling.
 
-const chapters = [
-  {
-    number: "01",
-    title: "Community First",
-    body:
-      "Cricket is our reason to meet, but people are our purpose. Every decision begins with strengthening the community before anything else.",
-    align: "left" as const,
-  },
-  {
-    number: "02",
-    title: "Inclusivity",
-    body:
-      "Everyone deserves a place to play, regardless of skill or background. We welcome every player with respect, warmth, and equal opportunity.",
-    align: "right" as const,
-  },
-  {
-    number: "03",
-    title: "Equality",
-    body:
-      "Every member matters equally on and off the field. No favoritism — everyone gets a fair chance to participate and contribute.",
-    align: "left" as const,
-  },
-  {
-    number: "04",
-    title: "Friendship",
-    body:
-      "We build lasting friendships through the spirit of the game. The strongest victories are the relationships created beyond cricket.",
-    align: "right" as const,
-  },
-  {
-    number: "05",
-    title: "Diversity",
-    body:
-      "Different people, personalities, professions, and perspectives make us stronger. Our differences are celebrated because they enrich our community.",
-    align: "left" as const,
-  },
-  {
-    number: "06",
-    title: "Leadership",
-    body:
-      "Leadership is about serving, inspiring, and taking responsibility. Every member has the opportunity to lead by example.",
-    align: "right" as const,
-  },
-  {
-    number: "07",
-    title: "Respect",
-    body:
-      "Respect is earned through humility, discipline, and kindness. We honor teammates, opponents, officials, and every individual equally.",
-    align: "left" as const,
-  },
-  {
-    number: "08",
-    title: "Sportsmanship",
-    body:
-      "Winning is celebrated, but character is remembered. We compete fiercely while playing with integrity and grace.",
-    align: "right" as const,
-  },
-  {
-    number: "09",
-    title: "Justice",
-    body:
-      "Every decision is guided by fairness, transparency, and consistency. Trust grows when everyone knows the same rules apply to all.",
-    align: "left" as const,
-  },
-  {
-    number: "10",
-    title: "Transparency",
-    body:
-      "Open communication builds confidence within the community. Our decisions, processes, and governance remain honest and accountable.",
-    align: "right" as const,
-  },
-  {
-    number: "11",
-    title: "Democracy",
-    body:
-      "Every voice has value, and every opinion deserves to be heard. Together, we shape the future of JCC through participation and collective decision-making.",
-    align: "left" as const,
-  },
-];
+const VALUES = [
+  ["Community First", "Cricket is our reason to meet, but people are our purpose. Every decision begins with strengthening the community before anything else."],
+  ["Inclusivity", "Everyone deserves a place to play, regardless of skill or background. We welcome every player with respect, warmth, and equal opportunity."],
+  ["Equality", "Every member matters equally on and off the field. No favoritism — everyone gets a fair chance to participate and contribute."],
+  ["Friendship", "We build lasting friendships through the spirit of the game. The strongest victories are the relationships created beyond cricket."],
+  ["Diversity", "Different people, personalities, professions, and perspectives make us stronger. Our differences are celebrated because they enrich our community."],
+  ["Leadership", "Leadership is about serving, inspiring, and taking responsibility. Every member has the opportunity to lead by example."],
+  ["Respect", "Respect is earned through humility, discipline, and kindness. We honor teammates, opponents, officials, and every individual equally."],
+  ["Sportsmanship", "Winning is celebrated, but character is remembered. We compete fiercely while playing with integrity and grace."],
+  ["Justice", "Every decision is guided by fairness, transparency, and consistency. Trust grows when everyone knows the same rules apply to all."],
+  ["Transparency", "Open communication builds confidence within the community. Our decisions, processes, and governance remain honest and accountable."],
+  ["Democracy", "Every voice has value, and every opinion deserves to be heard. Together, we shape the future of JCC through participation and collective decision-making."],
+] as const;
 
 export default function WhyJCCSection() {
   return (
-    <>
-      <PitchDivider />
-      <section id="why-jcc" className="py-28 sm:py-40 relative section-bg-navy overflow-hidden">
-        <div className="absolute inset-0 bg-linear-to-r from-black/10 to-transparent" />
-
-        <div className="max-w-5xl mx-auto px-6 sm:px-8 relative z-10">
-          <AnimateIn className="text-center mb-24 sm:mb-32">
-            <span className="inline-flex items-center gap-3 text-[10px] uppercase tracking-[0.5em] text-jcc-accent font-black">
-              <span className="w-8 h-px bg-jcc-accent/60" />
-Our Core
-              <span className="w-8 h-px bg-jcc-accent/60" />
-            </span>
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight mt-6">
-              Values We Are <span className="text-gradient-cyan">Driven By</span>
+    <section id="why-jcc" className="relative bg-jcc-bg">
+      <div className="mx-auto max-w-[88rem] px-5 py-28 md:px-10 md:py-40">
+        <div className="grid items-end gap-6 md:grid-cols-[minmax(0,1fr)_auto]">
+          <div>
+            <p data-reveal className="kicker text-jcc-accent-dark">08 · What we stand for</p>
+            <h2 data-split className="mt-5 font-heading text-[clamp(2.8rem,7vw,7rem)] font-extrabold leading-[0.88] tracking-[-0.042em] text-jcc-blue">
+              Eleven values.
             </h2>
-          </AnimateIn>
-
-          <div className="flex flex-col gap-28 sm:gap-40 lg:gap-48">
-            {chapters.map((chapter) => {
-              const isRight = chapter.align === "right";
-              return (
-                <article key={chapter.number} className="relative">
-                  <span
-                    aria-hidden
-                    className={`pointer-events-none select-none absolute -top-10 sm:-top-16 font-heading font-black leading-none text-[110px] sm:text-[170px] lg:text-[220px] text-jcc-accent/[0.08] ${
-                      isRight ? "right-0 sm:-right-4" : "left-0 sm:-left-4"
-                    }`}
-                  >
-                    {chapter.number}
-                  </span>
-
-                  <div
-                    className={`relative flex flex-col ${
-                      isRight ? "items-start sm:items-end text-left sm:text-right" : "items-start text-left"
-                    }`}
-                  >
-                    <AnimateIn direction={isRight ? "right" : "left"}>
-                      <span className="inline-flex items-center gap-3 text-[11px] uppercase tracking-[0.5em] text-jcc-accent/80 font-bold">
-                        Principle {chapter.number}
-                      </span>
-                    </AnimateIn>
-
-                    <AnimateIn delay={120} direction={isRight ? "right" : "left"}>
-                      <h3 className="font-heading font-black uppercase text-white text-5xl sm:text-6xl lg:text-7xl leading-[0.95] tracking-tight mt-5 max-w-2xl">
-                        {chapter.title}
-                      </h3>
-                    </AnimateIn>
-
-                    <AnimateIn delay={280}>
-                      <div
-                        className={`divider-draw h-px w-20 bg-jcc-accent my-8 ${isRight ? "divider-draw-right ml-auto" : ""}`}
-                      />
-                    </AnimateIn>
-
-                    <AnimateIn delay={420}>
-                      <p className="max-w-lg text-white/70 text-lg leading-relaxed font-medium">
-                        {chapter.body}
-                      </p>
-                    </AnimateIn>
-                  </div>
-                </article>
-              );
-            })}
+            <h2 data-split className="font-heading text-[clamp(2.8rem,7vw,7rem)] font-extrabold leading-[0.88] tracking-[-0.042em] text-jcc-blue/30">
+              No exceptions.
+            </h2>
           </div>
         </div>
-      </section>
-    </>
+        <ol className="mt-16 border-t border-jcc-blue/80">
+          {VALUES.map(([title, body], i) => (
+            <li
+              key={title}
+              data-reveal
+              className="group relative grid grid-cols-[48px_minmax(0,1fr)] gap-x-4 border-b border-jcc-border py-6 md:grid-cols-[120px_minmax(0,1fr)_minmax(0,1fr)] md:items-center md:gap-x-10 md:py-8"
+            >
+              <span aria-hidden className="pointer-events-none absolute inset-0 origin-bottom scale-y-0 bg-jcc-blue transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-y-100" />
+              <span className="relative font-mono text-xs text-jcc-accent-dark md:pl-4">{String(i + 1).padStart(2, "0")}</span>
+              <h3 className="relative font-heading text-3xl font-bold tracking-[-0.04em] text-jcc-blue transition-[color,transform] duration-500 group-hover:translate-x-2 group-hover:text-[#FFFFFF] md:text-6xl">
+                {title}
+              </h3>
+              <p className="relative col-start-2 mt-2 max-w-xl text-[15px] leading-relaxed text-jcc-text-muted transition-colors duration-500 group-hover:text-[rgba(255,255,255,0.75)] md:col-start-3 md:mt-0 md:pr-4 md:opacity-0 md:transition-opacity md:group-hover:opacity-100">
+                {body}
+              </p>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
   );
 }

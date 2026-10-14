@@ -55,6 +55,8 @@ interface Draft {
   team2: string;
   date: string;
   overs: number;
+  /** Last man stands: the final batter bats on alone. Absent on older drafts = off. */
+  lastManStands?: boolean;
   tossWinner: string;
   tossDecision: "bat" | "bowl";
   squads: Record<string, string[]>;
@@ -102,7 +104,8 @@ function defaultSquad(team: string): string[] {
 function newDraft(week: Series, f: SeriesMatch): Draft {
   const team1 = f.team1_id ?? "";
   const team2 = f.team2_id ?? "";
-  const captainOf = (t: string) => AUCTION_SIGNINGS.find((s) => s.teamId === t && s.captain)?.name ?? "";
+  // The current captain, not the auction-day one — those can differ (Vikings).
+  const captainOf = (t: string) => TEAM_CONFIG[t as keyof typeof TEAM_CONFIG]?.captain ?? "";
   return {
     v: 1,
     weekId: week.id,
@@ -355,7 +358,7 @@ export default function SeriesImportPage() {
   const autoResult = draft
     ? matchResult(
         { team: bat1, runs: inn1.runs },
-        { team: bat2, runs: inn2.runs, wickets: inn2.wickets, squadSize: squadOf(bat2).length },
+        { team: bat2, runs: inn2.runs, wickets: inn2.wickets, squadSize: squadOf(bat2).length, lastManStands: !!draft.lastManStands },
       )
     : null;
 
@@ -399,7 +402,7 @@ export default function SeriesImportPage() {
     setError("");
     try {
       const r = draft.result;
-      const limits = (team: string) => ({ overs: draft.overs, squadSize: squadOf(team).length, target: null });
+      const limits = (team: string) => ({ overs: draft.overs, squadSize: squadOf(team).length, lastManStands: !!draft.lastManStands, target: null });
       const body = {
         series_id: draft.weekId,
         match_no: draft.matchNo,
@@ -511,7 +514,7 @@ export default function SeriesImportPage() {
     }
   };
 
-  // ── Admin tools: /stats-preview sync ──
+  // ── Admin tools: CricHeroes export sync ──
   interface SyncReport {
     apply: boolean;
     summary: Record<string, number>;
@@ -593,8 +596,8 @@ export default function SeriesImportPage() {
             <button onClick={resetForNext} className="px-5 py-3 rounded-xl btn-vibrant-blue font-black text-sm uppercase tracking-widest">
               Score Next Match
             </button>
-            <Link href="/seasons" className="btn-ghost px-5 py-3 rounded-xl font-black text-sm uppercase tracking-widest flex items-center gap-2">
-              View Seasons Page <ExternalLink className="w-3.5 h-3.5" />
+            <Link href="/stats" className="btn-ghost px-5 py-3 rounded-xl font-black text-sm uppercase tracking-widest flex items-center gap-2">
+              View Stats Page <ExternalLink className="w-3.5 h-3.5" />
             </Link>
           </div>
         </div>
@@ -756,6 +759,16 @@ export default function SeriesImportPage() {
                         <option value="bowl">Bowl</option>
                       </Select>
                     </div>
+                    <div>
+                      <Label>Last batter</Label>
+                      <Select
+                        value={draft.lastManStands ? "lms" : "pair"}
+                        onChange={(e) => patch({ lastManStands: e.target.value === "lms" })}
+                      >
+                        <option value="pair">All out at squad − 1</option>
+                        <option value="lms">Last batter standing bats on</option>
+                      </Select>
+                    </div>
                     {draft.tossWinner && (
                       <div className="col-span-2 flex items-end pb-2 text-xs font-bold text-jcc-text-muted">
                         {teamLabel(bat1)} bat first.
@@ -829,7 +842,7 @@ export default function SeriesImportPage() {
                     bowlingTeam={teamLabel(bowling)}
                     battingSquad={squadOf(batting)}
                     bowlingSquad={squadOf(bowling)}
-                    limits={{ overs: draft.overs, squadSize: squadOf(batting).length, target: second ? inn1.runs + 1 : null }}
+                    limits={{ overs: draft.overs, squadSize: squadOf(batting).length, lastManStands: !!draft.lastManStands, target: second ? inn1.runs + 1 : null }}
                     onEnd={() => (second ? startReview() : patch({ phase: "innings2" }))}
                   />
                   {!second && (
@@ -984,10 +997,10 @@ export default function SeriesImportPage() {
         <div className="mt-8 pt-8 border-t border-jcc-border space-y-4">
           <p className="text-[10px] font-black uppercase tracking-[0.4em] text-jcc-text-muted/70">Admin Tools</p>
 
-          <CollapsibleSection title="Sync from /stats-preview" defaultOpen={false}>
+          <CollapsibleSection title="Sync CricHeroes export to database" defaultOpen={false}>
             <p className="text-xs text-jcc-text-muted">
-              Copies the CricHeroes matches behind /stats-preview into the active season&apos;s seeded fixtures, so /seasons
-              shows them too. Fixtures that already have a result are left alone. Check first, then sync.
+              Copies the CricHeroes matches behind /stats into the active season&apos;s seeded fixtures, so the database
+              holds them too. Fixtures that already have a result are left alone. Check first, then sync.
             </p>
             <div className="flex gap-2 flex-wrap">
               <button

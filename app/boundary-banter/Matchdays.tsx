@@ -8,6 +8,7 @@ import { ArrowUpRight, Trophy } from "lucide-react";
 import type { DayPreview } from "@/lib/match-reports";
 import { teamByName } from "@/lib/teams";
 import { afterLoader, gsap, reduceMotion, useGSAP, whenSeen } from "./motion";
+import { PreviewShare } from "./[slug]/ReportShare";
 
 const LABEL = "font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-jcc-text-muted";
 /** Weeks rendered up front; the rest are appended as the reader scrolls. */
@@ -105,11 +106,14 @@ function Matchday({ r, alt }: { r: DayPreview; alt: boolean }) {
             ))}
           </div>
 
-          {r.star && (
-            <div data-md-fade className="mt-5 flex items-center gap-1.5 text-xs text-jcc-text-muted">
-              <Trophy className="h-3 w-3 text-jcc-accent" /> Star of the day: <span className="font-semibold text-white">{r.star}</span>
-            </div>
-          )}
+          <div data-md-fade className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3">
+            {r.star && (
+              <span className="flex items-center gap-1.5 text-xs text-jcc-text-muted">
+                <Trophy className="h-3 w-3 text-jcc-accent" /> Star of the day: <span className="font-semibold text-white">{r.star}</span>
+              </span>
+            )}
+            <PreviewShare preview={r} />
+          </div>
         </div>
       </Link>
     </li>

@@ -2,11 +2,16 @@
 // fresh without requiring a full rebuild.
 export const revalidate = 300;
 
-import HeroSection from "@/components/home/HeroSection";
+import IntelHero from "@/components/home/IntelHero";
 import HomepageBelowFold from "@/components/home/HomepageBelowFold";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { fallbackSeasons, normalizeSeason, seasonScoreline, type Season, type SeasonRow } from "@/lib/seasons";
 import { getTeam, type TeamId } from "@/lib/teams";
+import { getClubStatistics, type ClubStatistics } from "@/lib/statistics";
+import { dayReportPreviews } from "@/lib/match-reports";
+import LiveTicker from "@/components/LiveTicker";
+import { getHomeIntel } from "@/lib/home-intel.server";
+import { articleCovers } from "@/lib/article-covers";
 
 // ─── Type aliases used only server-side ──────────────────────────────────────
 
@@ -33,6 +38,30 @@ export type ArticleData = {
 export type RecentMatch = { id: string; winner: string; date: string; result: string };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+export type HomeStats = {
+  activePlayers: string;
+  weeklyGames: string;
+  weeksActive: string;
+  communityLove: string;
+  oversBowled: string;
+  hoursOfCricket: string;
+  biggestGathering: { players: number; date: string } | null;
+  competitiveTeams: string;
+};
+
+function homeStats(club: ClubStatistics, players: number): HomeStats {
+  return {
+    activePlayers: `${players}+`,
+    weeklyGames: String(club.matchesPlayed),
+    weeksActive: String(club.weeksPlayed),
+    communityLove: "∞",
+    oversBowled: `${club.oversBowled}+`,
+    hoursOfCricket: `${club.hoursOfCricket}+`,
+    biggestGathering: club.biggestGathering,
+    competitiveTeams: String(club.competitiveTeams),
+  };
+}
 
 function buildTickerItems(
   nextMatch: WeeklyMatchRow | null,
@@ -107,7 +136,7 @@ async function getHomepageData() {
         )
         .eq("status", "published")
         .order("published_at", { ascending: false })
-        .limit(3),
+        .limit(6),
       supabaseAdmin
         .from("matches")
         .select("*")
@@ -130,18 +159,12 @@ async function getHomepageData() {
       (nextMatchRes.data as WeeklyMatchRow) ?? null;
 
     // ── Derived stats ─────────────────────────────────────────────────────────
-    // Fixed marketing figures matching the "Our Journey So Far" flyer, kept
-    // in lockstep with StatsSection's tiles — not derived from live club
-    // statistics (see lib/statistics.ts for the computed equivalents).
-    const activePlayerCount = 58;
-    const totalMatchesPlayed = 50;
-    const activeWeeksCount = 19;
-    const stats = {
-      activePlayers: `${activePlayerCount}+`,
-      weeklyGames: `${totalMatchesPlayed}+`,
-      weeksActive: `${activeWeeksCount}+`,
-      communityLove: "∞",
-    };
+    // Players is a fixed marketing figure for now; everything else is counted
+    // from the database by lib/statistics.ts, so it moves as matches are saved.
+    const club = await getClubStatistics();
+    const activePlayerCount = 75;
+    const totalMatchesPlayed = club.matchesPlayed;
+    const stats = homeStats(club, activePlayerCount);
 
     // ── Season ────────────────────────────────────────────────────────────────
     const activeSeason: Season =
@@ -161,12 +184,14 @@ async function getHomepageData() {
     }));
 
     // ── Articles ──────────────────────────────────────────────────────────────
-    const articles: ArticleData[] = rawArticles.map((art) => ({
+    // Editor-written pieces and the automatic matchday reports, newest first —
+    // a week's report joins the home page as soon as its matches are saved.
+    const written: ArticleData[] = rawArticles.map((art) => ({
       id: art.id,
       title: art.title,
       slug: art.slug,
       excerpt: art.excerpt || art.match_summary || "",
-      image_url: art.cover_image_url || "",
+      image_url: "",
       category: art.category,
       published_at: art.published_at || art.created_at,
       author_name:
@@ -175,6 +200,23 @@ async function getHomepageData() {
         art.author ||
         "Boundary Desk",
     }));
+    const reports: ArticleData[] = (await dayReportPreviews()).slice(0, 6).map((r) => ({
+      id: r.slug,
+      title: r.headline,
+      slug: r.slug,
+      excerpt: r.dek,
+      image_url: "",
+      category: "Match Report",
+      published_at: `${r.date}T20:00:00+05:30`,
+      author_name: "JCC Data Desk",
+    }));
+    // Covers are stock cricket photography only (lib/article-covers.ts), never
+    // an uploaded cover or a member's photo — and no two alike on the page.
+    const latest = [...written, ...reports]
+      .sort((a, b) => (b.published_at ?? "").localeCompare(a.published_at ?? ""))
+      .slice(0, 5);
+    const covers = articleCovers(latest.map((a) => a.slug));
+    const articles = latest.map((a, i) => ({ ...a, image_url: covers[i] }));
 
     // ── Ticker items (pre-computed on server, no client fetch needed) ─────────
     const tickerItems = buildTickerItems(
@@ -186,6 +228,7 @@ async function getHomepageData() {
     );
 
     return {
+      nextMatch,
       hero: stats,
       season: {
         activeSeason,
@@ -201,14 +244,19 @@ async function getHomepageData() {
     console.error("Homepage data fetch failed:", error);
 
     const fallback = fallbackSeasons[0];
-    const fallbackStats = {
-      activePlayers: "–",
+    const fallbackStats: HomeStats = {
+      activePlayers: "75+",
       weeklyGames: "–",
       weeksActive: "–",
       communityLove: "∞",
+      oversBowled: "–",
+      hoursOfCricket: "–",
+      biggestGathering: null,
+      competitiveTeams: "4",
     };
 
     return {
+      nextMatch: null,
       hero: fallbackStats,
       season: {
         activeSeason: fallback,
@@ -229,12 +277,13 @@ async function getHomepageData() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function Home() {
-  const data = await getHomepageData();
+  const [data, intel] = await Promise.all([getHomepageData(), getHomeIntel()]);
 
   return (
     <>
-      <HeroSection stats={data.hero} />
-      <HomepageBelowFold stats={data.hero} chewvana={data.chewvana} />
+      <IntelHero intel={intel} />
+      <LiveTicker match={data.nextMatch} />
+      <HomepageBelowFold stats={data.hero} intel={intel} chewvana={data.chewvana} />
     </>
   );
 }

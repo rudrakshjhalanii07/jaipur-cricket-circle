@@ -1,4 +1,4 @@
-// Stats for the /stats-preview dashboard, computed from the CricHeroes export
+// Stats for the /stats dashboard, computed from the CricHeroes export
 // (data.json, built by scripts/build-scorecard-dashboard.mjs).
 //
 // Import rules confirmed with the club, 7 Oct 2026:
@@ -79,13 +79,22 @@ type RawBowling = {
   sixes: number;
 };
 
-const data = raw as {
+export type DashboardInput = {
   matches: RawMatch[];
   innings: RawInnings[];
   batting: RawBatting[];
   bowling: RawBowling[];
   fallOfWickets: RawFallOfWicket[];
 };
+
+/** The CricHeroes export — the standard every other source is checked against. */
+const exportData = raw as DashboardInput;
+
+// The dataset everything below reads, and the lookups derived from it. They
+// are module state so the 800 lines of stats code can keep reading them
+// directly; index() rebuilds them, and withMatches() swaps in a larger set for
+// the length of one synchronous computation.
+let data: DashboardInput = exportData;
 
 // ─── Identity ────────────────────────────────────────────────────────────────
 
@@ -134,10 +143,11 @@ function cleanName(rawName: string): string {
 
 // One display name per merged ID: an explicit override, else the most common
 // cleaned spelling across every row that ID appears on.
-const playerName = new Map<string, string>();
-{
+let playerName = new Map<string, string>();
+function namePlayers(d: DashboardInput): Map<string, string> {
+  const out = new Map<string, string>();
   const counts = new Map<string, Map<string, number>>();
-  for (const r of [...data.batting, ...data.bowling]) {
+  for (const r of [...d.batting, ...d.bowling]) {
     const id = mergedId(r.playerId);
     const n = cleanName(r.name);
     const m = counts.get(id) ?? new Map<string, number>();
@@ -146,8 +156,9 @@ const playerName = new Map<string, string>();
   }
   for (const [id, m] of counts) {
     const best = [...m.entries()].sort((a, b) => b[1] - a[1])[0][0];
-    playerName.set(id, ID_NAME[id] ?? best);
+    out.set(id, ID_NAME[id] ?? best);
   }
+  return out;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -176,7 +187,7 @@ export const SCOPES: { key: ScopeKey; label: string; seasons: number[] }[] = [
   { key: "all", label: "Seasons 2 + 3", seasons: [2, 3] },
 ];
 
-const matchById = new Map(data.matches.map((m) => [m.matchId, m]));
+let matchById = new Map<string, RawMatch>();
 
 // ─── Output shapes ───────────────────────────────────────────────────────────
 
@@ -316,18 +327,49 @@ function parseFielding(howOut: string): Credit[] {
 }
 
 /** Players who appeared for each side of each match, by cleaned name. */
-const matchSides = new Map<string, Map<string, Map<string, string>>>();
-for (const r of [...data.batting, ...data.bowling]) {
-  const sides = matchSides.get(r.matchId) ?? new Map();
-  const side = sides.get(r.team) ?? new Map<string, string>();
-  const id = mergedId(r.playerId);
-  side.set(cleanName(r.name).toLowerCase(), id);
-  side.set(r.name.replace(/\((c|wk|c & wk)\)/gi, "").replace(/\s+/g, " ").trim().toLowerCase(), id);
-  sides.set(r.team, side);
-  matchSides.set(r.matchId, sides);
+let matchSides = new Map<string, Map<string, Map<string, string>>>();
+let globalByName = new Map<string, string>();
+
+/** Points the module at a dataset and rebuilds every lookup derived from it. */
+function index(d: DashboardInput) {
+  data = d;
+  playerName = namePlayers(d);
+  matchById = new Map(d.matches.map((m) => [m.matchId, m]));
+  matchSides = new Map();
+  for (const r of [...d.batting, ...d.bowling]) {
+    const sides = matchSides.get(r.matchId) ?? new Map();
+    const side = sides.get(r.team) ?? new Map<string, string>();
+    const id = mergedId(r.playerId);
+    side.set(cleanName(r.name).toLowerCase(), id);
+    side.set(r.name.replace(/\((c|wk|c & wk)\)/gi, "").replace(/\s+/g, " ").trim().toLowerCase(), id);
+    sides.set(r.team, side);
+    matchSides.set(r.matchId, sides);
+  }
+  globalByName = new Map();
+  for (const [id, n] of playerName) globalByName.set(n.toLowerCase(), id);
 }
-const globalByName = new Map<string, string>();
-for (const [id, n] of playerName) globalByName.set(n.toLowerCase(), id);
+index(exportData);
+
+/**
+ * Runs fn over the export plus extra matches — matches scored after the export,
+ * from the database (see db-matches.server.ts). Everything in here is
+ * synchronous, so the swap can't leak into another request's computation.
+ */
+function withMatches<T>(extra: DashboardInput | null | undefined, fn: () => T): T {
+  if (!extra || extra.matches.length === 0) return fn();
+  index({
+    matches: [...exportData.matches, ...extra.matches],
+    innings: [...exportData.innings, ...extra.innings],
+    batting: [...exportData.batting, ...extra.batting],
+    bowling: [...exportData.bowling, ...extra.bowling],
+    fallOfWickets: [...exportData.fallOfWickets, ...extra.fallOfWickets],
+  });
+  try {
+    return fn();
+  } finally {
+    index(exportData);
+  }
+}
 
 function resolveFielder(matchId: string, fieldingTeam: string, raw: string): string {
   const side = matchSides.get(matchId)?.get(fieldingTeam);
@@ -670,8 +712,8 @@ function computeScope(key: ScopeKey, label: string, seasons: number[]): ScopeSta
   };
 }
 
-export function computeScorecardDashboard(): ScopeStats[] {
-  return SCOPES.map((s) => computeScope(s.key, s.label, s.seasons));
+export function computeScorecardDashboard(extra?: DashboardInput | null): ScopeStats[] {
+  return withMatches(extra, () => SCOPES.map((s) => computeScope(s.key, s.label, s.seasons)));
 }
 
 
@@ -691,7 +733,11 @@ const KIND_OF: [RegExp, CardKind][] = [
   [/^retired/i, "rt"],
 ];
 
-export function buildCardData(): CardData {
+export function buildCardData(extra?: DashboardInput | null): CardData {
+  return withMatches(extra, buildCardDataNow);
+}
+
+function buildCardDataNow(): CardData {
   const ids = [...playerName.keys()].sort((a, b) => playerName.get(a)!.localeCompare(playerName.get(b)!));
   const index = new Map(ids.map((id, i) => [id, i]));
   const names = ids.map((id) => playerName.get(id)!);
@@ -807,10 +853,21 @@ export function buildCardData(): CardData {
 // ─── Identity for the database sync ──────────────────────────────────────────
 // lib/scorecard-dashboard/series-sync.ts writes these matches into the
 // series tables. It names players through the same rules as this dashboard,
-// so a player synced into /seasons is spelled the way /stats-preview shows him.
+// so a player synced into the database is spelled the way /stats shows him.
 
-export { data as dashboardData };
+export { exportData as dashboardData };
 export type { RawMatch, RawInnings, RawBatting, RawBowling, RawFallOfWicket };
+
+/**
+ * The export's player ID for a database name, so a match scored after the
+ * export credits the same person rather than a namesake with no history.
+ * Names in the database were written through dashboardPlayerName, so an exact
+ * (case-insensitive) match is the right test.
+ */
+const exportIdByName = new Map([...namePlayers(exportData)].map(([id, n]) => [n.toLowerCase(), id]));
+export function dashboardIdForName(name: string): string | null {
+  return exportIdByName.get(name.trim().toLowerCase()) ?? null;
+}
 
 /** Display name for a CricHeroes player ID, after merges and overrides. */
 export function dashboardPlayerName(playerId: string, rawName: string): string {

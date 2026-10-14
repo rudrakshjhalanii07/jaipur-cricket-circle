@@ -50,7 +50,9 @@
   /* --- Restrained danger red (destructive actions only, not a brand accent) --- */
   --color-jcc-danger: #B0473F;
 
-  --font-heading: var(--font-display), Georgia, "Times New Roman", serif;
+  --font-heading: var(--font-grotesk), var(--font-inter), system-ui, sans-serif;
+  --font-serif: var(--font-display), Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, monospace;
   --font-body: var(--font-inter), system-ui, sans-serif;
 
   --radius-xl: 1rem;
@@ -166,15 +168,14 @@ html {
    Navbar.tsx is `position: fixed`, so it takes zero space in normal flow —
    every page's root element is responsible for its own top clearance, or
    its first heading renders underneath the nav. Height is the nav row
-   (h-16/h-20 = 64px/80px) plus LiveTicker.tsx's bar (h-9 = 36px) in its
-   unscrolled state: 100px mobile, 116px sm+. This is the ONE place that
+   (h-16/h-20 = 64px/80px); the LiveTicker bar that used to ride on top of it
+   now sits in the home page's flow instead. This is the ONE place that
    number is decided — every page should use `.page-top` instead of a
    hand-picked pt-* value, so a future navbar height change is a single-line
-   fix instead of a repo-wide hunt. 9rem (144px) covers the tallest
-   (unscrolled, sm+) navbar state plus a small deliberate gap, matching the
-   pt-36 convention most pages had already independently converged on. */
+   fix instead of a repo-wide hunt. 7rem (112px) covers the sm+ nav row plus
+   the same deliberate gap pages had with the ticker in place. */
 .page-top {
-  padding-top: 9rem;
+  padding-top: 7rem;
 }
 
 /* Views that hide the navbar entirely (immersive full-screen phases, e.g.
@@ -233,9 +234,12 @@ body::before {
   h1, h2, h3, h4 {
     color: var(--color-jcc-text-primary);
     font-family: var(--font-heading);
-    font-weight: 900;
-    letter-spacing: -0.03em;
-    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+  }
+  ::selection {
+    background: var(--color-jcc-accent);
+    color: var(--color-jcc-blue);
   }
 }
 
@@ -465,85 +469,75 @@ body::before {
   border-radius: 1.25rem;
 }
 
-/* ---- Button System ---- */
-/* Primary CTA — Royal Blue fill, white label, thin gold border */
-.btn-vibrant-blue {
+/* ---- Button System ----
+   Pill-cut, tight caps. Primary is Royal Blue with a gold edge and a light
+   sweep on hover; .btn-gold is the loud one, reserved for the single most
+   important action on a screen (usually "Enter the stats"). All three take a
+   [data-magnetic] wrapper from components/motion. */
+.btn-vibrant-blue,
+.btn-gold,
+.btn-ghost {
   position: relative;
-  background: var(--color-jcc-blue);
-  color: #FFFFFF !important;
-  font-weight: 900;
-  border-radius: 1rem;
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 4px 16px rgba(18, 35, 63, 0.18);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.625rem;
-  padding: 1rem 2.5rem;
-  border: 1.5px solid var(--color-jcc-accent);
-  cursor: pointer;
+  padding: 1rem 2rem;
+  border-radius: 999px;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 0.8125rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-size: 0.875rem;
+  cursor: pointer;
   overflow: hidden;
+  isolation: isolate;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.5s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s, border-color 0.3s, color 0.3s;
 }
-
-.btn-vibrant-blue::after {
+.btn-vibrant-blue {
+  background: var(--color-jcc-blue);
+  color: #FFFFFF !important;
+  border: 1.5px solid color-mix(in srgb, var(--color-jcc-accent) 70%, transparent);
+  box-shadow: 0 10px 30px -12px rgba(18, 35, 63, 0.55);
+}
+.btn-gold {
+  background: linear-gradient(135deg, #F3C96A 0%, #D4AF37 50%, #B98A2C 100%);
+  color: #0D1728 !important;
+  border: 1.5px solid #F3C96A;
+  box-shadow: 0 14px 40px -14px rgba(212, 175, 55, 0.75);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--color-white) !important;
+  border: 1.5px solid color-mix(in srgb, var(--color-white) 22%, transparent);
+}
+.btn-vibrant-blue::after,
+.btn-gold::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(115deg, transparent 35%, color-mix(in srgb, var(--color-jcc-accent-highlight) 55%, transparent) 50%, transparent 65%);
+  z-index: -1;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.45) 50%, transparent 65%);
   transform: translateX(-130%);
-  transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
 }
-
-.btn-vibrant-blue:hover {
-  box-shadow: 0 8px 24px rgba(18, 35, 63, 0.25);
+.btn-vibrant-blue:hover,
+.btn-gold:hover {
   transform: translateY(-2px);
-  border-color: var(--color-jcc-accent-highlight);
 }
-
-.btn-vibrant-blue:hover::after {
-  transform: translateX(130%);
-}
-
-/* Homepage closing-invitation CTA — quicker, quieter hover than the
-   site-default button: a faint gold edge catching light instead of a
-   pronounced lift, tuned for a signature moment rather than a click target. */
-.btn-final-invite {
-  transition-duration: 0.2s;
-}
-.btn-final-invite:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(18, 35, 63, 0.2), inset 0 1px 0 rgba(243, 201, 106, 0.5);
-}
-
-/* Secondary — white fill, gold outline, Royal Blue label; hover fills gold */
-.btn-ghost {
-  border: 1.5px solid color-mix(in srgb, var(--color-jcc-accent) 60%, transparent);
-  background: var(--color-jcc-navy);
-  color: var(--color-jcc-blue) !important;
-  font-weight: 900;
-  border-radius: 1rem;
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.625rem;
-  padding: 1rem 2.5rem;
-  cursor: pointer;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-size: 0.875rem;
-}
-
+.btn-vibrant-blue:hover { border-color: var(--color-jcc-accent-highlight); box-shadow: 0 18px 40px -14px rgba(18, 35, 63, 0.6); }
+.btn-gold:hover { box-shadow: 0 20px 50px -14px rgba(212, 175, 55, 0.9); }
+.btn-vibrant-blue:hover::after,
+.btn-gold:hover::after { transform: translateX(130%); }
 .btn-ghost:hover {
-  background: var(--color-jcc-accent);
   border-color: var(--color-jcc-accent);
-  color: var(--color-jcc-blue) !important;
+  background: color-mix(in srgb, var(--color-jcc-accent) 12%, transparent);
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-jcc-accent) 30%, transparent);
 }
+
+/* Homepage closing-invitation CTA — a quieter hover than the default. */
+.btn-final-invite { transition-duration: 0.2s; }
+.btn-final-invite:hover { transform: translateY(-1px); }
 
 /* ---- Utility Classes ---- */
 .hero-overlay {
@@ -1390,4 +1384,133 @@ body::before {
 }
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   2026 system — shared by every page (began life on /stats).
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Small mono caps: the data-label voice. */
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+/* Outlined display numerals. */
+.text-outline {
+  -webkit-text-stroke: 1.5px currentColor;
+  -webkit-text-fill-color: transparent;
+}
+.text-outline-thin {
+  -webkit-text-stroke: 1px currentColor;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gold-foil {
+  background-image: linear-gradient(135deg, #F3C96A 0%, #D4AF37 45%, #A97824 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Fades the ends of a horizontally scrolling strip. */
+.edge-fade {
+  mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+}
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Print grain for Royal Blue bands. Plain alpha, never a blend mode: a
+   blended layer under scrubbed content re-composites every scroll frame. */
+.print-grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* A double keyline set just inside a dark panel, like a framed plate. */
+.heritage-frame::after {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  pointer-events: none;
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  outline: 1px solid rgba(212, 175, 55, 0.1);
+  outline-offset: 4px;
+  border-radius: inherit;
+}
+
+/* Floodlight grid: faint pitch-plan lines behind dark bands. */
+.pitch-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 30%, transparent 80%);
+}
+
+/* Headline lines that rise out of a mask on first paint. Pure CSS so the hero
+   animates before (and without) hydration, and the LCP text is never hidden
+   by script. */
+.rise-mask { display: block; overflow: hidden; padding-bottom: 0.12em; margin-bottom: -0.12em; }
+.rise-line { display: block; animation: rise-in 1.25s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.rise-mask:nth-child(2) .rise-line { animation-delay: 0.1s; }
+.rise-mask:nth-child(3) .rise-line { animation-delay: 0.2s; }
+.rise-fade { animation: rise-fade 1s cubic-bezier(0.16, 1, 0.3, 1) both; animation-delay: var(--d, 0.35s); }
+@keyframes rise-in { from { transform: translateY(105%) skewY(4deg); } to { transform: none; } }
+@keyframes rise-fade { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+
+/* Endless marquee (CSS; GSAP surges it with scroll velocity where wired). */
+.marquee { display: flex; width: max-content; animation: marquee var(--marquee-speed, 40s) linear infinite; }
+.marquee-reverse { animation-direction: reverse; }
+@keyframes marquee { to { transform: translateX(-50%); } }
+
+/* Custom cursor (components/motion/Cursor.tsx): fine pointers only. */
+.jcc-cursor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 200;
+  pointer-events: none;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 999px;
+  background: var(--color-jcc-accent);
+  mix-blend-mode: normal;
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1), height 0.35s cubic-bezier(0.16, 1, 0.3, 1), margin 0.35s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s, opacity 0.3s;
+}
+.jcc-cursor-ring {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 199;
+  pointer-events: none;
+  width: 38px;
+  height: 38px;
+  margin: -19px 0 0 -19px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-jcc-accent) 55%, transparent);
+  transition: width 0.45s cubic-bezier(0.16, 1, 0.3, 1), height 0.45s cubic-bezier(0.16, 1, 0.3, 1), margin 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s, background-color 0.3s;
+}
+.jcc-cursor[data-hover="true"] { width: 0; height: 0; margin: 0; }
+.jcc-cursor-ring[data-hover="true"] {
+  width: 64px;
+  height: 64px;
+  margin: -32px 0 0 -32px;
+  background: color-mix(in srgb, var(--color-jcc-accent) 14%, transparent);
+  border-color: var(--color-jcc-accent);
+}
+@media (pointer: coarse), (prefers-reduced-motion: reduce) {
+  .jcc-cursor, .jcc-cursor-ring { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise-line, .rise-fade, .marquee { animation: none !important; }
 }
