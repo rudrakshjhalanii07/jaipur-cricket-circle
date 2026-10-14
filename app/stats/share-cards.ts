@@ -15,6 +15,7 @@
 import { f0, f1, f2, fmtDate, ov, plural, type Profile } from "@/lib/scorecard-dashboard/profile";
 import { gradientStops, type CardPerson, type ShareCardSpec } from "@/lib/share-card";
 import { teamByName } from "@/lib/teams";
+import { burstFor, emblemImage, tierOf } from "./achievements";
 
 export type ShareCard = { id: string; label: string; spec: ShareCardSpec; text: string };
 
@@ -25,7 +26,6 @@ const GOLD: [string, string] = ["#F3C96A", "#A97824"];
 const ORANGE = gradientStops("linear-gradient(135deg, #F59E0B 0%, #EA580C 100%)");
 const PURPLE = gradientStops("linear-gradient(135deg, #A78BFA 0%, #7C3AED 100%)");
 const GREEN = gradientStops("linear-gradient(135deg, #6EE7B7 0%, #2E8B57 100%)");
-const BLUE = gradientStops("linear-gradient(135deg, #6E9BE6 0%, #3B6FC4 100%)");
 
 const ordinal = (n: number) => `${n}${["th", "st", "nd", "rd"][(n % 100 >> 3) ^ 1 && n % 10] || "th"}`;
 const first = (name: string) => name.split(/\s+/)[0];
@@ -111,6 +111,20 @@ export function profileShareCards({
     chips: positive.slice(0, 6).map((b) => b.label),
   }, `${pr.B.runs} runs, ${pr.W.wk} wickets, ${pr.F.total} fielding dismissals in ${plural(pr.matches, "match", "matches")}`);
 
+  // A2 · The trophy cabinet: every badge on one card, rarest first
+  if (positive.length >= 2) {
+    const cabinet = [...positive].sort((a, b) => Number(b.tone === "crown") - Number(a.tone === "crown") || (holders.get(a.label) ?? 1) - (holders.get(b.label) ?? 1));
+    add("badges", "All badges", {
+      kicker: `Trophy cabinet · ${scopeLabel}`,
+      title: `${plural(positive.length, "badge")} unlocked`,
+      list: cabinet.slice(0, 9).map((b) => {
+        const n = holders.get(b.label) ?? 1;
+        return { name: b.label, value: n === 1 ? "Only one" : `1 of ${n}`, note: b.why, photo: emblemImage(b.label, b.tone, tierOf(b.tone, n)), logo: true };
+      }),
+      byline: pr.name,
+    }, `${positive.length} badges: ${cabinet.map((b) => b.label).join(", ")}`);
+  }
+
   // C · Player of the Match, most recent first
   [...pr.mom].reverse().slice(0, 4).forEach((m, i) => {
     add(`mom-${m.date}-${i}`, "Player of the Match", {
@@ -186,12 +200,21 @@ export function profileShareCards({
   // G · Achievements not already on a rank card
   positive.filter((b) => !used.has(b.label)).slice(0, 6).forEach((b) => {
     // Rarity is only worth a headline number when few players have the badge.
+    // The emblem leads; the player sits under it as the holder.
     const n = holders.get(b.label) ?? 1;
+    const tier = tierOf(b.tone, n);
     add(`badge-${b.label}`, b.label, {
-      kicker: "Achievement unlocked",
-      title: b.label,
-      hero: n <= 5 ? { value: n === 1 ? "1" : `1 of ${n}`, unit: n === 1 ? "the only player with it" : "players with this badge", colors: b.tone === "crown" ? GOLD : BLUE } : undefined,
+      kicker: `${b.label} · ${tier.charAt(0).toUpperCase()}${tier.slice(1)} badge`,
+      title: pr.name,
       body: b.why,
+      emblem: emblemImage(b.label, b.tone, tier),
+      burst: burstFor(b.tone, b.label),
+      accent: burstFor(b.tone, b.label)[1],
+      facts: [
+        { label: "Badge", value: b.label },
+        { label: "Tier", value: `${tier.charAt(0).toUpperCase()}${tier.slice(1)}` },
+        { label: "Holders", value: n === 1 ? "Only one" : `1 of ${n}` },
+      ],
     }, `${b.label}: ${b.why}`);
   });
 

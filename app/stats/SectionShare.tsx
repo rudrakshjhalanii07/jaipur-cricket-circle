@@ -71,15 +71,19 @@ export function listCard(o: {
   title: string;
   body?: string;
   rows: CardRow[];
+  /** Most rows to show (default 6). */
+  max?: number;
   facts?: { label: string; value: string }[];
   chips?: string[];
   team?: string | null;
   hash?: string;
 }): SheetCard {
   const team = teamByName(o.team ?? null);
-  // A short board of players leads with its No. 1's photo, full-bleed up top.
   const lead = o.rows[0];
-  const feature = o.rows.length <= 6 && lead && !lead.logo && lead.photo ? { name: lead.name, photo: lead.photo, color: lead.color } : null;
+  // Story cards stay readable at six rows; an XI asks for all eleven.
+  const rows = o.rows.slice(0, o.max ?? 6);
+  // The No. 1's photo leads a player list.
+  const feature = lead && !lead.logo && !lead.plain && lead.photo ? { name: lead.name, photo: lead.photo, color: lead.color } : null;
   const spec: ShareCardSpec = {
     kicker: o.kicker,
     title: o.title,
@@ -87,7 +91,7 @@ export function listCard(o: {
     person: feature,
     // No face to lead with: the top team's crest, or the club's.
     emblem: feature ? undefined : lead?.logo && lead.photo ? lead.photo : JCC_CREST,
-    list: o.rows,
+    list: rows,
     facts: o.facts,
     chips: o.chips,
     accent: team?.primary,

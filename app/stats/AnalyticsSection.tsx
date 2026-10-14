@@ -19,11 +19,15 @@ import { useNewcomers } from "./Newcomers";
 import BoardsTab from "./BoardsTab";
 import KingsTab from "./KingsTab";
 import MoMSection from "./MoMSection";
+import CaptainsTab from "./CaptainsTab";
+import { buildCaptains, captainAwards } from "./captains";
+import type { CaptaincyRow } from "@/lib/scorecard-dashboard/captaincy.server";
 import { GREEN, ORANGE, PURPLE, SectionShare, listCard, playerRow, statCard, usePhotoOf } from "./SectionShare";
 
 const TABS = [
   ["boards", "Leaderboards"],
   ["xi", "JCC All-Time XI"],
+  ["captains", "Captains"],
   ["mom", "Player of the Match"],
   ["kings", "Death overs & dots"],
   ["teams", "Team DNA"],
@@ -94,8 +98,20 @@ export function ChancesTab({ rows, names, onOpenPlayer }: { rows: ChanceRow[]; n
   const top = ranked.slice(0, 3);
   const rest = ranked.slice(3);
   const photoOf = usePhotoOf();
-  const shareGems = () =>
-    top.map(({ c }) => {
+  const shareGems = () => [
+    // All of them on one card first, then each player's case.
+    listCard({
+      id: "gems-all",
+      label: "All hidden gems",
+      kicker: "Hidden gems · deserve more chances",
+      title: "The case for more chances",
+      rows: ranked.slice(0, 6).map(({ c }) => {
+        const useBat = c.sr != null && c.balls >= 15;
+        return playerRow(names[c.p], useBat ? `SR ${f0(c.sr)}` : `Econ ${f2(c.econ)}`, useBat ? `${f1(c.ballsPerMatch)} balls a match (team ${f1(c.teamBallsPerMatch)})` : `bowls in ${f0(c.bowlShare)}% of matches`, photoOf(names[c.p]), c.team);
+      }),
+      hash: "gems",
+    }),
+    ...top.map(({ c }) => {
       const name = names[c.p];
       const bat = c.sr != null && c.balls >= 15;
       return statCard({
@@ -117,7 +133,8 @@ export function ChancesTab({ rows, names, onOpenPlayer }: { rows: ChanceRow[]; n
         team: c.team,
         hash: "gems",
       });
-    });
+    }),
+  ];
   const mSrShown = useMemo(() => {
     const v = rows.filter((c) => c.matches >= 3 && c.balls >= 15 && c.sr != null).map((c) => c.sr!).sort((a, b) => a - b);
     return v.length ? v[Math.floor(v.length / 2)] : 0;
@@ -231,9 +248,11 @@ export default function AnalyticsSection({
   seasons,
   onOpenPlayer,
   onOpenMatch,
+  captaincy = [],
 }: {
   data: CardData;
   seasons: number[];
+  captaincy?: CaptaincyRow[];
   onOpenPlayer: (p: number, card?: string) => void;
   onOpenMatch: (matchId: string) => void;
 }) {
@@ -251,6 +270,10 @@ export default function AnalyticsSection({
   const register = showNew ? registerPick : "all";
   const L = useMemo(() => leagueInsights(data, seasons), [data, seasons]);
   const names = data.players;
+  const captainBadges = useMemo(
+    () => captainAwards(buildCaptains(data, seasons, captaincy)).map((a) => ({ p: a.p, team: a.team, label: a.label, tone: a.tone, why: a.why })),
+    [data, seasons, captaincy],
+  );
   const photoOf = usePhotoOf();
   const shareAttendance = () => {
     const top = L.attendance.slice(0, 3);
@@ -325,10 +348,12 @@ export default function AnalyticsSection({
 
       {tab === "xi" && <AllTimeXI data={data} onOpenPlayer={onOpenPlayer} />}
 
+      {tab === "captains" && <CaptainsTab data={data} seasons={seasons} captaincy={captaincy} onOpenPlayer={onOpenPlayer} />}
+
       {tab === "mom" && <MoMSection data={data} onOpenPlayer={onOpenPlayer} onOpenMatch={onOpenMatch} />}
 
       {tab === "labels" && (
-        <AchievementsTab rows={L.badges} names={names} players={L.summary.players} onOpenPlayer={onOpenPlayer} />
+        <AchievementsTab rows={L.badges} names={names} players={L.summary.players} onOpenPlayer={onOpenPlayer} multiSeason={seasons.length > 1} captainBadges={captainBadges} />
       )}
 
       {tab === "attendance" && (

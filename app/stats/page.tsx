@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { buildCardData, computeScorecardDashboard } from "@/lib/scorecard-dashboard/compute";
 import { fetchDbOnlyMatches } from "@/lib/scorecard-dashboard/db-matches.server";
+import { fetchCaptaincy } from "@/lib/scorecard-dashboard/captaincy.server";
 import { fetchPlayerPhotos } from "@/lib/player-photos.server";
 import { fetchSeasons } from "@/lib/seasons";
 import { getSignedInMember } from "@/lib/member-session";
@@ -27,7 +28,7 @@ export default async function StatsPage() {
   if (access.kind === "expired") return <StatsGate expiredOn={access.endsAt} />;
 
   // The export plus anything scored in the admin since it was taken.
-  const [extra, photos, seasons] = await Promise.all([fetchDbOnlyMatches(), fetchPlayerPhotos(), fetchSeasons()]);
+  const [extra, photos, seasons, captaincy] = await Promise.all([fetchDbOnlyMatches(), fetchPlayerPhotos(), fetchSeasons(), fetchCaptaincy().catch(() => [])]);
 
   // Seasons with no scorecards on record — today just Season 1, kept as a
   // summary because its match-by-match records were never maintained.
@@ -60,6 +61,7 @@ export default async function StatsPage() {
       cardData={cardData}
       mine={mine}
       photos={photos}
+      captaincy={captaincy}
       archive={archive}
       memberName={member.name}
     />

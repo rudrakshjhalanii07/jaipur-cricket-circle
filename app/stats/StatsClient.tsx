@@ -20,6 +20,7 @@ import MatchScorecard from "./MatchScorecard";
 import Newcomers from "./Newcomers";
 import KeyBattles from "./KeyBattles";
 import type { PlayerPhotoMap } from "@/lib/player-photos";
+import type { CaptaincyRow } from "@/lib/scorecard-dashboard/captaincy.server";
 import Jaali from "@/components/Jaali";
 import { Avatar, PhotoContext, Portrait, usePhoto } from "./Avatar";
 import { GREEN, ORANGE, PURPLE, SectionShare, listCard, playerRow, statCard, teamRow, usePhotoOf } from "./SectionShare";
@@ -972,6 +973,7 @@ export default function StatsClient({
   scopes,
   cardData,
   photos,
+  captaincy,
   archive,
   memberName,
   mine,
@@ -979,6 +981,7 @@ export default function StatsClient({
   scopes: ScopeStats[];
   cardData: CardData;
   photos: PlayerPhotoMap;
+  captaincy: CaptaincyRow[];
   archive: ArchivedSeason[];
   memberName: string;
   /** The viewer's own scorecard identity — the only deck they may open. */
@@ -1400,7 +1403,7 @@ export default function StatsClient({
         <section className="mt-28 border-y border-jcc-accent/25 bg-[#F1EDE2] pb-28 md:mt-36">
           <div className={WRAP}>
             <SectionHead id="analytics" n="04" kicker="Deep dive" title="Analytics" note="Every board, death overs and dots, the impact XI, team DNA, achievements and attendance" />
-            <AnalyticsSection data={cardData} seasons={seasons} onOpenPlayer={(p, card) => openIndex(p, card, [p])} onOpenMatch={setMatchOpen} />
+            <AnalyticsSection data={cardData} seasons={seasons} captaincy={captaincy} onOpenPlayer={(p, card) => openIndex(p, card, [p])} onOpenMatch={setMatchOpen} />
           </div>
         </section>
 

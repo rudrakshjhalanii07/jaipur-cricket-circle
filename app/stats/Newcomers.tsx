@@ -7,6 +7,7 @@ import { fmtDate, leaderboardRows, type BoardRow, type CardData } from "@/lib/sc
 import { TEAMS, teamByName, type TeamId } from "@/lib/teams";
 import { Avatar } from "./Avatar";
 import { Counter, usePill } from "./motion";
+import { GREEN, SectionShare, listCard, playerRow, statCard, usePhotoOf } from "./SectionShare";
 
 const LABEL = "font-mono text-[10.5px] font-medium uppercase tracking-[0.16em] text-jcc-text-muted";
 const SEASON = 3;
@@ -72,13 +73,44 @@ export default function Newcomers({ data, onOpenPlayer }: { data: CardData; onOp
   });
   const shown = team === "all" ? fresh : fresh.filter((n) => n.team === team);
   const debutDays = new Set(fresh.map((n) => n.debut)).size;
+  const photoOf = usePhotoOf();
+  // Positive only: the class of the season, its standouts, then a welcome card per newcomer.
+  const line = (n: Newcomer) => [n.row?.runs ? `${n.row.runs} runs` : "", n.row?.wk ? `${n.row.wk} wkts` : "", `${n.row?.matches ?? 0} matches`].filter(Boolean).join(" · ");
+  const share = () => {
+    const runs = [...fresh].filter((n) => n.row?.runs).sort((x, y) => (y.row!.runs - x.row!.runs))[0];
+    const wkts = [...fresh].filter((n) => n.row?.wk).sort((x, y) => (y.row!.wk - x.row!.wk))[0];
+    return [
+      listCard({
+        id: "class",
+        label: "Class of Season 3",
+        kicker: `Newcomers · ${fresh.length} new faces`,
+        title: "The class of Season 3",
+        rows: fresh.slice(0, 6).map((n) => playerRow(n.name, n.signing ? price(n.signing.sold) : "", line(n), photoOf(n.name), n.team)),
+        hash: "newcomers",
+      }),
+      runs && statCard({ id: "runs", label: "Top-scoring newcomer", kicker: "Newcomers · top scorer", title: `${runs.name} hit the ground running`, value: String(runs.row!.runs), unit: "runs in a debut season", colors: ["#FB923C", "#C2410C"], name: runs.name, photo: photoOf(runs.name), team: runs.team, facts: [{ label: "Matches", value: String(runs.row!.matches) }, { label: "Debut", value: fmtDate(runs.debut) }, { label: "Team", value: runs.team }], hash: "newcomers" }),
+      wkts && statCard({ id: "wkts", label: "Top wicket-taking newcomer", kicker: "Newcomers · top wicket-taker", title: `${wkts.name} made an instant impact`, value: String(wkts.row!.wk), unit: "wickets in a debut season", colors: ["#A78BFA", "#6D28D9"], name: wkts.name, photo: photoOf(wkts.name), team: wkts.team, facts: [{ label: "Matches", value: String(wkts.row!.matches) }, { label: "Debut", value: fmtDate(wkts.debut) }, { label: "Team", value: wkts.team }], hash: "newcomers" }),
+      ...fresh.map((n) =>
+        statCard({
+          id: `new-${n.p}`, label: n.name, kicker: `Welcome to the Circle · ${n.team}`, title: `${n.name} joins the Circle`,
+          value: String(n.row?.matches ?? 0), unit: n.row?.matches === 1 ? "match so far" : "matches so far", colors: GREEN,
+          body: n.signing ? `Signed at the Season 3 auction for ${price(n.signing.sold)}.` : `Debut on ${fmtDate(n.debut)}.`,
+          facts: [{ label: "Runs", value: String(n.row?.runs ?? 0) }, { label: "Wickets", value: String(n.row?.wk ?? 0) }, { label: "Debut", value: fmtDate(n.debut) }],
+          name: n.name, photo: photoOf(n.name), team: n.team, hash: "newcomers",
+        }),
+      ),
+    ].filter((c): c is NonNullable<typeof c> => !!c);
+  };
 
   return (
     <div>
       {/* ── The headline ── */}
       <div data-reveal className="grid items-end gap-10 rounded-[1.75rem] bg-jcc-blue ring-1 ring-[#FCFBF8]/10 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.6)] p-6 md:p-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-16">
         <div>
-          <p className={LABEL}>New this season</p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className={LABEL}>New this season</p>
+            {fresh.length > 0 && <SectionShare build={share} fileBase="jcc-newcomers" label="Share newcomers" dark />}
+          </div>
           <div className="mt-4 flex items-end gap-4">
             <span
               className="font-heading text-[5.5rem] font-bold leading-[0.78] tracking-[-0.06em] tabular-nums sm:text-[7rem] md:text-[9rem]"

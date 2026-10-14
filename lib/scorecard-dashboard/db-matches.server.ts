@@ -65,6 +65,7 @@ interface DbInnings {
 }
 interface DbMatch {
   id: string;
+  match_no: number;
   match_date: string | null;
   venue: string | null;
   team1_id: string | null;
@@ -106,19 +107,19 @@ const key = (date: string, a: string, b: string) => `${date}|${[a, b].sort().joi
  * match saved in the admin and the Sunday cron refresh it, so /stats and the
  * Boundary Banter reports pick a new week up straight away.
  */
-export const fetchDbOnlyMatches = unstable_cache(loadDbOnlyMatches, ["db-only-matches-v1"], {
+export const fetchDbOnlyMatches = unstable_cache(loadDbOnlyMatches, ["db-only-matches-v2"], {
   revalidate: 3600,
   tags: ["scorecards"],
 });
 
-async function loadDbOnlyMatches(): Promise<DashboardInput | null> {
+export async function loadDbOnlyMatches(): Promise<DashboardInput | null> {
   try {
     const [{ data: seasons }, { data: series }] = await Promise.all([
       supabaseAdmin.from("rivalry_seasons").select("id, title, season_label"),
       supabaseAdmin
         .from("series")
         .select(
-          "season_id, venue, overs_per_innings, series_matches(id, match_date, venue, team1_id, team2_id, winner_id, is_tie, margin_type, margin_value, series_innings(innings_no, batting_team_id, total_runs, total_wickets, total_overs, extras_wides, extras_no_balls, extras_byes, extras_leg_byes, fall_of_wickets, series_batting(player_name, batting_order, runs, balls_faced, fours, sixes, dismissal_type, dismissed_by, caught_by), series_bowling(player_name, bowling_order, overs, maidens, runs_conceded, wickets, wides, no_balls)))",
+          "season_id, venue, overs_per_innings, series_matches(id, match_no, match_date, venue, team1_id, team2_id, winner_id, is_tie, margin_type, margin_value, series_innings(innings_no, batting_team_id, total_runs, total_wickets, total_overs, extras_wides, extras_no_balls, extras_byes, extras_leg_byes, fall_of_wickets, series_batting(player_name, batting_order, runs, balls_faced, fours, sixes, dismissal_type, dismissed_by, caught_by), series_bowling(player_name, bowling_order, overs, maidens, runs_conceded, wickets, wides, no_balls)))",
         ),
     ]);
     if (!seasons || !series) return null;
@@ -136,16 +137,66 @@ async function loadDbOnlyMatches(): Promise<DashboardInput | null> {
     // Names with no history in the export get a stable id of their own.
     const idFor = (name: string) => dashboardIdForName(name) ?? `db:${name.trim()}`;
 
+    // Export matches by date + pair, in order of play, to pair database copies with.
+    const exportBy = new Map<string, string[]>();
+    for (const e of [...dashboardData.matches].sort((a, b) => a.matchId.localeCompare(b.matchId))) {
+      const k = key(e.date, exportTeamName[e.teamA] ?? e.teamA, exportTeamName[e.teamB] ?? e.teamB);
+      (exportBy.get(k) ?? exportBy.set(k, []).get(k)!).push(e.matchId);
+    }
+    const taken = new Map<string, number>();
+    // A scorecard's numbers, row by row. Names are left out on purpose: the
+    // two copies spell some players differently (and there are two Ankits),
+    // so only a changed number marks a match as corrected.
+    const exportSig = (id: string) =>
+      [
+        ...dashboardData.batting.filter((r) => r.matchId === id).map((r) => `b${r.inning}:${r.runs}:${r.balls}:${r.fours}:${r.sixes}`),
+        ...dashboardData.bowling.filter((r) => r.matchId === id).map((r) => `w${r.inning}:${r.wickets}:${r.runs}`),
+      ].sort().join("|");
+    const dbSig = (m: DbMatch) =>
+      m.series_innings
+        .flatMap((inn) => [
+          ...inn.series_batting.filter((b) => b.dismissal_type !== "did_not_bat").map((b) => `b${inn.innings_no}:${b.runs}:${b.balls_faced ?? 0}:${b.fours}:${b.sixes}`),
+          ...inn.series_bowling.map((b) => `w${inn.innings_no}:${b.wickets}:${b.runs_conceded}`),
+        ])
+        .sort()
+        .join("|");
+    out.squads = [];
+    out.replaces = [];
+    const team = (id: string) => EXPORT_TEAM[id] ?? id;
+    const addSquad = (m: DbMatch, matchId: string) => {
+      for (const inn of m.series_innings)
+        for (const b of inn.series_batting)
+          if (b.dismissal_type === "did_not_bat") out.squads!.push({ matchId, playerId: idFor(b.player_name), name: b.player_name, team: team(inn.batting_team_id) });
+    };
+
     for (const s of series) {
       const season = seasonNo.get(s.season_id) ?? 0;
-      if (season < FIRST_DB_SEASON) continue;
-      for (const m of s.series_matches as DbMatch[]) {
+      for (const m of [...(s.series_matches as DbMatch[])].sort((a, b) => a.match_no - b.match_no)) {
         if (!m.match_date || !m.team1_id || !m.team2_id) continue;
         if (!(m.winner_id || m.is_tie) || m.series_innings.length === 0) continue;
-        if (inExport.has(key(m.match_date, m.team1_id, m.team2_id))) continue;
+        const k = key(m.match_date, m.team1_id, m.team2_id);
+        if (inExport.has(k)) {
+          // The export's copy of this match, paired by order of play that day.
+          const i = taken.get(k) ?? 0;
+          taken.set(k, i + 1);
+          const exportId = exportBy.get(k)?.[i];
+          if (!exportId) {
+            // More database matches than export ones that day (Season 2's
+            // finals): still awaiting a decision, so left out.
+            continue;
+          }
+          if (dbSig(m) === exportSig(exportId)) {
+            // Same numbers: the export stays (it carries dot balls); the
+            // database only adds the squad who didn't bat.
+            addSquad(m, exportId);
+            continue;
+          }
+          // Corrected in the admin: the database copy replaces the export's.
+          out.replaces.push(exportId);
+        } else if (season < FIRST_DB_SEASON) continue;
 
         const matchId = `db:${m.id}`;
-        const team = (id: string) => EXPORT_TEAM[id] ?? id;
+        addSquad(m, matchId);
         out.matches.push({
           season,
           matchId,

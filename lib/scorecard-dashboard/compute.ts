@@ -85,6 +85,10 @@ export type DashboardInput = {
   batting: RawBatting[];
   bowling: RawBowling[];
   fallOfWickets: RawFallOfWicket[];
+  /** Squad members who played but didn't bat or bowl ("did not bat"): they count as present. */
+  squads?: { matchId: string; playerId: string; name: string; team: string }[];
+  /** Export match IDs whose scorecard was corrected in the database: the database copy replaces them. */
+  replaces?: string[];
 };
 
 /** The CricHeroes export — the standard every other source is checked against. */
@@ -356,13 +360,16 @@ index(exportData);
  * synchronous, so the swap can't leak into another request's computation.
  */
 function withMatches<T>(extra: DashboardInput | null | undefined, fn: () => T): T {
-  if (!extra || extra.matches.length === 0) return fn();
+  if (!extra || (extra.matches.length === 0 && !extra.squads?.length)) return fn();
+  const gone = new Set(extra.replaces ?? []);
+  const keep = <R extends { matchId: string }>(rows: R[]) => (gone.size ? rows.filter((r) => !gone.has(r.matchId)) : rows);
   index({
-    matches: [...exportData.matches, ...extra.matches],
-    innings: [...exportData.innings, ...extra.innings],
-    batting: [...exportData.batting, ...extra.batting],
-    bowling: [...exportData.bowling, ...extra.bowling],
-    fallOfWickets: [...exportData.fallOfWickets, ...extra.fallOfWickets],
+    matches: [...keep(exportData.matches), ...extra.matches],
+    innings: [...keep(exportData.innings), ...extra.innings],
+    batting: [...keep(exportData.batting), ...extra.batting],
+    bowling: [...keep(exportData.bowling), ...extra.bowling],
+    fallOfWickets: [...keep(exportData.fallOfWickets), ...extra.fallOfWickets],
+    squads: extra.squads ?? [],
   });
   try {
     return fn();
@@ -828,6 +835,11 @@ function buildCardDataNow(): CardData {
     for (const f of r[11]) mark(r[0], f, r[4]);
   }
   for (const r of data.bowling) mark(mIndex.get(r.matchId)!, indexOf(mergedId(r.playerId)), teamName(r.team));
+  // Did-not-bat squad members, recorded in the admin.
+  for (const r of data.squads ?? []) {
+    const m = mIndex.get(r.matchId);
+    if (m != null) mark(m, indexOf(mergedId(r.playerId)), teamName(r.team));
+  }
 
   return {
     players: names,
@@ -867,6 +879,11 @@ export type { RawMatch, RawInnings, RawBatting, RawBowling, RawFallOfWicket };
 const exportIdByName = new Map([...namePlayers(exportData)].map(([id, n]) => [n.toLowerCase(), id]));
 export function dashboardIdForName(name: string): string | null {
   return exportIdByName.get(name.trim().toLowerCase()) ?? null;
+}
+
+/** A CricHeroes player ID after merges: the ID CardData.playerIds uses. */
+export function dashboardMergedId(playerId: string): string {
+  return mergedId(playerId);
 }
 
 /** Display name for a CricHeroes player ID, after merges and overrides. */

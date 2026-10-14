@@ -1,6 +1,8 @@
 "use client";
 
 import { createElement, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { renderToStaticMarkup } from "react-dom/server";
 import {
   Anchor,
   Award,
@@ -11,12 +13,14 @@ import {
   CalendarCheck,
   CircleSlash,
   Clover,
+  Coins,
   Crosshair,
   Crown,
   Egg,
   Flag,
   Flame,
   Footprints,
+  Frown,
   Gauge,
   Gem,
   Hand,
@@ -26,6 +30,7 @@ import {
   Medal,
   Moon,
   Mountain,
+  Percent,
   Repeat,
   Rocket,
   Ruler,
@@ -47,10 +52,12 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { BADGE_CATALOG, type Badge, type BadgeTone } from "@/lib/scorecard-dashboard/profile";
+import { BADGE_CATALOG, plural, type Badge, type BadgeTone } from "@/lib/scorecard-dashboard/profile";
 import { Avatar } from "./Avatar";
 import { usePill } from "./motion";
 import { SectionShare, listCard, playerRow, usePhotoOf } from "./SectionShare";
+
+const TIER_NAME: Record<Tier, string> = { legendary: "Legendary", epic: "Epic", rare: "Rare", common: "Common", banter: "Banter", locked: "Locked" };
 import { teamByName } from "@/lib/teams";
 
 // ─── Rarity ──────────────────────────────────────────────────────────────────
@@ -77,26 +84,138 @@ const TIER: Record<Tier, { label: string; ring: [string, string, string]; core: 
   locked: { label: "Locked", ring: ["#EAECF0", "#D0D5DD", "#B5BCC8"], core: "#F2F4F7", icon: "#98A2B3", chip: "bg-jcc-navy-light text-jcc-text-muted", glow: "transparent" },
 };
 
-const CATEGORY: { key: "all" | BadgeTone; label: string }[] = [
+type Category = "all" | BadgeTone | "captain";
+const CATEGORY: { key: Category; label: string }[] = [
   { key: "all", label: "All" },
   { key: "crown", label: "Crowns" },
   { key: "bat", label: "Batting" },
   { key: "ball", label: "Bowling" },
   { key: "field", label: "Fielding" },
   { key: "team", label: "Team" },
+  { key: "captain", label: "Captaincy" },
   { key: "warn", label: "Banter" },
 ];
 
-const ICONS: Record<string, LucideIcon> = { Anchor, Award, BadgeCheck, Banknote, Bomb, BrickWall, CalendarCheck, CircleSlash, Clover, Crosshair, Crown, Egg, Flag, Flame, Footprints, Gauge, Gem, Hand, Handshake, Hourglass, Infinity, Medal, Moon, Mountain, Repeat, Rocket, Ruler, Scale, Shield, ShieldCheck, Snowflake, Sparkles, Star, Sunrise, Swords, Target, TrendingUp, Trophy, Turtle, Wind, Zap };
+/** Captaincy and toss badges (from the Captains tab's records, app/stats/captains.ts). */
+export const CAPTAIN_CATALOG: { label: string; tone: BadgeTone; icon: string; rule: string }[] = [
+  { label: "Skipper Supreme", tone: "crown", icon: "Crown", rule: "Most wins as captain (min 4 matches)." },
+  { label: "Winning Habit", tone: "team", icon: "Shield", rule: "Best win rate as captain (min 6 matches)." },
+  { label: "Chase Captain", tone: "team", icon: "Target", rule: "Best record chasing as captain (min 3 chases)." },
+  { label: "Fortress Captain", tone: "team", icon: "ShieldCheck", rule: "Best record defending as captain (min 3)." },
+  { label: "Toss King", tone: "crown", icon: "Coins", rule: "Most tosses won." },
+  { label: "Coin Whisperer", tone: "team", icon: "Percent", rule: "Best toss-win rate (min 4 tosses)." },
+  { label: "Toss Converter", tone: "team", icon: "Trophy", rule: "Best win rate after winning the toss (min 3)." },
+  { label: "Toss Jinx", tone: "warn", icon: "Frown", rule: "Most tosses lost." },
+];
+const CAPTAIN_LABELS = new Set(CAPTAIN_CATALOG.map((b) => b.label));
+const inCategory = (b: { label: string; tone: BadgeTone }, cat: Category) =>
+  cat === "all" || (cat === "captain" ? CAPTAIN_LABELS.has(b.label) : b.tone === cat && !(CAPTAIN_LABELS.has(b.label) && cat !== "warn"));
+
+const ICONS: Record<string, LucideIcon> = { Anchor, Award, BadgeCheck, Banknote, Bomb, BrickWall, CalendarCheck, CircleSlash, Clover, Coins, Crosshair, Crown, Egg, Flag, Flame, Footprints, Frown, Gauge, Gem, Hand, Handshake, Hourglass, Infinity, Medal, Moon, Mountain, Percent, Repeat, Rocket, Ruler, Scale, Shield, ShieldCheck, Snowflake, Sparkles, Star, Sunrise, Swords, Target, TrendingUp, Trophy, Turtle, Wind, Zap };
 const iconFor = (name: string) => ICONS[name] ?? Award;
-const catalogEntry = (label: string) => BADGE_CATALOG.find((b) => b.label === label);
+const catalogEntry = (label: string) => BADGE_CATALOG.find((b) => b.label === label) ?? CAPTAIN_CATALOG.find((b) => b.label === label);
 
 // ─── Emblem ──────────────────────────────────────────────────────────────────
 
-/** A hexagonal medal: graded metal ring, dark core, icon. */
-export function Emblem({ label, tone, tier, size = 72 }: { label: string; tone: BadgeTone; tier: Tier; size?: number }) {
+/**
+ * The emblem as a standalone SVG image (data URL), for story cards: same
+ * hexagon, metal and icon as <Emblem>, drawn without CSS so a canvas can paint it.
+ */
+export function emblemImage(label: string, tone: BadgeTone, tier: Tier): string {
   const t = TIER[tier];
   const icon = tier === "locked" ? Lock : iconFor(catalogEntry(label)?.icon ?? "Award");
+  const hex = (r: number) =>
+    Array.from({ length: 6 }, (_, i) => {
+      const a = (Math.PI / 3) * i - Math.PI / 2;
+      return `${50 + r * Math.cos(a)},${50 + r * Math.sin(a)}`;
+    }).join(" ");
+  const glyph = renderToStaticMarkup(createElement(icon, { x: 32, y: 32, width: 36, height: 36, color: t.icon, strokeWidth: 2.1 }));
+  const crown = tone === "crown" && tier !== "locked" ? `<g fill="${t.ring[0]}"><circle cx="50" cy="6" r="2.4"/><circle cx="88" cy="28" r="1.8"/><circle cx="12" cy="28" r="1.8"/></g>` : "";
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="600" height="600"><defs><linearGradient id="r" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${t.ring[0]}"/><stop offset=".5" stop-color="${t.ring[1]}"/><stop offset="1" stop-color="${t.ring[2]}"/></linearGradient></defs><polygon points="${hex(48)}" fill="url(#r)"/><polygon points="${hex(40)}" fill="${t.core}"/><polygon points="${hex(40)}" fill="none" stroke="${t.ring[0]}" stroke-opacity=".35" stroke-width="1.2"/>${crown}${glyph}</svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+/**
+ * Story-card sunburst: each badge in a colour its name suggests (bright top,
+ * deeper below). Anything unlisted falls back to its family's colour.
+ */
+const BADGE_COLORS: Record<string, [string, string]> = {
+  // Crowns
+  "Orange Cap": ["#FB923C", "#C2410C"],
+  "Purple Cap": ["#C084FC", "#6B21A8"],
+  "Six Machine": ["#F87171", "#B91C1C"],
+  "Boundary King": ["#FCD34D", "#B45309"],
+  "Fastest Scorer": ["#FDE047", "#CA8A04"],
+  "Most Economical": ["#5EEAD4", "#0F766E"],
+  "Dot-Ball Monster": ["#7DD3FC", "#0369A1"],
+  "Death-Over King": ["#818CF8", "#312E81"],
+  "Powerplay Striker": ["#FDBA74", "#DB2777"],
+  "Gold Glove": ["#FDE68A", "#A16207"],
+  "Man of the Moment": ["#F9A8D4", "#BE185D"],
+  // Batting
+  "Power Hitter": ["#FB7185", "#9F1239"],
+  "Strike-Rate Beast": ["#FDBA74", "#DC2626"],
+  "Mr Consistent": ["#93C5FD", "#1E40AF"],
+  "Anchor": ["#67E8F9", "#155E75"],
+  "Finisher": ["#A3E635", "#3F6212"],
+  "Strike Rotator": ["#5EEAD4", "#0E7490"],
+  "Boundary or Bust": ["#FCA5A5", "#B91C1C"],
+  "Hard to Bowl": ["#CBD5E1", "#475569"],
+  "Chase Master": ["#6EE7B7", "#047857"],
+  "Total Builder": ["#D6D3D1", "#57534E"],
+  "Top-Order Rock": ["#C4B5FD", "#5B21B6"],
+  "Big Scorer": ["#FDE047", "#B45309"],
+  // Bowling
+  "Strike Bowler": ["#F87171", "#991B1B"],
+  "Run-Stopper": ["#7DD3FC", "#075985"],
+  "Dependable Bowler": ["#93C5FD", "#1E3A8A"],
+  "Pressure Builder": ["#F0ABFC", "#86198F"],
+  "Line & Length": ["#A5B4FC", "#3730A3"],
+  "Holding Bowler": ["#99F6E4", "#115E59"],
+  "Stump Hunter": ["#FCA5A5", "#7F1D1D"],
+  "Death-Over Specialist": ["#A78BFA", "#3B0764"],
+  "New-Ball Threat": ["#FDE68A", "#EA580C"],
+  "Duck Maker": ["#FEF08A", "#CA8A04"],
+  "Multi-Wicket Man": ["#E879F9", "#7E22CE"],
+  "Maiden Maker": ["#E2E8F0", "#64748B"],
+  // Fielding
+  "Gloveman": ["#FCD34D", "#92400E"],
+  "Run-Out Specialist": ["#FCA5A5", "#DC2626"],
+  "Safe Hands": ["#86EFAC", "#15803D"],
+  // Team
+  "Genuine All-Rounder": ["#C4B5FD", "#4338CA"],
+  "Ever-Present": ["#6EE7B7", "#065F46"],
+  "Lucky Charm": ["#4ADE80", "#166534"],
+  "Two-Season Regular": ["#93C5FD", "#1D4ED8"],
+  "Match Winner": ["#FCD34D", "#C2410C"],
+  // Captaincy
+  "Skipper Supreme": ["#FDE68A", "#B45309"],
+  "Winning Habit": ["#93C5FD", "#1E40AF"],
+  "Chase Captain": ["#67E8F9", "#0E7490"],
+  "Fortress Captain": ["#CBD5E1", "#334155"],
+  "Toss King": ["#FDE047", "#A16207"],
+  "Coin Whisperer": ["#C4B5FD", "#6D28D9"],
+  "Toss Converter": ["#86EFAC", "#15803D"],
+};
+
+export function burstFor(tone: BadgeTone, label?: string): [string, string] {
+  if (label && BADGE_COLORS[label]) return BADGE_COLORS[label];
+  switch (tone) {
+    case "crown": return ["#FBBF24", "#B45309"];
+    case "bat": return ["#FB923C", "#C2410C"];
+    case "ball": return ["#A78BFA", "#6D28D9"];
+    case "field": return ["#34D399", "#047857"];
+    default: return ["#60A5FA", "#1D4ED8"];
+  }
+}
+
+/** The emblem's metal colour, for the card's glow. */
+export const tierColor = (tier: Tier) => TIER[tier].ring[1];
+
+/** A hexagonal medal: graded metal ring, dark core, icon. */
+export function Emblem({ label, tone, tier, size = 72, icon: given }: { label: string; tone: BadgeTone; tier: Tier; size?: number; icon?: LucideIcon }) {
+  const t = TIER[tier];
+  const icon = tier === "locked" ? Lock : given ?? iconFor(catalogEntry(label)?.icon ?? "Award");
   const id = `emb-${tier}`;
   const hex = (r: number) =>
     Array.from({ length: 6 }, (_, i) => {
@@ -150,7 +269,9 @@ export function AchievementStyles() {
       .ach-legendary { overflow: hidden; clip-path: polygon(50% 2%, 92% 26%, 92% 74%, 50% 98%, 8% 74%, 8% 26%); }
       .ach-legendary::after { content: ""; position: absolute; inset: -20%; background: linear-gradient(90deg, transparent 35%, rgba(255,255,255,.55) 50%, transparent 65%); animation: ach-shine 3.6s ease-in-out infinite; }
       .ach-tile { animation: ach-pop .35s ease-out both; }
-      @media (prefers-reduced-motion: reduce) { .ach-legendary::after, .ach-tile { animation: none; } }
+      @keyframes ach-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+      .ach-rays { animation: ach-spin 40s linear infinite; }
+      @media (prefers-reduced-motion: reduce) { .ach-legendary::after, .ach-tile, .ach-rays { animation: none; } }
     `}</style>
   );
 }
@@ -181,9 +302,25 @@ function Holders({ holders, names }: { holders: Holder[]; names: string[] }) {
   );
 }
 
-export default function AchievementsTab({ rows, names, players, onOpenPlayer }: { rows: Row[]; names: string[]; players: number; onOpenPlayer: (p: number, card?: string) => void }) {
+/** Badges that only exist when more than one season is in view. */
+const MULTI_SEASON_ONLY = new Set(["Two-Season Regular"]);
+
+export default function AchievementsTab({ rows: baseRows, names, players, onOpenPlayer, multiSeason = true, captainBadges = [] }: { rows: Row[]; names: string[]; players: number; onOpenPlayer: (p: number, card?: string) => void; multiSeason?: boolean; captainBadges?: { p: number; team: string; label: string; tone: BadgeTone; why: string }[] }) {
+  // A one-season view can't award a two-season badge: leave it out rather than show it locked.
+  const base = multiSeason ? BADGE_CATALOG : BADGE_CATALOG.filter((b) => !MULTI_SEASON_ONLY.has(b.label));
+  const CATALOG = captainBadges.length ? [...base, ...CAPTAIN_CATALOG] : base;
+  // Captaincy badges join each holder's shelf.
+  const rows = useMemo(() => {
+    if (!captainBadges.length) return baseRows;
+    const out = new Map(baseRows.map((r) => [r.p, { ...r, badges: [...r.badges] }]));
+    for (const c of captainBadges) {
+      const r = out.get(c.p) ?? out.set(c.p, { p: c.p, team: c.team, role: "", badges: [] }).get(c.p)!;
+      r.badges.push({ label: c.label, tone: c.tone, why: c.why });
+    }
+    return [...out.values()];
+  }, [baseRows, captainBadges]);
   const [view, setView] = useState<"badges" | "cabinets">("badges");
-  const [cat, setCat] = useState<"all" | BadgeTone>("all");
+  const [cat, setCat] = useState<Category>("all");
   const [open, setOpen] = useState<string | null>(null);
   const { box: viewBox, pill: viewPill } = usePill(view);
   const { box: catBox, pill: catPill } = usePill(`${view}|${cat}`, "line");
@@ -195,30 +332,28 @@ export default function AchievementsTab({ rows, names, players, onOpenPlayer }: 
   }, [rows]);
 
   const order: Tier[] = ["legendary", "epic", "rare", "common", "banter", "locked"];
-  const badges = BADGE_CATALOG.map((b) => {
+  const badges = CATALOG.map((b) => {
     const hs = holders.get(b.label) ?? [];
     return { ...b, holders: hs, tier: tierOf(b.tone, hs.length) };
   })
-    .filter((b) => cat === "all" || b.tone === cat)
+    .filter((b) => inCategory(b, cat))
     .sort((a, b) => order.indexOf(a.tier) - order.indexOf(b.tier) || a.holders.length - b.holders.length);
   const byTier = order.map((tier) => ({ tier, items: badges.filter((b) => b.tier === tier) })).filter((g) => g.items.length);
 
-  const unlocked = BADGE_CATALOG.filter((b) => holders.get(b.label)?.length).length;
+  const unlocked = CATALOG.filter((b) => holders.get(b.label)?.length).length;
   const total = rows.reduce((s, r) => s + r.badges.filter((b) => b.tone !== "warn").length, 0);
-  const counts = Object.fromEntries(CATEGORY.map((c) => [c.key, BADGE_CATALOG.filter((b) => c.key === "all" || b.tone === c.key).length]));
+  const counts = Object.fromEntries(CATEGORY.map((c) => [c.key, CATALOG.filter((b) => inCategory(b, c.key)).length]));
   const selected = open ? badges.find((b) => b.label === open) ?? null : null;
 
   const cabinets = [...rows]
     .map((r) => ({ ...r, earned: r.badges.filter((b) => b.tone !== "warn"), banter: r.badges.filter((b) => b.tone === "warn") }))
     .sort((a, b) => b.earned.length - a.earned.length || b.earned.filter((x) => x.tone === "crown").length - a.earned.filter((x) => x.tone === "crown").length);
-  const maxEarned = Math.max(1, ...cabinets.map((c) => c.earned.length));
 
   // Story cards: the most decorated, then every earned badge, rarest first.
   // Banter ("warn") badges never make a card.
   const photoOf = usePhotoOf();
   const share = () => {
-    const TIER_NAME: Record<Tier, string> = { legendary: "Legendary", epic: "Epic", rare: "Rare", common: "Common", banter: "Banter", locked: "Locked" };
-    const earned = BADGE_CATALOG.filter((b) => b.tone !== "warn")
+    const earned = CATALOG.filter((b) => b.tone !== "warn")
       .map((b) => ({ ...b, holders: holders.get(b.label) ?? [] }))
       .filter((b) => b.holders.length)
       .map((b) => ({ ...b, tier: tierOf(b.tone, b.holders.length) }))
@@ -230,22 +365,70 @@ export default function AchievementsTab({ rows, names, players, onOpenPlayer }: 
         kicker: "Hall of Badges",
         title: "The most decorated players",
         rows: cabinets.slice(0, 6).map((c) => playerRow(names[c.p], String(c.earned.length), c.earned.slice(0, 3).map((b) => b.label).join(" · "), photoOf(names[c.p]), c.team)),
-        facts: [{ label: "Badges unlocked", value: `${unlocked}/${BADGE_CATALOG.length}` }, { label: "Earned", value: String(total) }, { label: "Players", value: `${rows.length}/${players}` }],
+        facts: [{ label: "Badges unlocked", value: `${unlocked}/${CATALOG.length}` }, { label: "Earned", value: String(total) }, { label: "Players", value: `${rows.length}/${players}` }],
         hash: "analytics",
       }),
-      ...earned.map((b) =>
-        listCard({
-          id: `badge-${b.label}`,
-          label: b.label,
-          kicker: `${TIER_NAME[b.tier]} badge · ${b.holders.length === 1 ? "one holder" : `${b.holders.length} holders`}`,
-          title: b.label,
-          body: b.rule,
-          rows: b.holders.slice(0, 6).map((h) => playerRow(names[h.p], "", h.why, photoOf(names[h.p]), h.team)),
-          hash: "analytics",
-        }),
-      ),
+      ...earned.map(badgeCard),
     ].filter((c) => c.spec.list?.length);
   };
+  /** One player's trophy cabinet: their photo up top, every badge with its emblem. */
+  const cabinetCard = (p: number, team: string, shelf: Badge[]) => {
+    const c = listCard({
+      id: `cabinet-${p}`,
+      label: names[p],
+      kicker: `Trophy cabinet · ${plural(shelf.length, "badge")}`,
+      title: names[p],
+      rows: shelf.slice(0, 6).map((b) => {
+        const n = holders.get(b.label)?.length ?? 1;
+        return { name: b.label, value: n === 1 ? "Only one" : `1 of ${n}`, note: b.why, photo: emblemImage(b.label, b.tone, tierOf(b.tone, n)), logo: true };
+      }),
+      hash: "analytics",
+    });
+    c.spec = { ...c.spec, person: { name: names[p], photo: photoOf(names[p]) }, emblem: undefined, byline: names[p], team };
+    c.text = `${names[p]}'s trophy cabinet: ${shelf.map((b) => b.label).join(", ")}\n${window.location.origin}/stats#analytics`;
+    return c;
+  };
+  /** A badge and everyone who holds it: the emblem leads. */
+  const badgeCard = (b: { label: string; rule: string; tier: Tier; tone: BadgeTone; holders: Holder[] }) => {
+    const c = listCard({
+      id: `badge-${b.label}`,
+      label: b.label,
+      kicker: `${TIER_NAME[b.tier]} badge · ${b.holders.length === 1 ? "one holder" : `${b.holders.length} holders`}`,
+      title: b.label,
+      body: b.rule,
+      rows: b.holders.slice(0, 5).map((h) => playerRow(names[h.p], "", h.why, photoOf(names[h.p]), h.team)),
+      hash: "analytics",
+    });
+    c.spec = { ...c.spec, person: null, emblem: emblemImage(b.label, b.tone, b.tier), burst: burstFor(b.tone, b.label), accent: burstFor(b.tone, b.label)[1] };
+    return c;
+  };
+  /** The badge's card first, then one per holder: the emblem big, the holder under it. */
+  const badgeCards = (b: { label: string; rule: string; tier: Tier; tone: BadgeTone; holders: Holder[] }) => [
+    badgeCard(b),
+    ...b.holders.map((h) => {
+      const c = listCard({ id: `holder-${h.p}`, label: names[h.p], kicker: "", title: "", rows: [], hash: "analytics" });
+      c.spec = {
+        ...c.spec,
+        kicker: `${b.label} · ${TIER_NAME[b.tier]} badge`,
+        title: names[h.p],
+        body: h.why,
+        list: undefined,
+        person: { name: names[h.p], photo: photoOf(names[h.p]) },
+        emblem: emblemImage(b.label, b.tone, b.tier),
+        burst: burstFor(b.tone, b.label),
+        accent: burstFor(b.tone, b.label)[1],
+        facts: [
+          { label: "Badge", value: b.label },
+          { label: "Tier", value: TIER_NAME[b.tier] },
+          { label: "Holders", value: b.holders.length === 1 ? "Only one" : `1 of ${b.holders.length}` },
+        ],
+        byline: names[h.p],
+        team: h.team,
+      };
+      c.text = `${names[h.p]} unlocked ${b.label}: ${h.why}\n${window.location.origin}/stats#analytics`;
+      return c;
+    }),
+  ];
 
   return (
     <div data-apanel>
@@ -264,7 +447,7 @@ export default function AchievementsTab({ rows, names, players, onOpenPlayer }: 
         <div>
           <dl className="grid grid-cols-3 gap-6">
             {([
-              [`${unlocked}`, `/${BADGE_CATALOG.length}`, "Badges unlocked"],
+              [`${unlocked}`, `/${CATALOG.length}`, "Badges unlocked"],
               [`${total}`, "", "Achievements earned"],
               [`${rows.length}`, `/${players}`, "Players decorated"],
             ] as const).map(([v, of, l]) => (
@@ -278,7 +461,7 @@ export default function AchievementsTab({ rows, names, players, onOpenPlayer }: 
             ))}
           </dl>
           <div className="mt-6 h-[3px] overflow-hidden rounded-full bg-jcc-navy-light">
-            <div data-bar className="h-full rounded-full bg-gradient-to-r from-jcc-accent-dark via-jcc-accent to-jcc-accent-highlight" style={{ width: `${(100 * unlocked) / BADGE_CATALOG.length}%` }} />
+            <div data-bar className="h-full rounded-full bg-gradient-to-r from-jcc-accent-dark via-jcc-accent to-jcc-accent-highlight" style={{ width: `${(100 * unlocked) / CATALOG.length}%` }} />
           </div>
         </div>
       </div>
@@ -328,11 +511,10 @@ export default function AchievementsTab({ rows, names, players, onOpenPlayer }: 
                 {g.items.map((b, i) => {
                   const locked = b.tier === "locked";
                   return (
+                    <div key={b.label} className="ach-tile flex flex-col items-center" style={{ animationDelay: `${Math.min(i, 16) * 30}ms` }}>
                     <button
-                      key={b.label}
                       onClick={() => !locked && setOpen(b.label)}
-                      className={`ach-tile group flex flex-col items-center text-center ${locked ? "cursor-default" : ""}`}
-                      style={{ animationDelay: `${Math.min(i, 16) * 30}ms` }}
+                      className={`group flex flex-col items-center text-center ${locked ? "cursor-default" : ""}`}
                     >
                       <span className={`transition duration-500 ${locked ? "opacity-60 grayscale" : "group-hover:-translate-y-1.5 group-hover:rotate-6 group-hover:scale-105"}`}>
                         <Emblem label={b.label} tone={b.tone} tier={b.tier} size={88} />
@@ -342,6 +524,10 @@ export default function AchievementsTab({ rows, names, players, onOpenPlayer }: 
                       <p className="mt-1 min-h-[2.6em] max-w-[220px] text-[12px] leading-snug text-jcc-text-muted">{b.rule}</p>
                       <div className="mt-3 min-h-7">{locked ? <span className="font-mono text-[10.5px] text-jcc-text-muted">Not unlocked yet</span> : <Holders holders={b.holders} names={names} />}</div>
                     </button>
+                    {!locked && b.tone !== "warn" && (
+                      <SectionShare build={() => badgeCards(b)} fileBase={`jcc-badge-${b.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`} className="mt-3" />
+                    )}
+                    </div>
                   );
                 })}
               </div>
@@ -352,69 +538,135 @@ export default function AchievementsTab({ rows, names, players, onOpenPlayer }: 
 
       {/* ── Trophy cabinets: one shelf per player ── */}
       {view === "cabinets" && (
-        <ol className="mt-4">
-          {cabinets.map((r, i) => (
-            <li key={r.p} className="ach-tile" style={{ animationDelay: `${Math.min(i, 16) * 30}ms` }}>
-              <button onClick={() => onOpenPlayer(r.p, "labels")} className="group grid w-full grid-cols-[minmax(0,1fr)_64px] items-center gap-x-6 gap-y-4 border-b border-jcc-border py-6 text-left md:grid-cols-[minmax(0,260px)_minmax(0,1fr)_72px]">
-                <span className="flex min-w-0 items-center gap-4">
-                  <Avatar name={names[r.p]} size={52} ring={i === 0 ? "#D4AF37" : teamColor(r.team)} className="transition-transform duration-500 group-hover:scale-105" />
-                  <span className="min-w-0">
-                    <span className="block truncate font-heading text-xl font-bold tracking-tight text-white decoration-jcc-accent decoration-2 underline-offset-4 group-hover:underline">{names[r.p]}</span>
-                    <span className="block truncate font-mono text-[10.5px] uppercase tracking-[0.1em] text-jcc-text-muted">{r.team} · {r.role}</span>
-                  </span>
-                </span>
-                <span className="relative col-span-2 row-start-2 md:col-span-1 md:row-start-auto">
-                  <span className="flex flex-wrap items-end gap-1.5 pb-2">
-                    {[...r.earned, ...r.banter].map((b) => (
-                      <span key={b.label} title={`${b.label}: ${b.why}`} className="transition-transform duration-300 hover:-translate-y-1">
-                        <Emblem label={b.label} tone={b.tone} tier={tierOf(b.tone, holders.get(b.label)?.length ?? 1)} size={36} />
+        <ol className="mt-8 grid gap-5 lg:grid-cols-2">
+          {cabinets.map((r, i) => {
+            const medal = i === 0 ? ["#FBE7A6", "#D4AF37"] : i === 1 ? ["#F4F5F7", "#9AA3B2"] : i === 2 ? ["#F1C99A", "#B07A3F"] : null;
+            const shelf = [...r.earned].sort((a, b) => Number(b.tone === "crown") - Number(a.tone === "crown") || (holders.get(a.label)?.length ?? 1) - (holders.get(b.label)?.length ?? 1));
+            const color = teamColor(r.team);
+            return (
+              <li key={r.p} className="ach-tile" style={{ animationDelay: `${Math.min(i, 16) * 30}ms` }}>
+                <div className="relative flex h-full flex-col overflow-hidden rounded-[26px] border border-jcc-blue/10 bg-jcc-navy shadow-[0_24px_50px_-36px_rgba(18,35,63,0.5)] transition duration-500 hover:-translate-y-1 hover:shadow-[0_30px_60px_-30px_rgba(18,35,63,0.55)]">
+                  <span aria-hidden className="absolute inset-x-0 top-0 h-1.5" style={{ background: medal ? `linear-gradient(90deg, ${medal[0]}, ${medal[1]})` : color }} />
+                  <span aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full blur-[70px]" style={{ background: `${medal?.[1] ?? color}33` }} />
+
+                  {/* Who */}
+                  <button onClick={() => onOpenPlayer(r.p, "labels")} className="group relative flex items-center gap-4 px-5 pb-4 pt-6 text-left md:px-6">
+                    <span className="relative">
+                      <span className="block rounded-full p-[3px]" style={{ background: medal ? `linear-gradient(135deg, ${medal[0]}, ${medal[1]})` : color }}>
+                        <Avatar name={names[r.p]} size={64} className="ring-2 ring-jcc-navy transition-transform duration-500 group-hover:scale-105" />
+                      </span>
+                      <span className="absolute -left-1.5 -top-1.5 grid h-7 w-7 place-items-center rounded-full bg-jcc-blue font-mono text-[11px] font-bold text-[#FCFBF8] ring-2 ring-jcc-navy">{i + 1}</span>
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-heading text-2xl font-bold tracking-tight text-white decoration-jcc-accent decoration-2 underline-offset-4 group-hover:underline">{names[r.p]}</span>
+                      <span className="block truncate font-mono text-[10.5px] uppercase tracking-[0.1em] text-jcc-text-muted">{r.team}{r.role ? ` · ${r.role}` : ""}</span>
+                    </span>
+                    <span className="text-right">
+                      <span className="block font-heading text-5xl font-bold leading-none tracking-[-0.05em] tabular-nums" style={medal ? { backgroundImage: `linear-gradient(135deg, ${medal[0]}, ${medal[1]})`, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" } : { color: "var(--color-jcc-blue)" }}>
+                        {r.earned.length}
+                      </span>
+                      <span className={LABEL}>badges</span>
+                    </span>
+                  </button>
+
+                  {/* The shelf: a dark cabinet, crowns first */}
+                  <div className="relative mx-5 rounded-2xl bg-gradient-to-b from-jcc-blue to-[#0D1728] px-4 pb-3 pt-4 md:mx-6">
+                    <div className="flex flex-wrap gap-2">
+                      {shelf.map((b) => (
+                        <button key={b.label} type="button" title={`${b.label}: ${b.why}`} onClick={() => setOpen(b.label)} className="transition-transform duration-300 hover:-translate-y-1 hover:scale-110">
+                          <Emblem label={b.label} tone={b.tone} tier={tierOf(b.tone, holders.get(b.label)?.length ?? 1)} size={44} />
+                        </button>
+                      ))}
+                      {shelf.length === 0 && <span className="py-3 text-[12px] text-[#FCFBF8]/60">Nothing on the shelf yet.</span>}
+                    </div>
+                    <span aria-hidden className="mt-3 block h-[3px] rounded-full bg-gradient-to-r from-jcc-accent/70 via-jcc-accent/30 to-transparent" />
+                  </div>
+
+                  {/* Highlights + share */}
+                  <div className="relative mt-auto flex flex-wrap items-center gap-2 px-5 pb-5 pt-4 md:px-6">
+                    {shelf.slice(0, 3).map((b) => (
+                      <span key={b.label} className="rounded-full px-2.5 py-1 text-[11px] font-semibold text-white" style={{ background: burstFor(b.tone, b.label)[1] }}>
+                        {b.label}
                       </span>
                     ))}
-                  </span>
-                  {/* the shelf */}
-                  <span aria-hidden className="block h-[3px] rounded-full bg-gradient-to-r from-jcc-accent-dark/60 via-jcc-accent/40 to-transparent" style={{ width: `${Math.max(20, (100 * r.earned.length) / maxEarned)}%` }} />
-                </span>
-                <span className="text-right">
-                  <span className="block font-heading text-4xl font-bold leading-none tracking-[-0.04em] tabular-nums text-white">{r.earned.length}</span>
-                  <span className={LABEL}>badges</span>
-                </span>
-              </button>
-            </li>
-          ))}
+                    {shelf.length > 3 && <span className="text-[11px] font-semibold text-jcc-text-muted">+{shelf.length - 3} more</span>}
+                    {shelf.length > 0 && (
+                      <SectionShare
+                        build={() => [cabinetCard(r.p, r.team, shelf)]}
+                        fileBase={`jcc-cabinet-${names[r.p].toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                        className="ml-auto"
+                      />
+                    )}
+                  </div>
+                </div>
+              </li>
+            );
+          })}
         </ol>
       )}
 
       {/* Badge detail */}
-      {selected && (
-        <div className="fixed inset-0 z-[60] grid place-items-center bg-[#0D1728]/80 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-label={selected.label} onClick={(e) => e.target === e.currentTarget && setOpen(null)}>
-          <div className="relative max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-jcc-navy p-7 shadow-2xl">
-            <button onClick={() => setOpen(null)} aria-label="Close" className="absolute right-4 top-4 rounded-full p-1.5 text-jcc-text-muted hover:bg-jcc-navy-light hover:text-white"><X size={18} /></button>
-            <div className="flex flex-col items-center text-center">
-              <Emblem label={selected.label} tone={selected.tone} tier={selected.tier} size={120} />
-              <div className="mt-5"><TierChip tier={selected.tier} /></div>
-              <h3 className="mt-2 font-heading text-4xl font-bold tracking-[-0.03em] text-white">{selected.label}</h3>
-              <p className="mt-1 text-sm text-jcc-text-muted">{selected.rule}</p>
-              <p className="mt-2 font-mono text-[11px] text-jcc-accent-dark">
-                {selected.holders.length === 1 ? "Held by one player" : `Unlocked by ${selected.holders.length} of ${players} players`}
-              </p>
-            </div>
-            <ol className="mt-6 border-t border-jcc-blue/80">
-              {selected.holders.map((h) => (
-                <li key={h.p}>
-                  <button onClick={() => { setOpen(null); onOpenPlayer(h.p, "labels"); }} className="group flex w-full items-center gap-3 border-b border-jcc-border py-3 text-left">
-                    <Avatar name={names[h.p]} size={36} ring={teamColor(h.team)} />
-                    <div className="min-w-0 flex-1">
-                      <div className="font-semibold text-white">{names[h.p]}</div>
-                      <div className="text-[12px] text-jcc-text-muted">{h.why}</div>
+      {/* Portalled to <body>: the analytics panel is transformed by its
+          entrance animation, which would trap a fixed overlay inside it. */}
+      {selected &&
+        createPortal(
+        <div className="fixed inset-0 z-[85] grid place-items-center bg-[#0D1728]/80 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-label={selected.label} onClick={(e) => e.target === e.currentTarget && setOpen(null)}>
+          <div className="relative max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-[28px] bg-jcc-navy shadow-2xl">
+            {(() => {
+              const [c1, c2] = burstFor(selected.tone, selected.label);
+              return (
+                <>
+                  {/* Header: the badge in its own colour, bursting with light */}
+                  <div className="relative overflow-hidden px-7 pb-8 pt-10 text-center" style={{ background: `linear-gradient(180deg, ${c1} 0%, ${c2} 100%)` }}>
+                    <div aria-hidden className="ach-rays pointer-events-none absolute left-1/2 top-[38%] h-[640px] w-[640px] -translate-x-1/2 -translate-y-1/2" style={{ background: "repeating-conic-gradient(rgba(255,255,255,0.16) 0deg 7deg, rgba(255,255,255,0) 7deg 14deg)", maskImage: "radial-gradient(circle, #000 0%, transparent 62%)", WebkitMaskImage: "radial-gradient(circle, #000 0%, transparent 62%)" }} />
+                    <div aria-hidden className="pointer-events-none absolute left-1/2 top-[38%] h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/45 blur-[60px]" />
+                    <button onClick={() => setOpen(null)} aria-label="Close" className="absolute right-4 top-4 z-10 grid h-9 w-9 place-items-center rounded-full bg-black/20 text-white backdrop-blur transition hover:bg-black/35"><X size={17} /></button>
+                    <div className="relative inline-block drop-shadow-[0_20px_30px_rgba(0,0,0,0.35)]">
+                      <Emblem label={selected.label} tone={selected.tone} tier={selected.tier} size={136} />
                     </div>
-                    <span className="font-mono text-[10.5px] text-jcc-accent-dark transition-transform group-hover:translate-x-1">Cards →</span>
-                  </button>
-                </li>
-              ))}
-            </ol>
+                    <div className="relative mt-5"><TierChip tier={selected.tier} /></div>
+                    <h3 className="relative mt-2 font-heading text-4xl font-bold tracking-[-0.03em] text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.25)] sm:text-5xl">{selected.label}</h3>
+                    <p className="relative mt-2 text-[15px] font-medium text-white/90">{selected.rule}</p>
+                    <p className="relative mt-4 inline-flex rounded-full bg-black/25 px-3.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-white backdrop-blur">
+                      {selected.holders.length === 1 ? "Held by one player" : `Unlocked by ${selected.holders.length} of ${players} players`}
+                    </p>
+                  </div>
+
+                  {/* Holders */}
+                  <div className="px-6 pb-6 pt-5">
+                    <ol className="space-y-2.5">
+                      {selected.holders.map((h) => (
+                        <li key={h.p}>
+                          <button
+                            onClick={() => { setOpen(null); onOpenPlayer(h.p, "labels"); }}
+                            className="group flex w-full items-center gap-4 rounded-2xl border border-jcc-border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-18px_rgba(18,35,63,0.5)]"
+                            style={{ background: `linear-gradient(90deg, ${c1}1f 0%, transparent 60%)` }}
+                          >
+                            <span className="rounded-full p-[3px]" style={{ background: `linear-gradient(135deg, ${c1}, ${c2})` }}>
+                              <Avatar name={names[h.p]} size={52} className="ring-2 ring-jcc-navy" />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="font-heading text-lg font-bold tracking-tight text-white">{names[h.p]}</div>
+                              <div className="text-[13px] leading-snug text-jcc-text-muted">{h.why}</div>
+                            </div>
+                            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white transition-transform group-hover:translate-x-0.5" style={{ background: c2 }}>→</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ol>
+                    {selected.tone !== "warn" && selected.holders.length > 0 && (
+                      <div className="mt-5 flex justify-center">
+                        <SectionShare build={() => badgeCards(selected)} fileBase={`jcc-badge-${selected.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`} label="Share this badge" />
+                      </div>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
           </div>
-        </div>
-      )}
+        </div>,
+          document.body,
+        )}
     </div>
   );
 }

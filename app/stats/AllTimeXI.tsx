@@ -52,8 +52,9 @@ export default function AllTimeXI({ data, onOpenPlayer }: { data: CardData; onOp
   const r = useMemo(() => allTimeXI(data, [...cur.seasons]), [data, cur]);
   const names = data.players;
   const max = Math.max(1, ...r.xi.map((q) => Math.max(0, q.impact.bat) + Math.max(0, q.impact.bowl) + Math.max(0, q.impact.field)));
+  // Every tile's impact bar shares one scale, so bars compare across the XI.
+  const tileMax = Math.max(1, ...r.xi.map((q) => Math.max(0, q.impact.bat) + Math.max(0, q.impact.bowl) + Math.max(0, q.impact.field)));
   const title = period === "all" ? "JCC All-Time XI" : `${cur.label} XI`;
-  const order = new Map(r.xi.map((q, i) => [q.p, i + 1]));
   const groups = ROLE_ORDER.map((role) => ({ role, players: r.xi.filter((q) => q.role === role) })).filter((g) => g.players.length);
   const photoOf = usePhotoOf();
   // The team sheet as a story card: eleven rows in batting-card order.
@@ -63,16 +64,12 @@ export default function AllTimeXI({ data, onOpenPlayer }: { data: CardData; onOp
       label: title,
       kicker: "Jaipur Cricket Circle · Team sheet",
       title,
+      max: 11,
       rows: groups.flatMap((g) =>
         g.players.map((q) =>
           playerRow(`${names[q.p]}${q.captain ? " (c)" : q.vice ? " (vc)" : ""}`, ROLE[q.role].short, q.line, photoOf(names[q.p]), q.team),
         ),
       ),
-      facts: [
-        { label: "Batting impact", value: signed(r.totals.bat) },
-        { label: "Bowling impact", value: signed(r.totals.bowl) },
-        { label: "Bowlers", value: String(r.method.bowlingOptions) },
-      ],
       hash: "analytics",
     }),
   ];
@@ -101,94 +98,133 @@ export default function AllTimeXI({ data, onOpenPlayer }: { data: CardData; onOp
         </span>
       </div>
 
-      {/* ── The team sheet: a lineup, grouped by role ── */}
+      {/* ── The team sheet: a header strip, then the eleven in batting order ── */}
       <div className="print-grain heritage-frame theme-static-dark section-bg-royal relative overflow-hidden rounded-[2rem] px-5 py-10 md:px-12 md:py-14">
         <Jaali />
-        <div className="relative grid gap-10 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)] lg:gap-14">
-          <div className="rounded-3xl bg-jcc-blue/90 p-6 ring-1 ring-[#FCFBF8]/10">
+        <div className="relative flex flex-wrap items-end justify-between gap-x-12 gap-y-8 border-b border-[#FCFBF8]/12 pb-10">
+          <div>
             <p className="font-mono text-[10.5px] uppercase tracking-[0.2em] text-jcc-accent-highlight">Jaipur Cricket Circle · Team sheet</p>
             <h3 className="mt-3 font-heading text-5xl font-bold leading-[0.92] tracking-[-0.045em] text-[#FCFBF8] md:text-6xl">{title}</h3>
-            <dl className="mt-10 grid grid-cols-3 gap-4 border-t border-[#FCFBF8]/15 pt-6 lg:grid-cols-1 lg:gap-6">
-              {([
-                ["Batting impact", signed(r.totals.bat)],
-                ["Bowling impact", signed(r.totals.bowl)],
-                ["Bowling options", String(r.method.bowlingOptions)],
-              ] as const).map(([k, v]) => (
-                <div key={k}>
-                  <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#FCFBF8]/75">{k}</dt>
-                  <dd className="mt-1 font-heading text-4xl font-bold tracking-[-0.04em] tabular-nums text-[#FCFBF8]">{v}</dd>
-                </div>
-              ))}
-            </dl>
-            <div className="mt-8">
-              <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#FCFBF8]/75">Players by club</div>
-              <div className="mt-3 flex flex-wrap gap-x-5 gap-y-3">
+          </div>
+          <dl className="flex flex-wrap items-end gap-x-12 gap-y-6">
+            {([
+              ["Batting impact", signed(r.totals.bat)],
+              ["Bowling impact", signed(r.totals.bowl)],
+              ["Bowling options", String(r.method.bowlingOptions)],
+            ] as const).map(([k, v]) => (
+              <div key={k}>
+                <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#FCFBF8]/75">{k}</dt>
+                <dd className="mt-1.5 font-heading text-3xl font-bold tracking-[-0.04em] tabular-nums text-[#FCFBF8] md:text-4xl">{v}</dd>
+              </div>
+            ))}
+            <div>
+              <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#FCFBF8]/75">By club</dt>
+              <dd className="mt-2 flex flex-wrap items-center gap-2.5">
                 {r.totals.teams.map((t) => {
                   const team = teamByName(t.team);
                   return (
-                    <span key={t.team} className="inline-flex items-center gap-2" title={t.team}>
-                      {team && <Image src={team.logo} alt={t.team} width={28} height={28} className="h-7 w-7 object-contain" />}
-                      <span className="font-heading text-2xl font-bold tabular-nums text-[#FCFBF8]">{t.n}</span>
+                    <span
+                      key={t.team}
+                      title={t.team}
+                      className="inline-flex items-center gap-2.5 rounded-full bg-[#0D1728] py-1.5 pl-1.5 pr-4 ring-1"
+                      style={{ boxShadow: `inset 0 0 0 1px ${teamColor(t.team)}66` }}
+                    >
+                      {team && (
+                        <span className="grid h-9 w-9 place-items-center rounded-full bg-[#FCFBF8]/[0.08]">
+                          <Image src={team.logo} alt="" width={30} height={30} className="h-[30px] w-[30px] object-contain" />
+                        </span>
+                      )}
+                      <span className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[#FCFBF8]/80">{team?.shortName ?? t.team}</span>
+                      <span className="font-heading text-xl font-bold tabular-nums text-[#FCFBF8]">{t.n}</span>
                     </span>
                   );
                 })}
-              </div>
+              </dd>
             </div>
-          </div>
+          </dl>
+        </div>
 
-          <div className="divide-y divide-[#FCFBF8]/10 rounded-3xl bg-jcc-blue/90 px-5 py-6 ring-1 ring-[#FCFBF8]/10 md:px-8">
-            {groups.map((g) => {
-              const R = ROLE[g.role];
-              return (
-                <div key={g.role} className="grid gap-4 py-6 first:pt-0 last:pb-0 sm:grid-cols-[130px_minmax(0,1fr)] sm:items-start">
-                  <div className="flex items-center gap-2 text-jcc-accent-highlight sm:pt-8">
-                    <R.icon size={14} />
-                    <span className="font-mono text-[10.5px] uppercase tracking-[0.18em]">{R.group}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-x-6 gap-y-6">
-                    {g.players.map((q) => (
-                      <button key={q.p} onClick={() => onOpenPlayer(q.p)} className="group w-[104px] text-center">
-                        <span className="relative mx-auto block w-fit">
-                          <Avatar
-                            name={names[q.p]}
-                            size={84}
-                            ring={q.captain || q.vice ? "#D4AF37" : teamColor(q.team)}
-                            className="transition-transform duration-500 group-hover:-translate-y-1 group-hover:scale-105"
-                          />
-                          <span className="absolute -left-1 -top-1 grid h-7 w-7 place-items-center rounded-full bg-jcc-blue-deep font-mono text-[11px] font-semibold text-[#FCFBF8] ring-1 ring-[#FCFBF8]/20">
-                            {order.get(q.p)}
-                          </span>
-                          {(q.captain || q.vice) && (
-                            <span className={`absolute -bottom-1 -right-1 grid h-6 min-w-6 place-items-center rounded-full px-1 font-mono text-[10px] font-bold ${q.captain ? "bg-jcc-accent text-jcc-seam" : "bg-jcc-blue-deep text-jcc-accent-highlight ring-1 ring-jcc-accent"}`}>
-                              {q.captain ? "C" : "VC"}
-                            </span>
-                          )}
-                        </span>
-                        <span className="mt-3 block truncate text-[14px] font-semibold tracking-tight text-[#FCFBF8] decoration-jcc-accent decoration-2 underline-offset-4 group-hover:underline">{names[q.p]}</span>
-                        <span className="mt-0.5 block truncate font-mono text-[10px] uppercase tracking-[0.1em] text-[#FCFBF8]/70">{q.team}</span>
-                        <span className="mt-1 block font-heading text-xl font-bold tabular-nums tracking-tight text-jcc-accent-highlight">{signed(q.impact.total)}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-            {r.twelfth && (
-              <div className="grid gap-4 py-6 last:pb-0 sm:grid-cols-[130px_minmax(0,1fr)] sm:items-center">
-                <span className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-[#FCFBF8]/70">12th man</span>
-                <button onClick={() => onOpenPlayer(r.twelfth!.p)} className="group flex items-center gap-4 text-left">
-                  <span className="flex rounded-full p-[3px] ring-1 ring-dashed ring-[#FCFBF8]/40" style={{ outline: "1px dashed rgba(252,251,248,0.35)", outlineOffset: 3 }}>
-                    <Avatar name={names[r.twelfth.p]} size={52} className="opacity-80 transition group-hover:opacity-100" />
+        <ol className="relative mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 lg:gap-6">
+          {r.xi.map((q, i) => {
+            const R = ROLE[q.role];
+            const lead = q.captain || q.vice;
+            const team = teamByName(q.team);
+            return (
+              <li key={q.p} data-arow>
+                <button
+                  onClick={() => onOpenPlayer(q.p)}
+                  className={`group relative flex h-full w-full flex-col items-center overflow-hidden rounded-3xl px-4 pb-7 pt-5 text-center ring-1 transition duration-500 hover:-translate-y-1 ${lead ? "bg-[#1C2F52] ring-jcc-accent/60 shadow-[0_18px_40px_-24px_rgba(212,175,55,0.6)]" : "bg-jcc-blue/90 ring-[#FCFBF8]/10 hover:ring-[#FCFBF8]/30"}`}
+                >
+                  <span aria-hidden className="absolute inset-x-0 top-0 h-1" style={{ background: teamColor(q.team) }} />
+                  {/* Backdrop: the team's colour washing down from the top, its crest as a watermark. */}
+                  <span aria-hidden className="pointer-events-none absolute inset-0" style={{ background: `radial-gradient(120% 70% at 50% 0%, ${teamColor(q.team)}55 0%, transparent 70%), linear-gradient(160deg, rgba(252,251,248,0.06) 0%, transparent 40%)` }} />
+                  {team && (
+                    <Image
+                      src={team.logo}
+                      alt=""
+                      aria-hidden
+                      width={180}
+                      height={180}
+                      className="pointer-events-none absolute -bottom-6 -right-8 w-40 rotate-[-12deg] object-contain opacity-[0.1] transition duration-700 group-hover:rotate-[-4deg] group-hover:opacity-[0.16]"
+                    />
+                  )}
+                  <span className="relative flex w-full items-center justify-between">
+                    <span className="font-mono text-[11px] font-semibold text-[#FCFBF8]/60">{String(i + 1).padStart(2, "0")}</span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#FCFBF8]/[0.08] px-2.5 py-1 font-mono text-[9.5px] font-semibold uppercase tracking-[0.12em] text-jcc-accent-highlight">
+                      <R.icon size={10} /> {R.short}
+                    </span>
                   </span>
-                  <span>
-                    <span className="block font-semibold text-[#FCFBF8]">{names[r.twelfth.p]}</span>
-                    <span className="block font-mono text-[11px] text-[#FCFBF8]/75">{r.twelfth.team} · {signed(r.twelfth.impact.total)}</span>
+                  <span className="relative mt-5 block">
+                    <Avatar name={names[q.p]} size={96} ring={lead ? "#D4AF37" : teamColor(q.team)} className="transition-transform duration-500 group-hover:scale-105" />
+                    {lead && (
+                      <span className={`absolute -bottom-1 -right-1 grid h-7 min-w-7 place-items-center rounded-full px-1.5 font-mono text-[10.5px] font-bold ${q.captain ? "bg-jcc-accent text-jcc-seam" : "bg-jcc-blue-deep text-jcc-accent-highlight ring-1 ring-jcc-accent"}`}>
+                        {q.captain ? "C" : "VC"}
+                      </span>
+                    )}
+                  </span>
+                  <span className="relative mt-5 block w-full truncate text-[15px] font-semibold tracking-tight text-[#FCFBF8] decoration-jcc-accent decoration-2 underline-offset-4 group-hover:underline">{names[q.p]}</span>
+                  <span className="relative mt-1.5 flex items-center justify-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[#FCFBF8]/70">
+                    {team && <Image src={team.logo} alt="" width={16} height={16} className="h-4 w-4 object-contain" />}
+                    <span className="truncate">{q.team}</span>
+                  </span>
+                  <span className="relative mt-3 line-clamp-2 min-h-[2.5em] text-[12px] leading-snug text-[#FCFBF8]/80">{q.line}</span>
+                  <span className="relative mt-auto w-full pt-5">
+                    <span className="flex items-baseline justify-between">
+                      <span className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-[#FCFBF8]/60">Impact</span>
+                      <span className="font-heading text-2xl font-bold tabular-nums tracking-tight text-jcc-accent-highlight">{signed(q.impact.total)}</span>
+                    </span>
+                    <span className="mt-2 flex h-1.5 w-full gap-px overflow-hidden rounded-full bg-[#FCFBF8]/10">
+                      {(["bat", "bowl", "field"] as const).map((k) => (
+                        <span key={k} style={{ width: `${Math.max(0, (q.impact[k] / tileMax) * 100)}%`, background: k === "bat" ? "#F3C96A" : k === "bowl" ? "#A78BFA" : "#6EE7B7" }} />
+                      ))}
+                    </span>
+                    <span className="mt-1.5 flex justify-between font-mono text-[9.5px] tabular-nums text-[#FCFBF8]/65">
+                      <span>bat {signed(q.impact.bat)}</span>
+                      <span>bowl {signed(q.impact.bowl)}</span>
+                      <span>fld {signed(q.impact.field)}</span>
+                    </span>
                   </span>
                 </button>
-              </div>
-            )}
-          </div>
-        </div>
+              </li>
+            );
+          })}
+          {r.twelfth && (
+            <li data-arow>
+              <button
+                onClick={() => onOpenPlayer(r.twelfth!.p)}
+                className="group flex h-full w-full flex-col items-center rounded-3xl border border-dashed border-[#FCFBF8]/30 px-4 pb-7 pt-5 text-center transition duration-500 hover:-translate-y-1 hover:border-[#FCFBF8]/60"
+              >
+                <span className="w-full text-right font-mono text-[9.5px] font-semibold uppercase tracking-[0.12em] text-[#FCFBF8]/70">12th man</span>
+                <span className="mt-5 block opacity-80 transition group-hover:opacity-100">
+                  <Avatar name={names[r.twelfth.p]} size={96} />
+                </span>
+                <span className="mt-5 block w-full truncate text-[15px] font-semibold tracking-tight text-[#FCFBF8]">{names[r.twelfth.p]}</span>
+                <span className="mt-1.5 block truncate font-mono text-[10px] uppercase tracking-[0.08em] text-[#FCFBF8]/70">{r.twelfth.team}</span>
+                <span className="mt-auto pt-5 font-heading text-2xl font-bold tabular-nums tracking-tight text-[#FCFBF8]/70">{signed(r.twelfth.impact.total)}</span>
+              </button>
+            </li>
+          )}
+        </ol>
       </div>
 
       {/* ── Why each player is in ── */}

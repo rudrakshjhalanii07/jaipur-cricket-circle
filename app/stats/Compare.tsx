@@ -11,6 +11,8 @@ import { f0, f1, f2, leaderboardRows, type BoardRow, type CardData } from "@/lib
 import { teamByName } from "@/lib/teams";
 import { Avatar } from "./Avatar";
 import { gsap, reduceMotion, useGSAP } from "./motion";
+import { GOLD, SectionShare, usePhotoOf } from "./SectionShare";
+import type { SheetCard } from "./ShareSheet";
 
 const LABEL = "font-mono text-[10.5px] font-medium uppercase tracking-[0.16em] text-jcc-text-muted";
 
@@ -77,6 +79,7 @@ export default function Compare({ data, seasons, onOpenPlayer }: { data: CardDat
   const A = rows.find((r) => r.p === a);
   const B = rows.find((r) => r.p === b);
   const board = useRef<HTMLDivElement>(null);
+  const photoOf = usePhotoOf();
 
   useGSAP(
     () => {
@@ -109,8 +112,44 @@ export default function Compare({ data, seasons, onOpenPlayer }: { data: CardDat
   const ca = teamByName(A.team)?.primary ?? "#D4AF37";
   const cb = teamByName(B.team)?.primary ?? "#3B6FC4";
 
+  // One face-off card: both photos split, categories won as the score, and
+  // the rows each of them takes, as a list.
+  const share = (): SheetCard[] => {
+    const na = names[a], nb = names[b];
+    const first = (n: string) => n.split(/\s+/)[0];
+    const won = (side: "a" | "b") => lines.filter((l) => l.win === side).map((l) => l.m.label);
+    const leader = winsA === winsB ? null : winsA > winsB ? na : nb;
+    return [
+      {
+        id: `${a}-${b}`,
+        label: `${first(na)} v ${first(nb)}`,
+        text: `${na} v ${nb}: ${winsA}–${winsB} on categories\n${window.location.origin}/stats#compare`,
+        spec: {
+          kicker: "Head to head · twelve categories",
+          title: leader ? `${first(leader)} takes the head to head` : "Dead level",
+          hero: { value: `${winsA}–${winsB}`, unit: "categories won", colors: GOLD },
+          versus: { left: { name: na, photo: photoOf(na), color: ca }, right: { name: nb, photo: photoOf(nb), color: cb } },
+          list: lines
+            .filter((l) => l.va != null || l.vb != null)
+            .slice(0, 6)
+            .map((l) => ({ name: l.m.label, value: `${l.m.fmt(l.va)} · ${l.m.fmt(l.vb)}`, plain: true })),
+          facts: [
+            { label: first(na), value: won("a").slice(0, 2).join(", ") || "–" },
+            { label: first(nb), value: won("b").slice(0, 2).join(", ") || "–" },
+          ],
+          byline: `${first(na)} v ${first(nb)}`,
+          team: "Head to head",
+          footer: `${window.location.host}/stats`,
+        },
+      },
+    ];
+  };
+
   return (
     <div ref={board}>
+      <div className="mb-5 flex justify-end">
+        <SectionShare build={share} fileBase="jcc-head-to-head" label="Share this face-off" />
+      </div>
       <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 border-y border-jcc-blue/80 py-8 md:gap-8 md:py-10">
         <Picker rows={rows} names={names} value={a} onChange={(p) => setPick([p, b])} align="left" />
         <button

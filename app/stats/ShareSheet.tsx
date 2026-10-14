@@ -137,7 +137,7 @@ export function ShareSheet({ cards, fileBase, onClose }: { cards: SheetCard[]; f
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[80] flex flex-col items-center justify-center gap-3 bg-[#070D18]/92 px-0 py-4 backdrop-blur-md"
+      className="fixed inset-0 z-[95] flex flex-col items-center justify-center gap-3 bg-[#070D18]/92 px-0 py-4 backdrop-blur-md"
       role="dialog"
       aria-modal="true"
       aria-label="Share as a story"

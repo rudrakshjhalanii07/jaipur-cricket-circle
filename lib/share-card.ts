@@ -67,6 +67,8 @@ export type ShareCardSpec = {
   team?: string;
   /** A ranked list (leaderboards, records, an XI); up to 11 rows. */
   list?: CardRow[];
+  /** Badge cards: a saturated sunburst in these two colours behind the emblem. */
+  burst?: [string, string];
   /** A team crest drawn large up top, for cards about a team. */
   emblem?: string | null;
   /** Footer name when the card isn't about one person ("JCC Stats", a team). */
@@ -310,12 +312,13 @@ async function draw(spec: ShareCardSpec, withPhoto: boolean): Promise<HTMLCanvas
   push(66, 34, (y) => {
     ctx.beginPath();
     ctx.roundRect(PAD, y, kw, 66, 33);
-    ctx.fillStyle = "rgba(11,20,36,0.72)";
+    // Badge cards get a solid pill in the badge colour; the rest stay outlined.
+    ctx.fillStyle = spec.burst ? alpha(spec.burst[0], 1) : "rgba(11,20,36,0.72)";
     ctx.fill();
-    ctx.strokeStyle = alpha(GOLD, 0.65);
+    ctx.strokeStyle = spec.burst ? "rgba(255,255,255,0.5)" : alpha(GOLD, 0.65);
     ctx.lineWidth = 2;
     ctx.stroke();
-    ctx.fillStyle = GOLD_HI;
+    ctx.fillStyle = spec.burst ? NAVY : GOLD_HI;
     ctx.font = M(600, 28);
     tracked(ctx, 4, () => ctx.fillText(wrap(ctx, kick, WIDTH - 48, 1)[0] ?? kick, PAD + 24, y + 43));
   });
@@ -378,7 +381,12 @@ async function draw(spec: ShareCardSpec, withPhoto: boolean): Promise<HTMLCanvas
   const tsize = tlines.map((l) => fit(ctx, l, (n) => H(800, n), WIDTH, tpx, Math.round(tpx * 0.7)));
   const lh = (px: number) => px * 1.1;
   push(tsize.reduce((s, px) => s + lh(px), 0), spec.subtitle ? 22 : 44, (y) => {
-    ctx.fillStyle = WHITE;
+    if (spec.burst) {
+      const g = ctx.createLinearGradient(PAD, y, PAD + WIDTH * 0.8, y + 120);
+      g.addColorStop(0, "#FFFFFF");
+      g.addColorStop(1, alpha(spec.burst[0], 1));
+      ctx.fillStyle = g;
+    } else ctx.fillStyle = WHITE;
     lift(ctx, true);
     let yy = y;
     tlines.forEach((l, i) => {
@@ -466,22 +474,62 @@ async function draw(spec: ShareCardSpec, withPhoto: boolean): Promise<HTMLCanvas
     });
   }
 
+  // The list's rows are sized after everything else is measured (see below),
+  // so a short list grows into the space and a long one still fits.
+  let listBlock: Block | null = null;
+  const L = { rh: 120 };
   if (rows.length) {
     const n = rows.length;
-    const rh = n > 9 ? 74 : n > 7 ? 88 : n > 5 ? 108 : 122;
-    const av = rh - (n > 9 ? 22 : 34);
-    const big = n > 9 ? 34 : n > 7 ? 38 : 44;
-    push(n * rh, 32, (y) => {
+    listBlock = { h: 0, gap: 32, draw: () => {} };
+    blocks.push(listBlock);
+    listBlock.draw = (y) => {
+      const rh = L.rh;
+      if (n > 6) {
+        // A long list (an XI): two columns of faces and names, no stat lines.
+        const per = Math.ceil(n / 2);
+        const colW = WIDTH / 2;
+        const av = Math.round(rh * 0.7);
+        const big = Math.round(Math.min(40, Math.max(28, rh * 0.32)));
+        rows.forEach((r, i) => {
+          const col = Math.floor(i / per), k = i % per;
+          const x = PAD + col * colW;
+          const cy = y + k * rh + rh / 2;
+          ctx.fillStyle = i === 0 ? GOLD_HI : MUTED;
+          ctx.font = M(600, 22);
+          tracked(ctx, 1, () => ctx.fillText(String(i + 1).padStart(2, "0"), x, cy + 8));
+          const ax = x + 46;
+          const img = rowImgs[i] as HTMLImageElement | null;
+          if (r.logo) {
+            if (img) {
+              const q = Math.min(av / img.width, av / img.height);
+              ctx.drawImage(img, ax + (av - img.width * q) / 2, cy - (img.height * q) / 2, img.width * q, img.height * q);
+            }
+          } else if (!r.plain) circle(ctx, img, r.name, ax + av / 2, cy, av / 2, r.color ?? alpha(GOLD, 0.7), H);
+          const tx = r.plain ? ax : ax + av + 18;
+          const room = x + colW - 20 - tx;
+          ctx.fillStyle = WHITE;
+          ctx.font = H(700, big);
+          ctx.fillText(wrap(ctx, r.name, room, 1)[0] ?? r.name, tx, r.value ? cy - 2 : cy + big * 0.35);
+          if (r.value) {
+            ctx.fillStyle = GOLD_HI;
+            ctx.font = M(600, Math.round(big * 0.62));
+            tracked(ctx, 3, () => ctx.fillText(r.value.toUpperCase(), tx, cy + big * 0.85));
+          }
+        });
+        return;
+      }
+      const av = Math.round(rh * 0.74);
+      const big = Math.round(Math.min(60, Math.max(32, rh * 0.36)));
+      const noteSize = Math.round(Math.min(32, Math.max(22, rh * 0.21)));
+      const ranked = n > 1 && !rows.every((x) => x.plain);
       rows.forEach((r, i) => {
         const cy = y + i * rh + rh / 2;
-        // Plain rows (a day's numbers) aren't a ranking: no position numbers.
-        const ranked = !rows.every((x) => x.plain);
         if (ranked) {
           ctx.fillStyle = i === 0 ? GOLD_HI : MUTED;
-          ctx.font = M(600, 26);
+          ctx.font = M(600, Math.min(30, Math.max(24, rh * 0.22)));
           tracked(ctx, 2, () => ctx.fillText(String(i + 1).padStart(2, "0"), PAD, cy + 9));
         }
-        const ax = ranked ? PAD + 64 : PAD;
+        const ax = ranked ? PAD + 66 : PAD;
         const img = rowImgs[i] as HTMLImageElement | null;
         if (r.plain) {
           // No picture: the text takes the avatar's place.
@@ -493,21 +541,22 @@ async function draw(spec: ShareCardSpec, withPhoto: boolean): Promise<HTMLCanvas
         } else {
           circle(ctx, img, r.name, ax + av / 2, cy, av / 2, r.color ?? alpha(GOLD, 0.7), H);
         }
-        const tx = r.plain ? ax : ax + av + 24;
+        const tx = r.plain ? ax : ax + av + Math.round(rh * 0.22);
         ctx.font = H(800, big + 6);
         const vw = ctx.measureText(r.value).width;
         const room = CARD_W - PAD - vw - 28 - tx;
         ctx.fillStyle = WHITE;
         ctx.font = H(700, big);
-        ctx.fillText(wrap(ctx, r.name, room, 1)[0] ?? r.name, tx, r.note ? cy - (n > 9 ? 2 : 6) : cy + big * 0.35);
+        const nameY = r.note ? cy - rh * 0.04 : cy + big * 0.35;
+        ctx.fillText(wrap(ctx, r.name, room, 1)[0] ?? r.name, tx, nameY);
         if (r.note) {
           ctx.fillStyle = SOFT;
-          ctx.font = B(500, n > 9 ? 23 : 27);
-          ctx.fillText(wrap(ctx, r.note, room, 1)[0] ?? "", tx, cy + (n > 9 ? 26 : 34));
+          ctx.font = B(500, noteSize);
+          ctx.fillText(wrap(ctx, r.note, room, 1)[0] ?? "", tx, nameY + noteSize * 1.35);
         }
         ctx.font = H(800, big + 6);
         ctx.textAlign = "right";
-        if (i === 0) {
+        if (i === 0 && ranked) {
           const g = ctx.createLinearGradient(CARD_W - PAD - vw, cy - big, CARD_W - PAD, cy + big);
           g.addColorStop(0, GOLD_HI);
           g.addColorStop(1, GOLD_DK);
@@ -520,7 +569,7 @@ async function draw(spec: ShareCardSpec, withPhoto: boolean): Promise<HTMLCanvas
           ctx.fillRect(tx, y + (i + 1) * rh - 1, CARD_W - PAD - tx, 2);
         }
       });
-    });
+    };
   }
 
   if (spec.facts?.length) {
@@ -556,6 +605,17 @@ async function draw(spec: ShareCardSpec, withPhoto: boolean): Promise<HTMLCanvas
   // The footer sits low, just above the strip Instagram's reply bar covers;
   // everything else stacks up from it.
   const FOOT_TOP = CARD_H - 300;
+  if (listBlock) {
+    // Rows share what's left once the visual has its room: up to 168px for a
+    // lone holder, 150 for a handful, never below 64.
+    const n = rows.length;
+    const visualRoom = spec.person || spec.versus || spec.emblem ? (n > 4 ? 300 : 420) : 60;
+    const others = blocks.reduce((s, b, i) => s + (b === listBlock ? 0 : b.h) + (i < blocks.length - 1 ? b.gap : 0), 0);
+    const free = FOOT_TOP - 56 - (SAFE_TOP + visualRoom) - others;
+    const lines = n > 6 ? Math.ceil(n / 2) : n;
+    L.rh = Math.max(64, Math.min(n <= 2 ? 168 : 150, Math.floor(free / lines)));
+    listBlock.h = lines * L.rh;
+  }
   const stack = blocks.reduce((s, b, i) => s + b.h + (i < blocks.length - 1 ? b.gap : 0), 0);
   // Text-only cards may start higher; a photo or crest needs room up top.
   const visual = !!(spec.person || spec.versus || spec.emblem);
@@ -622,13 +682,94 @@ async function draw(spec: ShareCardSpec, withPhoto: boolean): Promise<HTMLCanvas
     ctx.moveTo(CARD_W / 2 + tilt / 2, 0);
     ctx.lineTo(CARD_W / 2 - tilt / 2, zone);
     ctx.stroke();
-  } else if (spec.person) {
+  } else if (spec.person && !(spec.burst && emblem)) {
     if (photo) {
       const room = Math.max(240, top - 270);
       // The photo fills the top of the card and runs on under the copy, where
       // the long fade below melts it away.
       ctx.drawImage(photoLayer(photo, CARD_W, photoZone, face, { x: CARD_W / 2, y: 270 + room * 0.45, h: Math.min(440, Math.max(170, room * 0.4)) }), 0, 0);
     } else monogram(spec.person.name, accent, 0, CARD_W);
+  } else if (emblem && spec.burst) {
+    // A badge card: colour floods the top, rays and sparks burst from the
+    // emblem, and it all sinks into navy before the copy so text stays crisp.
+    const room = Math.max(260, top - 260);
+    const cx = CARD_W / 2, cy = 250 + room / 2;
+    const [c1, c2] = spec.burst;
+    let bg = ctx.createLinearGradient(0, 0, 0, top + 80);
+    bg.addColorStop(0, alpha(c1, 1));
+    bg.addColorStop(0.55, alpha(c2, 1));
+    bg.addColorStop(1, alpha(NAVY, 1));
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, CARD_W, top + 80);
+    // Rays
+    ctx.save();
+    ctx.translate(cx, cy);
+    for (let i = 0; i < 28; i++) {
+      ctx.rotate((Math.PI * 2) / 28);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-70, -1500);
+      ctx.lineTo(70, -1500);
+      ctx.closePath();
+      ctx.fillStyle = i % 2 ? "rgba(255,255,255,0.09)" : "rgba(255,255,255,0.02)";
+      ctx.fill();
+    }
+    ctx.restore();
+    // A hot core of light behind the emblem
+    bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, room * 0.75);
+    bg.addColorStop(0, "rgba(255,248,220,0.75)");
+    bg.addColorStop(0.35, "rgba(255,240,200,0.25)");
+    bg.addColorStop(1, "rgba(255,240,200,0)");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, CARD_W, top + 80);
+    // Sparks: fixed positions, so every share of a badge looks the same
+    const sparks = [[0.12, 0.2, 9], [0.86, 0.16, 7], [0.2, 0.62, 6], [0.8, 0.58, 10], [0.08, 0.42, 5], [0.92, 0.38, 6], [0.3, 0.1, 5], [0.7, 0.08, 6], [0.62, 0.72, 4], [0.36, 0.76, 5]];
+    for (const [fx, fy, r] of sparks) {
+      const x = fx * CARD_W, y = 200 + fy * room;
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.beginPath();
+      ctx.moveTo(x, y - r * 2.4);
+      ctx.quadraticCurveTo(x, y, x + r * 2.4, y);
+      ctx.quadraticCurveTo(x, y, x, y + r * 2.4);
+      ctx.quadraticCurveTo(x, y, x - r * 2.4, y);
+      ctx.quadraticCurveTo(x, y, x, y - r * 2.4);
+      ctx.fill();
+    }
+    const medal = (size: number, x: number, y: number) => {
+      ctx.save();
+      ctx.shadowColor = "rgba(0,0,0,0.45)";
+      ctx.shadowBlur = size / 11;
+      ctx.shadowOffsetY = size / 28;
+      const k = Math.min(size / emblem.width, size / emblem.height);
+      ctx.drawImage(emblem, x - (emblem.width * k) / 2, y - (emblem.height * k) / 2, emblem.width * k, emblem.height * k);
+      ctx.restore();
+    };
+    if (spec.person && photo) {
+      // The holder's card: their portrait in the middle of the burst, ringed
+      // in the badge colour, with the badge pinned on like a medal.
+      const r = Math.min(300, room * 0.44);
+      const d = r * 2;
+      ctx.save();
+      ctx.shadowColor = "rgba(0,0,0,0.5)";
+      ctx.shadowBlur = 70;
+      ctx.shadowOffsetY = 24;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r + 14, 0, Math.PI * 2);
+      const ring = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
+      ring.addColorStop(0, "#FFF6D8");
+      ring.addColorStop(0.5, alpha(c1, 1));
+      ring.addColorStop(1, alpha(c2, 1));
+      ctx.fillStyle = ring;
+      ctx.fill();
+      ctx.restore();
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(photoLayer(photo, d, d, face, { x: r, y: d * 0.42, h: d * 0.44 }), cx - r, cy - r);
+      ctx.restore();
+      medal(r * 0.95, cx + r * 0.74, cy + r * 0.7);
+    } else medal(Math.min(680, room * 1.0), cx, cy);
   } else if (emblem && top - 300 >= 180) {
     // A team card: the crest, large, in the open space above the copy.
     const room = Math.max(200, top - 300);
