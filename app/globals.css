@@ -147,6 +147,23 @@
   --jcc-text-muted: rgba(255, 255, 255, 0.65);
 }
 
+/* Profile story scenes (components/profile/ProfileStory.tsx). A dark scene
+   flips the ink and card tokens so the same components read light-on-navy:
+   Royal Blue text turns ivory, white cards turn navy, dark gold turns bright
+   gold. Text sitting on a bg-jcc-blue fill reads var(--story-on-ink), which
+   swaps from white to navy along with it. Scoped to the scene, never global. */
+.story-dark {
+  color: #F7F3E8;
+  --color-white: #FFFFFF;
+  --color-jcc-blue: #F7F3E8;
+  --color-jcc-navy: #13233D;
+  --color-jcc-navy-light: #1A2E4D;
+  --color-jcc-accent-dark: #F3C96A;
+  --color-jcc-text-muted: rgba(247, 243, 232, 0.62);
+  --color-jcc-border: rgba(247, 243, 232, 0.12);
+  --story-on-ink: #0B1424;
+}
+
 /* Remove browser spin buttons from number inputs — they eat all the
    space in narrow table cells, making values invisible. */
 input[type="number"]::-webkit-outer-spin-button,

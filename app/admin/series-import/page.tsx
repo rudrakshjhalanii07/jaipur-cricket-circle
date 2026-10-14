@@ -436,6 +436,8 @@ export default function SeriesImportPage() {
         is_tie: r.tie,
         player_of_match: draft.potm || null,
         match_notes: draft.notes || null,
+        // Every delivery, kept for true head-to-head figures (from Season 4).
+        ball_log: { innings: draft.innings },
         innings: [
           toSaveInnings(inn1, {
             inningsNo: 1, battingTeam: bat1, bowlingTeam: bat2, squad: squadOf(bat1),

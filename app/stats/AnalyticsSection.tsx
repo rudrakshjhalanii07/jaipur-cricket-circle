@@ -153,51 +153,105 @@ export function ChancesTab({ rows, names, onOpenPlayer }: { rows: ChanceRow[]; n
       {top.length === 0 ? (
         <p className="mt-6 text-sm text-jcc-text-muted">Nobody stands out as underused in this season.</p>
       ) : (
-        <div className="mt-8 grid gap-x-12 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
-          {top.map(({ c, share }) => (
-            <button key={c.p} data-arow onClick={() => onOpenPlayer(c.p, "chances")} className="group text-left">
-              <div className="flex items-center gap-4">
-                <Avatar name={names[c.p]} size={60} ring={teamByName(c.team)?.primary ?? "#A97824"} className="transition-transform duration-500 group-hover:scale-105" />
-                <div className="min-w-0">
-                  <p className={LABEL}>The case for</p>
-                  <div className="truncate font-heading text-2xl font-bold tracking-[-0.03em] text-white decoration-jcc-accent decoration-2 underline-offset-4 group-hover:underline">{names[c.p]}</div>
-                </div>
-              </div>
-              {c.sr != null && c.balls >= 15 && (
-                <div className="mt-6">
-                  <div className="flex items-baseline justify-between">
-                    <span className="font-heading text-4xl font-bold tracking-[-0.04em] tabular-nums text-white">{f0(c.sr)}</span>
-                    <span className={LABEL}>strike rate</span>
-                  </div>
-                  <div className="mt-3 space-y-1.5">
-                    <div className="flex items-center gap-3">
-                      <span className="w-14 font-mono text-[10px] uppercase text-jcc-text-muted">Player</span>
-                      <span className="h-1.5 flex-1 rounded-full bg-jcc-navy-light"><span className="block h-full rounded-full bg-jcc-accent" style={{ width: `${share * 100}%` }} /></span>
-                      <span className="w-10 text-right font-mono text-[11px] tabular-nums text-white">{f1(c.ballsPerMatch)}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="w-14 font-mono text-[10px] uppercase text-jcc-text-muted">Team</span>
-                      <span className="h-1.5 flex-1 rounded-full bg-jcc-navy-light"><span className="block h-full rounded-full bg-jcc-blue" style={{ width: "100%" }} /></span>
-                      <span className="w-10 text-right font-mono text-[11px] tabular-nums text-white">{f1(c.teamBallsPerMatch)}</span>
+        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {top.map(({ c, share }, i) => {
+            const color = teamByName(c.team)?.primary ?? "#A97824";
+            const bat = c.sr != null && c.balls >= 15;
+            const bowl = c.econ != null && c.bowlBalls >= 12;
+            const missing = Math.max(0, c.teamBallsPerMatch - c.ballsPerMatch);
+            return (
+              <button
+                key={c.p}
+                data-arow
+                onClick={() => onOpenPlayer(c.p, "chances")}
+                className="group relative overflow-hidden rounded-[28px] bg-[#FFFFFF] p-6 text-left shadow-[0_24px_60px_-36px_rgba(18,35,63,0.45)] ring-1 ring-jcc-blue/10 transition-[transform,box-shadow] duration-500 hover:-translate-y-1.5 hover:shadow-[0_34px_70px_-34px_rgba(18,35,63,0.55)]"
+              >
+                {/* A gem-cut edge along the top, and a sheen on hover */}
+                <span aria-hidden className="absolute inset-x-0 top-0 h-1.5" style={{ backgroundImage: i === 0 ? "linear-gradient(90deg,#F3C96A,#D4AF37,#A97824)" : bat ? "linear-gradient(90deg,#F59E0B,#EA580C)" : "linear-gradient(90deg,#A78BFA,#7C3AED)" }} />
+                <span aria-hidden className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-[#FFFFFF]/70 to-transparent opacity-0 transition-all duration-700 group-hover:left-[120%] group-hover:opacity-100" />
+
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-4">
+                    <Avatar name={names[c.p]} size={64} ring={color} className="transition-transform duration-500 group-hover:scale-105" />
+                    <div className="min-w-0">
+                      <p className={LABEL}>The case for</p>
+                      <div className="truncate font-heading text-2xl font-bold tracking-[-0.03em] text-white">{names[c.p]}</div>
+                      <p className="mt-0.5 font-mono text-[10.5px]" style={{ color }}>{c.team}</p>
                     </div>
                   </div>
-                  <p className="mt-2 text-[12.5px] text-jcc-text-muted">balls faced a match</p>
+                  {/* The gem, with its rank */}
+                  <span className="relative grid h-12 w-12 shrink-0 place-items-center">
+                    <svg viewBox="0 0 48 48" className="absolute inset-0 h-full w-full drop-shadow-[0_6px_10px_rgba(169,120,36,0.35)]" aria-hidden>
+                      <defs>
+                        <linearGradient id={`gem-${c.p}`} x1="0" y1="0" x2="1" y2="1">
+                          <stop offset="0" stopColor={i === 0 ? "#FBE7A6" : "#F4F1EA"} />
+                          <stop offset="0.55" stopColor={i === 0 ? "#D4AF37" : "#D9D3C4"} />
+                          <stop offset="1" stopColor={i === 0 ? "#8E6417" : "#A39A86"} />
+                        </linearGradient>
+                      </defs>
+                      <polygon points="24,3 44,17 24,45 4,17" fill={`url(#gem-${c.p})`} />
+                      <polygon points="24,3 32,17 24,45 16,17" fill="#FFFFFF" opacity="0.28" />
+                      <polyline points="4,17 44,17" stroke="#FFFFFF" strokeOpacity="0.6" strokeWidth="1" fill="none" />
+                    </svg>
+                    <span className="relative mt-[-6px] font-heading text-sm font-extrabold text-[#0B1424]">{i + 1}</span>
+                  </span>
                 </div>
-              )}
-              {c.econ != null && c.bowlBalls >= 12 && (
-                <div className="mt-6 flex items-center gap-5">
-                  <svg viewBox="0 0 44 44" className="h-16 w-16 -rotate-90">
-                    <circle cx="22" cy="22" r="18" fill="none" stroke="var(--color-jcc-navy-light)" strokeWidth="5" />
-                    <circle cx="22" cy="22" r="18" fill="none" stroke="#D4AF37" strokeWidth="5" strokeLinecap="round" strokeDasharray={`${(2 * Math.PI * 18 * c.bowlShare) / 100} 200`} />
-                  </svg>
-                  <div>
-                    <div className="font-heading text-4xl font-bold tracking-[-0.04em] tabular-nums text-white">{f2(c.econ)}</div>
-                    <p className="text-[12.5px] text-jcc-text-muted">economy, bowls in {f0(c.bowlShare)}% of matches</p>
+
+                {bat && (
+                  <div className="mt-7">
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-heading text-6xl font-extrabold leading-none tracking-[-0.05em] tabular-nums" style={{ backgroundImage: "linear-gradient(135deg,#F59E0B,#EA580C)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
+                        {f0(c.sr)}
+                      </span>
+                      <span className={LABEL}>strike rate</span>
+                    </div>
+                    {/* Usage: what they get, against what the team gets, the gap hatched */}
+                    <div className="mt-5">
+                      <div className="relative h-3 overflow-hidden rounded-full bg-[repeating-linear-gradient(135deg,rgba(234,88,12,0.18)_0_5px,transparent_5px_10px)] ring-1 ring-[#EA580C]/20">
+                        <span className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#F59E0B] to-[#EA580C] transition-[width] duration-700" style={{ width: `${Math.max(4, share * 100)}%` }} />
+                      </div>
+                      <div className="mt-2 flex justify-between font-mono text-[10.5px] text-jcc-text-muted">
+                        <span><b className="text-white">{f1(c.ballsPerMatch)}</b> balls a match</span>
+                        <span>team <b className="text-white">{f1(c.teamBallsPerMatch)}</b></span>
+                      </div>
+                      {missing > 0.5 && (
+                        <p className="mt-3 rounded-xl bg-[#EA580C]/[0.07] px-3 py-2 text-[12.5px] text-[#B4440A]">
+                          <b>{f1(missing)} balls a match</b> they&apos;re not getting
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
-            </button>
-          ))}
+                )}
+
+                {bowl && (
+                  <div className={`flex items-center gap-5 ${bat ? "mt-5 border-t border-jcc-blue/10 pt-5" : "mt-7"}`}>
+                    <div className="relative h-20 w-20 shrink-0">
+                      <svg viewBox="0 0 44 44" className="h-full w-full -rotate-90" aria-hidden>
+                        <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(124,58,237,0.12)" strokeWidth="5" strokeDasharray="2 2.5" />
+                        <circle cx="22" cy="22" r="18" fill="none" stroke="url(#gem-ring)" strokeWidth="5" strokeLinecap="round" strokeDasharray={`${(2 * Math.PI * 18 * c.bowlShare) / 100} 200`} />
+                        <defs>
+                          <linearGradient id="gem-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#A78BFA" /><stop offset="1" stopColor="#7C3AED" /></linearGradient>
+                        </defs>
+                      </svg>
+                      <span className="absolute inset-0 grid place-items-center font-mono text-[11px] font-semibold text-white">{f0(c.bowlShare)}%</span>
+                    </div>
+                    <div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-heading text-4xl font-extrabold leading-none tracking-[-0.04em] tabular-nums" style={{ backgroundImage: "linear-gradient(135deg,#A78BFA,#7C3AED)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>{f2(c.econ)}</span>
+                        <span className={LABEL}>economy</span>
+                      </div>
+                      <p className="mt-1.5 text-[12.5px] text-jcc-text-muted">bowls in only {f0(c.bowlShare)}% of matches</p>
+                    </div>
+                  </div>
+                )}
+
+                <p className="mt-6 flex items-center justify-between border-t border-jcc-blue/10 pt-4 font-mono text-[10.5px] uppercase tracking-[0.14em] text-jcc-text-muted">
+                  <span>{c.matches} matches</span>
+                  <span className="text-jcc-accent-dark transition-transform duration-300 group-hover:translate-x-1">Open card →</span>
+                </p>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -205,34 +259,58 @@ export function ChancesTab({ rows, names, onOpenPlayer }: { rows: ChanceRow[]; n
         <div className="mt-16">
           <div className="flex items-end justify-between border-b border-jcc-blue/80 pb-2">
             <span className={LABEL}>Next in line · Nos. 4–{ranked.length}</span>
-            <span className={LABEL}>Why</span>
+            <span className={LABEL}>Bar = their share of the chances</span>
           </div>
-          <ol>
-            {rest.map(({ c, share, bat, bowl }, i) => (
-              <li key={c.p} data-arow>
-                <button onClick={() => onOpenPlayer(c.p, "chances")} className="group relative grid w-full grid-cols-[32px_auto_minmax(0,1fr)] items-center gap-4 border-b border-jcc-border py-4 text-left md:grid-cols-[32px_auto_minmax(0,220px)_minmax(0,1fr)]">
-                  <span aria-hidden className="pointer-events-none absolute -inset-x-3 inset-y-1 rounded-xl bg-jcc-navy opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-                  <span className="relative font-mono text-[11px] text-jcc-text-muted">{String(i + 4).padStart(2, "0")}</span>
-                  <Avatar name={names[c.p]} size={40} ring={teamByName(c.team)?.primary ?? "#A97824"} className="relative" />
-                  <span className="relative min-w-0">
-                    <span className="block truncate font-semibold tracking-tight text-white transition-transform duration-300 group-hover:translate-x-0.5">{names[c.p]}</span>
-                    <span className="block font-mono text-[10.5px] text-jcc-text-muted">{c.team} · {c.matches} matches</span>
-                  </span>
-                  <span className="relative col-span-3 flex flex-wrap gap-x-6 gap-y-1 text-[13px] text-jcc-text-muted md:col-span-1 md:justify-end">
-                    {bat > 0 && (
-                      <span>
-                        <b className="font-heading text-base text-white">SR {f0(c.sr)}</b> · faces {f1(c.ballsPerMatch)} balls a match, team {f1(c.teamBallsPerMatch)} ({f0(share * 100)}%)
+          <ol className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {rest.map(({ c, share, bat, bowl }, i) => {
+              const color = teamByName(c.team)?.primary ?? "#A97824";
+              // Lead with whichever case is stronger; the other rides along as a note.
+              const lead = bat >= bowl && bat > 0 ? "bat" : "bowl";
+              const pct = lead === "bat" ? share * 100 : c.bowlShare;
+              return (
+                <li key={c.p} data-arow>
+                  <button
+                    onClick={() => onOpenPlayer(c.p, "chances")}
+                    className="group relative flex h-full w-full flex-col overflow-hidden rounded-2xl bg-[#FFFFFF] p-5 text-left ring-1 ring-jcc-blue/10 transition-[transform,box-shadow] duration-400 hover:-translate-y-1 hover:shadow-[0_24px_50px_-30px_rgba(18,35,63,0.5)]"
+                  >
+                    <span aria-hidden className="absolute inset-y-0 left-0 w-1" style={{ background: lead === "bat" ? "linear-gradient(180deg,#F59E0B,#EA580C)" : "linear-gradient(180deg,#A78BFA,#7C3AED)" }} />
+                    <div className="flex items-center gap-3">
+                      <span className="w-6 font-mono text-[11px] tabular-nums text-jcc-text-muted">{String(i + 4).padStart(2, "0")}</span>
+                      <Avatar name={names[c.p]} size={44} ring={color} className="transition-transform duration-500 group-hover:scale-105" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-semibold tracking-tight text-white">{names[c.p]}</span>
+                        <span className="block font-mono text-[10.5px]" style={{ color }}>{c.team} · {c.matches} m</span>
                       </span>
-                    )}
-                    {bowl > 0 && (
-                      <span>
-                        <b className="font-heading text-base text-white">Econ {f2(c.econ)}</b> · bowls in {f0(c.bowlShare)}% of matches
+                      <span className="text-right">
+                        <span
+                          className="block font-heading text-3xl font-extrabold leading-none tracking-[-0.04em] tabular-nums"
+                          style={{ backgroundImage: lead === "bat" ? "linear-gradient(135deg,#F59E0B,#EA580C)" : "linear-gradient(135deg,#A78BFA,#7C3AED)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}
+                        >
+                          {lead === "bat" ? f0(c.sr) : f2(c.econ)}
+                        </span>
+                        <span className={`${LABEL} mt-1 block`}>{lead === "bat" ? "strike rate" : "economy"}</span>
                       </span>
-                    )}
-                  </span>
-                </button>
-              </li>
-            ))}
+                    </div>
+                    {/* How much of a share they get */}
+                    <div className="mt-5">
+                      <div className="h-2 overflow-hidden rounded-full bg-[repeating-linear-gradient(135deg,rgba(18,35,63,0.08)_0_4px,transparent_4px_8px)] ring-1 ring-jcc-blue/10">
+                        <span
+                          className="block h-full rounded-full transition-[width] duration-700"
+                          style={{ width: `${Math.max(4, Math.min(100, pct))}%`, background: lead === "bat" ? "linear-gradient(90deg,#F59E0B,#EA580C)" : "linear-gradient(90deg,#A78BFA,#7C3AED)" }}
+                        />
+                      </div>
+                      <p className="mt-2 text-[12px] leading-snug text-jcc-text-muted">
+                        {lead === "bat"
+                          ? <>Faces <b className="text-white">{f1(c.ballsPerMatch)}</b> balls a match, team <b className="text-white">{f1(c.teamBallsPerMatch)}</b></>
+                          : <>Bowls in only <b className="text-white">{f0(c.bowlShare)}%</b> of matches</>}
+                      </p>
+                      {lead === "bat" && bowl > 0 && <p className="mt-1 font-mono text-[10.5px] text-[#7C3AED]">Also: econ {f2(c.econ)} in {f0(c.bowlShare)}% of matches</p>}
+                      {lead === "bowl" && bat > 0 && <p className="mt-1 font-mono text-[10.5px] text-[#C2410C]">Also: SR {f0(c.sr)} on {f1(c.ballsPerMatch)} balls a match</p>}
+                    </div>
+                  </button>
+                </li>
+              );
+            })}
           </ol>
           <p className="mt-6 max-w-3xl font-mono text-[11px] leading-relaxed text-jcc-text-muted">
             Top 15. A batter qualifies with a strike rate above the league median ({f0(mSrShown)}) while facing under 80% of their team&apos;s balls a match; a bowler with an economy below the median while bowling in under 70% of matches. Ranked by how far above the median, times how far short of a full share.

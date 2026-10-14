@@ -775,11 +775,13 @@ function bowlingTips(S: ScopeIndex, x: PlayerAgg, chances: Chances, opp: BowlSpl
       next: "Study who scored off you in those games and set the field for their strong side before the first ball.",
     });
   }
-  const threats = faced.filter((m) => m.inns >= 2 && !m.wk && (m.sr ?? 0) >= 170).sort((a, b) => (b.sr ?? 0) - (a.sr ?? 0)).slice(0, 3);
+  // Only dismissals are head to head (no ball-by-ball data), so the danger men
+  // are the batters you keep bowling at and never get out.
+  const threats = faced.filter((m) => m.inns >= 3 && !m.wk).sort((a, b) => b.inns - a.inns).slice(0, 3);
   if (threats.length) {
     tips.push({
       w: 5, title: "Have a plan for the danger men",
-      why: `${threats.map((t) => `${S.d.players[t.p]} (SR ${f0(t.sr)})`).join(", ")} score freely in innings you bowl, and you haven't dismissed them.`,
+      why: `You've bowled in ${threats.map((t) => `${S.d.players[t.p]}'s innings ${t.inns} times`).join(", ")} without getting them out.`,
       next: "Bowl to their weak side with a matching field, and save your best over for when they're on strike.",
     });
   }
@@ -899,8 +901,9 @@ function chancesFor(S: ScopeIndex, x: PlayerAgg): Chances {
 
 export type Split = { label: string; inns: number; runs: number; balls: number; avg: number | null; sr: number | null };
 export type BowlSplit = { label: string; spells: number; balls: number; runs: number; wk: number; econ: number | null; dotPct: number | null };
-export type BatterMatchup = { p: number; inns: number; wk: number; balls: number; runs: number; dots: number; br: number; bb: number; econ: number | null; sr: number | null; dotPct: number | null };
-export type BowlerMatchup = { p: number; inns: number; wk: number; ducks: number; br: number; bb: number; balls: number; runs: number; sr: number | null; econ: number | null };
+/** br/bb/outs: the batter's whole innings (and whether he was out to anyone) in innings this bowler bowled in. */
+export type BatterMatchup = { p: number; inns: number; wk: number; balls: number; runs: number; dots: number; br: number; bb: number; outs: number; econ: number | null; sr: number | null; dotPct: number | null };
+export type BowlerMatchup = { p: number; inns: number; wk: number; ducks: number; br: number; bb: number; outs: number; balls: number; runs: number; sr: number | null; econ: number | null };
 
 const toSplit = (label: string, rows: Bat[]): Split => {
   const a = aggBat(rows);
@@ -954,8 +957,9 @@ export function playerProfile(d: CardData, seasons: number[], p: number) {
     const map = new Map<number, BatterMatchup>();
     for (const r of x.bat) {
       for (const w of S.byInnBowl.get(key(r.m, r.inn)) ?? []) {
-        const e = map.get(w.p) ?? map.set(w.p, { p: w.p, inns: 0, wk: 0, balls: 0, runs: 0, dots: 0, br: 0, bb: 0, econ: null, sr: null, dotPct: null }).get(w.p)!;
+        const e = map.get(w.p) ?? map.set(w.p, { p: w.p, inns: 0, wk: 0, balls: 0, runs: 0, dots: 0, br: 0, bb: 0, outs: 0, econ: null, sr: null, dotPct: null }).get(w.p)!;
         e.inns++; e.balls += w.balls; e.runs += w.runs; e.dots += w.dots; e.br += r.runs; e.bb += r.balls;
+        if (isOut(r.kind)) e.outs++;
         if (r.bw === w.p) e.wk++;
       }
     }
@@ -969,8 +973,9 @@ export function playerProfile(d: CardData, seasons: number[], p: number) {
     const map = new Map<number, BowlerMatchup>();
     for (const w of x.bowl) {
       for (const r of S.byInnBat.get(key(w.m, w.inn)) ?? []) {
-        const e = map.get(r.p) ?? map.set(r.p, { p: r.p, inns: 0, wk: 0, ducks: 0, br: 0, bb: 0, balls: 0, runs: 0, sr: null, econ: null }).get(r.p)!;
+        const e = map.get(r.p) ?? map.set(r.p, { p: r.p, inns: 0, wk: 0, ducks: 0, br: 0, bb: 0, outs: 0, balls: 0, runs: 0, sr: null, econ: null }).get(r.p)!;
         e.inns++; e.br += r.runs; e.bb += r.balls; e.balls += w.balls; e.runs += w.runs;
+        if (isOut(r.kind)) e.outs++;
         if (r.bw === x.p) { e.wk++; if (duckType(r)) e.ducks++; }
       }
     }

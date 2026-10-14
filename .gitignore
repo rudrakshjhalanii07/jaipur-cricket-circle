@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local output of scripts/enhance-photos.mjs (member photos — never commit)
+/photo-review/

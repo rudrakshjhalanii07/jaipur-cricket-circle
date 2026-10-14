@@ -5,11 +5,12 @@
 // gets its own gold pill rather than a place in the link row. On phones the
 // links live in a full-screen menu that deals its items in.
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowUpRight, UserRound } from "lucide-react";
 import { gsap, useGSAP, reduceMotion } from "@/components/motion/gsap";
+import { focusStyle, parseFocus } from "@/lib/photo-focus";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -21,11 +22,40 @@ const STATS = { href: "/stats", label: "Stats" };
 const PROFILE = { href: "/profile", label: "Profile" };
 const WHATSAPP_URL = "https://chat.whatsapp.com/LtuFpx2EcKO4E5yZWP8aue?mode=gi_t";
 
+// The signed-in member's photo for the profile button. The profile page keeps
+// the member in localStorage and fires "jcc-member" whenever it changes.
+const subscribeMember = (cb: () => void) => {
+  window.addEventListener("storage", cb);
+  window.addEventListener("jcc-member", cb);
+  return () => {
+    window.removeEventListener("storage", cb);
+    window.removeEventListener("jcc-member", cb);
+  };
+};
+const readMember = () => {
+  try {
+    return localStorage.getItem("jcc_verified_player");
+  } catch {
+    return null;
+  }
+};
+function useMemberPhoto() {
+  const raw = useSyncExternalStore(subscribeMember, readMember, () => null);
+  if (!raw) return null;
+  try {
+    const p = JSON.parse(raw) as { name?: string; image_url?: string | null; image_focus?: unknown };
+    return p.image_url ? { src: p.image_url.split("#")[0], name: p.name ?? "", focus: parseFocus(p.image_focus) } : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
+  const photo = useMemberPhoto();
   const menuId = useId();
   const overlay = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -151,11 +181,11 @@ export default function Navbar() {
             })}
           </ul>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <Link
               href={STATS.href}
               aria-current={pathname === STATS.href ? "page" : undefined}
-              className="group inline-flex items-center gap-2 rounded-full bg-jcc-accent px-4 py-2.5 text-[13px] font-bold tracking-tight text-[#0B1424] transition-[background-color,transform] duration-300 hover:scale-[1.04] hover:bg-jcc-accent-highlight sm:px-5"
+              className="group inline-flex h-10 items-center gap-2 rounded-full bg-jcc-accent px-4 text-[13px] font-bold tracking-tight text-[#0B1424] transition-[background-color,transform] duration-300 hover:scale-[1.04] hover:bg-jcc-accent-highlight sm:h-12 sm:px-5"
             >
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#0B1424] opacity-40" />
@@ -168,11 +198,16 @@ export default function Navbar() {
               href={PROFILE.href}
               aria-label="Profile"
               aria-current={pathname === PROFILE.href ? "page" : undefined}
-              className={`grid h-10 w-10 place-items-center rounded-full border transition-colors duration-300 sm:h-11 sm:w-11 ${
-                pathname === PROFILE.href ? "border-jcc-accent text-jcc-accent" : "border-white/15 text-white/75 hover:border-jcc-accent hover:text-jcc-accent"
+              className={`relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full border-2 transition-[border-color,color,transform] duration-300 hover:scale-[1.05] sm:h-12 sm:w-12 ${
+                pathname === PROFILE.href ? "border-jcc-accent text-jcc-accent" : "border-white/20 text-white/80 hover:border-jcc-accent hover:text-jcc-accent"
               }`}
             >
-              <UserRound className="h-4 w-4" />
+              {photo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={photo.src} alt="" className="h-full w-full object-cover" style={focusStyle(photo.focus, 0.6)} />
+              ) : (
+                <UserRound className="h-5 w-5 sm:h-[22px] sm:w-[22px]" />
+              )}
             </Link>
             <button
               ref={trigger}
@@ -181,7 +216,7 @@ export default function Navbar() {
               aria-expanded={isOpen}
               aria-controls={menuId}
               aria-label={isOpen ? "Close menu" : "Open menu"}
-              className="relative grid h-10 w-10 place-items-center rounded-full border border-white/15 text-white lg:hidden sm:h-11 sm:w-11"
+              className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/15 text-white lg:hidden sm:h-12 sm:w-12"
             >
               <span className={`absolute h-[1.5px] w-4 bg-current transition-transform duration-500 ${isOpen ? "rotate-45" : "-translate-y-[4px]"}`} />
               <span className={`absolute h-[1.5px] w-4 bg-current transition-transform duration-500 ${isOpen ? "-rotate-45" : "translate-y-[4px]"}`} />

@@ -195,10 +195,11 @@ function InningsEditor({ inn, onChange, names }: { inn: Inn; onChange: (i: Inn) 
         <div>
           <p className="mb-3 text-[11px] font-black uppercase tracking-widest" style={{ color }}>Batting</p>
           <div className="-mx-5 overflow-x-auto px-5">
-            <table className="w-full min-w-[880px] table-fixed border-separate border-spacing-x-1.5 border-spacing-y-1 text-xs">
+            {/* Batter, bowler and fielder are the three unsized columns, so they share what's left equally. */}
+            <table className="w-full min-w-[780px] table-fixed border-separate border-spacing-x-1 border-spacing-y-1 text-xs">
               <colgroup>
-                <col className="w-[60px]" /><col /><col className="w-[58px]" /><col className="w-[58px]" /><col className="w-[50px]" /><col className="w-[50px]" />
-                <col className="w-[128px]" /><col className="w-[150px]" /><col className="w-[150px]" /><col className="w-[36px]" />
+                <col className="w-[56px]" /><col /><col className="w-[50px]" /><col className="w-[50px]" /><col className="w-[44px]" /><col className="w-[44px]" />
+                <col className="w-[116px]" /><col /><col /><col className="w-[32px]" />
               </colgroup>
               <thead>
                 <tr>

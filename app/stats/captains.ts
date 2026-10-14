@@ -22,6 +22,8 @@ export type Captain = {
   bigWkts: { n: number; opp: string; date: string } | null;
   streak: number;
   recent: ("W" | "L" | "T")[];
+  /** Every match as captain, oldest first: result and toss. */
+  log: { date: string; opp: string; res: "W" | "L" | "T"; toss: "won" | "lost" | null; decision: "bat" | "bowl" | null; winBy: string }[];
 };
 
 export function buildCaptains(d: CardData, seasons: number[], rows: CaptaincyRow[]) {
@@ -45,7 +47,7 @@ export function buildCaptains(d: CardData, seasons: number[], rows: CaptaincyRow
       p, teams: new Map(), all: blank(), first: blank(), chase: blank(),
       toss: { won: 0, lost: 0, bat: 0, bowl: 0, wonThenWon: 0, lostThenWon: 0 },
       vs: new Map(), form: { runs: 0, balls: 0, wk: 0, bowlBalls: 0, conceded: 0 },
-      bigRuns: null, bigWkts: null, streak: 0, recent: [],
+      bigRuns: null, bigWkts: null, streak: 0, recent: [], log: [],
     }).get(p)!;
 
   const firstBat = new Map<number, string>();
@@ -69,6 +71,7 @@ export function buildCaptains(d: CardData, seasons: number[], rows: CaptaincyRow
     add(c.vs.get(opp) ?? c.vs.set(opp, blank()).get(opp)!);
     c.teams.set(r.team, (c.teams.get(r.team) ?? 0) + 1);
     c.recent.push(res);
+    c.log.push({ date: M.date, opp, res, toss: r.toss, decision: r.decision, winBy: M.winBy });
     const s = res === "W" ? (runStreak.get(p) ?? 0) + 1 : 0;
     runStreak.set(p, s);
     c.streak = Math.max(c.streak, s);

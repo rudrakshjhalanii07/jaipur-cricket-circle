@@ -9,7 +9,7 @@ import { useMemo, useRef, useState } from "react";
 import { ArrowLeftRight, ChevronDown } from "lucide-react";
 import { f0, f1, f2, leaderboardRows, type BoardRow, type CardData } from "@/lib/scorecard-dashboard/profile";
 import { teamByName } from "@/lib/teams";
-import { Avatar } from "./Avatar";
+import { focusOf, focusStyle } from "@/lib/photo-focus";
 import { gsap, reduceMotion, useGSAP } from "./motion";
 import { GOLD, SectionShare, usePhotoOf } from "./SectionShare";
 import type { SheetCard } from "./ShareSheet";
@@ -33,22 +33,37 @@ const METRICS: Metric[] = [
   { label: "Player of the Match", get: (r) => r.mom, fmt: f0 },
 ];
 
-function Picker({ rows, names, value, onChange, align }: { rows: BoardRow[]; names: string[]; value: number; onChange: (p: number) => void; align: "left" | "right" }) {
+/** A fighter's card: tall photo in team light, name on it, tap anywhere to pick someone else. */
+function Fighter({ rows, names, value, onChange, side, photo }: { rows: BoardRow[]; names: string[]; value: number; onChange: (p: number) => void; side: "left" | "right"; photo: string | null }) {
   const sorted = useMemo(() => [...rows].sort((a, b) => names[a.p].localeCompare(names[b.p])), [rows, names]);
   const row = rows.find((r) => r.p === value);
   const color = teamByName(row?.team)?.primary ?? "#D4AF37";
+  const name = names[value];
+  const pos = focusOf(photo);
   return (
-    <label className={`group relative flex min-w-0 cursor-pointer items-center gap-4 ${align === "right" ? "flex-row-reverse text-right" : ""}`}>
-      <Avatar name={names[value]} size={72} ring={color} className="transition-transform duration-500 group-hover:scale-105 md:h-24! md:w-24!" />
-      <span className="min-w-0">
-        <span className={LABEL}>{row?.team ?? "—"}</span>
-        <span className={`mt-1 flex items-center gap-1.5 ${align === "right" ? "justify-end" : ""}`}>
-          <span className="truncate font-heading text-2xl font-bold tracking-[-0.035em] text-white md:text-4xl">{names[value]}</span>
-          <ChevronDown size={18} className="shrink-0 text-jcc-text-muted transition-transform group-hover:translate-y-0.5" />
+    <label className={`group relative block w-full max-w-[250px] cursor-pointer ${side === "right" ? "justify-self-end" : ""}`}>
+      <span aria-hidden className="absolute -inset-4 rounded-[36px] opacity-50 blur-2xl transition-opacity duration-500 group-hover:opacity-80" style={{ background: color }} />
+      <span className="relative block aspect-[4/5] overflow-hidden rounded-[26px]" style={{ boxShadow: `0 0 0 2px ${color}` }}>
+        {photo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photo.split("#")[0]} alt="" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" style={focusStyle(pos, 0.45, 0.8)} />
+        ) : (
+          <span className="grid h-full w-full place-items-center bg-[#13233D] font-heading text-7xl font-bold text-[#FCFBF8]/30">
+            {name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
+          </span>
+        )}
+        <span aria-hidden className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-[#05080F] via-[#05080F]/60 to-transparent" />
+        <span className={`absolute top-3 inline-flex items-center gap-1 rounded-full bg-[#05080F]/75 px-2.5 py-1 font-mono text-[9.5px] font-semibold uppercase tracking-[0.14em] text-[#FCFBF8] ring-1 ring-[#FCFBF8]/25 backdrop-blur ${side === "left" ? "left-3" : "right-3"}`}>
+          Change <ChevronDown size={11} />
+        </span>
+        <span className={`absolute bottom-4 ${side === "left" ? "left-4" : "right-4 text-right"}`}>
+          <span className="block font-mono text-[10px] uppercase tracking-[0.16em]" style={{ color }}>{row?.team ?? "—"}</span>
+          <span className="mt-1 block font-heading text-2xl font-bold leading-none tracking-[-0.03em] text-[#FCFBF8] md:text-3xl">{name}</span>
+          <span className="mt-1 block font-mono text-[10px] text-[#FCFBF8]/60">{row?.matches ?? 0} matches</span>
         </span>
       </span>
       <select
-        aria-label={align === "left" ? "First player" : "Second player"}
+        aria-label={side === "left" ? "First player" : "Second player"}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         className="absolute inset-0 cursor-pointer opacity-0"
@@ -145,70 +160,87 @@ export default function Compare({ data, seasons, onOpenPlayer }: { data: CardDat
     ];
   };
 
+  const decided = winsA + winsB || 1;
+  const verdict = winsA === winsB ? "Dead level" : `${names[winsA > winsB ? a : b].split(" ")[0]} takes it`;
+
   return (
     <div ref={board}>
-      <div className="mb-5 flex justify-end">
-        <SectionShare build={share} fileBase="jcc-head-to-head" label="Share this face-off" />
-      </div>
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 border-y border-jcc-blue/80 py-8 md:gap-8 md:py-10">
-        <Picker rows={rows} names={names} value={a} onChange={(p) => setPick([p, b])} align="left" />
-        <button
-          type="button"
-          onClick={() => setPick([b, a])}
-          aria-label="Swap players"
-          className="grid h-12 w-12 place-items-center rounded-full border border-jcc-blue/15 text-white transition duration-500 hover:rotate-180 hover:border-jcc-blue hover:bg-jcc-blue hover:text-[#FCFBF8] md:h-16 md:w-16"
-        >
-          <ArrowLeftRight size={20} />
-        </button>
-        <Picker rows={rows} names={names} value={b} onChange={(p) => setPick([a, p])} align="right" />
+      {/* The arena light: each side in its team's colour, a seam down the middle */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-0 transition-[background] duration-700" style={{ background: `radial-gradient(40% 45% at 10% 38%, ${ca}50, transparent 70%), radial-gradient(40% 45% at 90% 38%, ${cb}50, transparent 70%)` }} />
+        <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 rotate-[6deg] bg-gradient-to-b from-transparent via-jcc-accent/40 to-transparent" />
+        <p className="absolute left-1/2 top-[22%] -translate-x-1/2 select-none font-heading text-[14rem] font-bold italic leading-none tracking-[-0.06em] text-[#FCFBF8]/[0.035] md:text-[24rem]">VS</p>
       </div>
 
-      <div className="mt-8 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-4">
-        <div>
-          <span className="font-heading text-6xl font-bold leading-none tracking-[-0.06em] tabular-nums md:text-8xl" style={{ color: winsA >= winsB ? undefined : "#667085" }}>
-            {winsA}
-          </span>
-        </div>
-        <p className={`${LABEL} pb-2 text-center`}>categories won</p>
-        <div className="text-right">
-          <span className="font-heading text-6xl font-bold leading-none tracking-[-0.06em] tabular-nums md:text-8xl" style={{ color: winsB >= winsA ? undefined : "#667085" }}>
-            {winsB}
-          </span>
-        </div>
-      </div>
+      <div className="relative">
+        <div className="grid grid-cols-2 items-center gap-4 md:grid-cols-[1fr_auto_1fr] md:gap-10">
+          <Fighter rows={rows} names={names} value={a} onChange={(p) => setPick([p, b])} side="left" photo={photoOf(names[a])} />
 
-      <ul className="mt-8">
-        {lines.map(({ m, va, vb, win, la, lb }) => (
-          <li key={m.label} className="grid grid-cols-[minmax(0,1fr)_96px_minmax(0,1fr)] items-center gap-3 border-b border-jcc-border py-3.5 md:grid-cols-[minmax(0,1fr)_160px_minmax(0,1fr)] md:gap-6">
-            <div className="flex items-center gap-3">
-              <span data-cval className={`w-14 shrink-0 font-heading text-lg font-bold tabular-nums tracking-tight md:w-16 md:text-2xl ${win === "a" ? "text-white" : "text-jcc-text-muted"}`}>{m.fmt(va)}</span>
-              <span className="flex h-2 flex-1 justify-end rounded-full bg-jcc-blue/[0.07]">
-                <span data-cbar className="block h-full rounded-full" style={{ width: `${la * 100}%`, transformOrigin: "right center", background: win === "a" ? "linear-gradient(90deg, #A97824, #F3C96A)" : ca, opacity: win === "a" ? 1 : 0.4 }} />
-              </span>
+          {/* The scoreboard */}
+          <div className="order-last col-span-2 flex flex-col items-center text-center md:order-none md:col-span-1">
+            <p className="font-heading text-7xl font-bold leading-none tracking-[-0.06em] tabular-nums md:text-[7.5rem]">
+              <span data-cval className={winsA >= winsB ? "text-jcc-accent" : "text-[#FCFBF8]/45"}>{winsA}</span>
+              <span className="mx-1 text-[#FCFBF8]/20">:</span>
+              <span data-cval className={winsB >= winsA ? "text-jcc-accent" : "text-[#FCFBF8]/45"}>{winsB}</span>
+            </p>
+            <p className={`${LABEL} mt-2 text-[#FCFBF8]/60`}>{verdict} · categories</p>
+            <div className="mt-4 flex h-2.5 w-56 overflow-hidden rounded-full bg-[#FCFBF8]/10">
+              <span className="h-full transition-[width] duration-700" style={{ width: `${(100 * winsA) / decided}%`, background: ca }} />
+              <span className="h-full w-0.5 bg-[#FCFBF8]" />
+              <span className="h-full flex-1" style={{ background: cb }} />
             </div>
-            <span className="text-center font-mono text-[10px] uppercase leading-tight tracking-[0.12em] text-jcc-text-muted md:text-[11px]">
-              {m.label}
-              {m.lower && <span className="block text-[9px] normal-case tracking-normal opacity-70">lower is better</span>}
-            </span>
-            <div className="flex items-center gap-3">
-              <span className="flex h-2 flex-1 rounded-full bg-jcc-blue/[0.07]">
-                <span data-cbar className="block h-full rounded-full" style={{ width: `${lb * 100}%`, transformOrigin: "left center", background: win === "b" ? "linear-gradient(90deg, #F3C96A, #A97824)" : cb, opacity: win === "b" ? 1 : 0.4 }} />
-              </span>
-              <span data-cval className={`w-14 shrink-0 text-right font-heading text-lg font-bold tabular-nums tracking-tight md:w-16 md:text-2xl ${win === "b" ? "text-white" : "text-jcc-text-muted"}`}>{m.fmt(vb)}</span>
-            </div>
-          </li>
-        ))}
-      </ul>
-
-      <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex gap-3">
-          {[a, b].map((p) => (
-            <button key={p} type="button" onClick={() => onOpenPlayer(p)} className="rounded-full border border-jcc-blue/15 px-4 py-2 text-[13px] font-semibold tracking-tight text-white transition-colors hover:border-jcc-blue hover:bg-jcc-blue hover:text-[#FCFBF8]">
-              {names[p].split(" ")[0]}&apos;s cards →
+            <button
+              type="button"
+              onClick={() => setPick([b, a])}
+              aria-label="Swap players"
+              className="mt-5 grid h-14 w-14 place-items-center rounded-full bg-jcc-accent text-[#0B1424] shadow-[0_0_40px_rgba(212,175,55,0.5)] transition duration-500 hover:rotate-180"
+            >
+              <ArrowLeftRight size={20} />
             </button>
-          ))}
+          </div>
+
+          <Fighter rows={rows} names={names} value={b} onChange={(p) => setPick([a, p])} side="right" photo={photoOf(names[b])} />
         </div>
-        <p className="font-mono text-[11px] text-jcc-text-muted">Rates need 15 balls faced or 12 bowled · gold marks the better side of each row</p>
+
+        {/* Round by round */}
+        <ul className="mt-14 space-y-1">
+          {lines.map(({ m, va, vb, win, la, lb }) => (
+            <li key={m.label} className="grid grid-cols-[3.5rem_minmax(0,1fr)_7rem_minmax(0,1fr)_3.5rem] items-center gap-3 rounded-xl px-2 py-2.5 transition-colors hover:bg-[#FCFBF8]/[0.04] md:grid-cols-[5rem_minmax(0,1fr)_11rem_minmax(0,1fr)_5rem] md:gap-5">
+              <span data-cval className={`text-right font-heading text-lg font-bold tabular-nums tracking-tight md:text-2xl ${win === "a" ? "text-jcc-accent" : "text-[#FCFBF8]/45"}`}>{m.fmt(va)}</span>
+              <span className="flex h-3 justify-end">
+                <span
+                  data-cbar
+                  className="block h-full rounded-full"
+                  style={{ width: `${la * 100}%`, transformOrigin: "right center", background: win === "a" ? "linear-gradient(90deg, #A97824, #F3C96A)" : `${ca}55`, boxShadow: win === "a" ? "0 0 18px rgba(212,175,55,0.45)" : undefined }}
+                />
+              </span>
+              <span className="text-center">
+                <span className={`inline-block rounded-full px-2.5 py-1 font-mono text-[10px] uppercase leading-tight tracking-[0.12em] md:text-[11px] ${win ? "bg-[#FCFBF8]/[0.08] text-[#FCFBF8]" : "text-[#FCFBF8]/55"}`}>{m.label}</span>
+                {m.lower && <span className="block font-mono text-[9px] text-[#FCFBF8]/45">lower wins</span>}
+              </span>
+              <span className="flex h-3">
+                <span
+                  data-cbar
+                  className="block h-full rounded-full"
+                  style={{ width: `${lb * 100}%`, transformOrigin: "left center", background: win === "b" ? "linear-gradient(90deg, #F3C96A, #A97824)" : `${cb}55`, boxShadow: win === "b" ? "0 0 18px rgba(212,175,55,0.45)" : undefined }}
+                />
+              </span>
+              <span data-cval className={`font-heading text-lg font-bold tabular-nums tracking-tight md:text-2xl ${win === "b" ? "text-jcc-accent" : "text-[#FCFBF8]/45"}`}>{m.fmt(vb)}</span>
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-10 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap gap-3">
+            {[a, b].map((p) => (
+              <button key={p} type="button" onClick={() => onOpenPlayer(p)} className="rounded-full border border-[#FCFBF8]/20 px-4 py-2 text-[13px] font-semibold tracking-tight text-[#FCFBF8] transition-colors hover:border-jcc-accent hover:text-jcc-accent">
+                {names[p].split(" ")[0]}&apos;s cards →
+              </button>
+            ))}
+            <SectionShare build={share} fileBase="jcc-head-to-head" label="Share this face-off" dark />
+          </div>
+          <p className="font-mono text-[11px] text-[#FCFBF8]/50">Rates need 15 balls faced or 12 bowled · gold marks the better side of each row</p>
+        </div>
       </div>
     </div>
   );

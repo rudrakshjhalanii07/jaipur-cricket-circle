@@ -60,6 +60,12 @@ export type ShareCardSpec = {
   person?: CardPerson | null;
   /** Head-to-head cards: two portraits facing off. */
   versus?: { left: CardPerson; right: CardPerson };
+  /**
+   * A head-to-head table under the portraits: one row per category, both
+   * values big on their own side, the winner's in gold, and a pair of bars
+   * growing out from the centre. `pa`/`pb` are bar lengths, 0–1.
+   */
+  compare?: { label: string; a: string; b: string; win: "a" | "b" | null; pa: number; pb: number }[];
   /** Team colour for glows, tints and rings. */
   accent?: string;
   teamLogo?: string | null;
@@ -376,11 +382,14 @@ async function draw(spec: ShareCardSpec, withPhoto: boolean): Promise<HTMLCanvas
   // Title
   const big = !spec.hero && !spec.figures?.length && !spec.list?.length;
   const tpx = big ? 124 : 84;
+  // An empty title (a face-off, where the portraits already carry the names)
+  // draws nothing and hands its room to the pictures.
+  const hasTitle = !!spec.title.trim();
   ctx.font = H(800, tpx);
   const tlines = wrap(ctx, spec.title, WIDTH, big ? 2 : 3);
   const tsize = tlines.map((l) => fit(ctx, l, (n) => H(800, n), WIDTH, tpx, Math.round(tpx * 0.7)));
   const lh = (px: number) => px * 1.1;
-  push(tsize.reduce((s, px) => s + lh(px), 0), spec.subtitle ? 22 : 44, (y) => {
+  if (hasTitle) push(tsize.reduce((s, px) => s + lh(px), 0), spec.subtitle ? 22 : 44, (y) => {
     if (spec.burst) {
       const g = ctx.createLinearGradient(PAD, y, PAD + WIDTH * 0.8, y + 120);
       g.addColorStop(0, "#FFFFFF");
@@ -471,6 +480,54 @@ async function draw(spec: ShareCardSpec, withPhoto: boolean): Promise<HTMLCanvas
         ctx.font = B(600, 31);
         ctx.fillText(c.text, c.x + 26, cy + 40);
       }));
+    });
+  }
+
+  if (spec.compare?.length) {
+    const rowsC = spec.compare.slice(0, 8);
+    const rh = rowsC.length > 6 ? 92 : 104;
+    push(rowsC.length * rh, 40, (y) => {
+      const mid = CARD_W / 2;
+      const barW = WIDTH / 2 - 150;
+      rowsC.forEach((r, i) => {
+        const top = y + i * rh;
+        const cy = top + rh / 2;
+        // Values, each on its own side; the winner's in gold.
+        const val = (text: string, won: boolean, side: "l" | "r") => {
+          ctx.font = H(800, 56);
+          ctx.textAlign = side === "l" ? "left" : "right";
+          if (won) {
+            const w = ctx.measureText(text).width;
+            const x0 = side === "l" ? PAD : CARD_W - PAD - w;
+            const g = ctx.createLinearGradient(x0, cy - 40, x0 + w, cy + 20);
+            g.addColorStop(0, GOLD_HI);
+            g.addColorStop(1, GOLD_DK);
+            ctx.fillStyle = g;
+          } else ctx.fillStyle = "rgba(252,251,248,0.62)";
+          ctx.fillText(text, side === "l" ? PAD : CARD_W - PAD, cy + 8);
+        };
+        val(r.a, r.win === "a", "l");
+        val(r.b, r.win === "b", "r");
+        // The category, centred, with the bars growing out from under it.
+        ctx.textAlign = "center";
+        ctx.fillStyle = WHITE;
+        ctx.font = H(700, 30);
+        ctx.fillText(r.label, mid, cy - 6);
+        ctx.textAlign = "left";
+        const bar = (len: number, won: boolean, side: "l" | "r") => {
+          const w = Math.max(6, len * barW);
+          ctx.fillStyle = won ? GOLD : "rgba(252,251,248,0.22)";
+          ctx.beginPath();
+          ctx.roundRect(side === "l" ? mid - 8 - w : mid + 8, cy + 14, w, 10, 5);
+          ctx.fill();
+        };
+        bar(r.pa, r.win === "a", "l");
+        bar(r.pb, r.win === "b", "r");
+        if (i < rowsC.length - 1) {
+          ctx.fillStyle = "rgba(252,251,248,0.08)";
+          ctx.fillRect(PAD, top + rh - 1, WIDTH, 2);
+        }
+      });
     });
   }
 

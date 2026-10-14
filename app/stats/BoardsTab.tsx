@@ -286,7 +286,6 @@ export default function BoardsTab({ rows, names, onOpenPlayer }: { rows: BoardRo
       gsap.fromTo(q("[data-title]"), { yPercent: 105 }, { yPercent: 0, duration: 0.8, ease: "expo.out" });
       gsap.fromTo(q("[data-lead]"), { autoAlpha: 0, x: -24 }, { autoAlpha: 1, x: 0, duration: 0.8, ease: "expo.out", delay: 0.05 });
       gsap.fromTo(q("[data-chaser]"), { autoAlpha: 0, x: 24 }, { autoAlpha: 1, x: 0, duration: 0.6, stagger: 0.06, ease: "expo.out", delay: 0.1 });
-      gsap.fromTo(q("[data-rest]"), { autoAlpha: 0, y: 8 }, { autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.015, ease: "expo.out", delay: 0.2 });
     },
     { dependencies: [disc, metricKey], scope: root },
   );
@@ -427,43 +426,6 @@ export default function BoardsTab({ rows, names, onOpenPlayer }: { rows: BoardRo
             </div>
           </div>
 
-          {/* ── Everyone else: reads down each column ── */}
-          {board.length > 5 && (
-            <div className="mt-14">
-              <div className="flex items-end justify-between border-b border-jcc-blue/80 pb-2">
-                <span className={LABEL}>
-                  The chasing pack · Nos. 6–{board.length}
-                </span>
-                <span className={LABEL}>{metric.label}</span>
-              </div>
-              <ol className="mt-2 gap-x-10 sm:columns-2 lg:columns-3">
-                {board.slice(5).map((r) => {
-                  const v = value(r);
-                  // Sports-table ties: everyone on the same figure shares the first rank, marked "=".
-                  const rank = board.findIndex((x) => value(x) === v) + 1;
-                  const tied = board.filter((x) => value(x) === v).length > 1;
-                  const top = value(board[0]);
-                  const w = metric.low ? (v ? (top / v) * 100 : 0) : top ? (v / top) * 100 : 0;
-                  return (
-                    <li key={r.p} data-rest className="break-inside-avoid">
-                      <button onClick={() => onOpenPlayer(r.p)} className="group relative flex w-full items-center gap-3 border-b border-jcc-border py-3 text-left">
-                        <span aria-hidden className="pointer-events-none absolute -inset-x-2 inset-y-0.5 rounded-xl bg-jcc-navy opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-                        <span className="relative w-7 text-right font-mono text-[11px] tabular-nums text-jcc-text-muted">{tied ? `=${rank}` : String(rank).padStart(2, "0")}</span>
-                        <Avatar name={names[r.p]} size={32} ring={teamColor(r.team)} className="relative" />
-                        <span className="relative min-w-0 flex-1">
-                          <span className="block truncate text-[14px] font-semibold tracking-tight text-white transition-transform duration-300 group-hover:translate-x-0.5">{names[r.p]}</span>
-                          <span className="mt-1.5 block h-[3px] rounded-full bg-jcc-navy-light">
-                            <span className="block h-full rounded-full transition-[width] duration-700 ease-out" style={{ width: `${Math.min(100, Math.max(3, w))}%`, background: teamColor(r.team) }} />
-                          </span>
-                        </span>
-                        <span className="relative w-14 text-right font-heading text-lg font-bold tabular-nums text-white">{metric.fmt(v)}</span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ol>
-            </div>
-          )}
         </>
       )}
     </div>

@@ -13,7 +13,9 @@
 import { unstable_cache } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { runOutFielders } from "@/lib/mvp";
-import { dashboardData, dashboardIdForName, type DashboardInput } from "./compute";
+import { dashboardData, dashboardExportNames, dashboardIdForName, type DashboardInput } from "./compute";
+import { fetchClubRoster } from "@/lib/club-roster.server";
+import { createRosterMatcher } from "@/lib/club-roster";
 
 /** TeamId → the team name the export uses. */
 const EXPORT_TEAM: Record<string, string> = {
@@ -107,7 +109,7 @@ const key = (date: string, a: string, b: string) => `${date}|${[a, b].sort().joi
  * match saved in the admin and the Sunday cron refresh it, so /stats and the
  * Boundary Banter reports pick a new week up straight away.
  */
-export const fetchDbOnlyMatches = unstable_cache(loadDbOnlyMatches, ["db-only-matches-v2"], {
+export const fetchDbOnlyMatches = unstable_cache(loadDbOnlyMatches, ["db-only-matches-v4"], {
   revalidate: 3600,
   tags: ["scorecards"],
 });
@@ -134,8 +136,25 @@ export async function loadDbOnlyMatches(): Promise<DashboardInput | null> {
     );
 
     const out: DashboardInput = { matches: [], innings: [], batting: [], bowling: [], fallOfWickets: [] };
-    // Names with no history in the export get a stable id of their own.
-    const idFor = (name: string) => dashboardIdForName(name) ?? `db:${name.trim()}`;
+    // The admin records players by their roster name ("Sagar Sharma") where the
+    // export may know them by another ("Sagar"). Exact names first; then the
+    // roster member the name belongs to, when exactly one export identity is
+    // that member (two export ids for one member, or a shared first name, link
+    // nobody). Names with no history at all get a stable id of their own.
+    const matcher = createRosterMatcher(await fetchClubRoster().catch(() => []));
+    const exportByMember = new Map<string, string | null>();
+    for (const [id, n] of dashboardExportNames()) {
+      const m = matcher.find(n);
+      if (!m) continue;
+      const seen = exportByMember.get(m.id);
+      exportByMember.set(m.id, seen === undefined || seen === id ? id : null);
+    }
+    const idFor = (name: string) => {
+      const exact = dashboardIdForName(name);
+      if (exact) return exact;
+      const m = matcher.find(name);
+      return (m && exportByMember.get(m.id)) || `db:${name.trim()}`;
+    };
 
     // Export matches by date + pair, in order of play, to pair database copies with.
     const exportBy = new Map<string, string[]>();
@@ -143,7 +162,6 @@ export async function loadDbOnlyMatches(): Promise<DashboardInput | null> {
       const k = key(e.date, exportTeamName[e.teamA] ?? e.teamA, exportTeamName[e.teamB] ?? e.teamB);
       (exportBy.get(k) ?? exportBy.set(k, []).get(k)!).push(e.matchId);
     }
-    const taken = new Map<string, number>();
     // A scorecard's numbers, row by row. Names are left out on purpose: the
     // two copies spell some players differently (and there are two Ankits),
     // so only a changed number marks a match as corrected.
@@ -169,6 +187,31 @@ export async function loadDbOnlyMatches(): Promise<DashboardInput | null> {
           if (b.dismissal_type === "did_not_bat") out.squads!.push({ matchId, playerId: idFor(b.player_name), name: b.player_name, team: team(inn.batting_team_id) });
     };
 
+    // Pair each database match with its export copy before anything else: one
+    // with identical numbers first, then any left over in order of play. Two
+    // matches between the same sides on one day (Season 3's Week 10 and 11
+    // double-header) would otherwise pair by luck.
+    const pairOf = new Map<string, string | null>();
+    {
+      const groups = new Map<string, DbMatch[]>();
+      for (const s of series)
+        for (const m of [...(s.series_matches as DbMatch[])].sort((a, b) => a.match_no - b.match_no)) {
+          if (!m.match_date || !m.team1_id || !m.team2_id || !(m.winner_id || m.is_tie) || m.series_innings.length === 0) continue;
+          const k = key(m.match_date, m.team1_id, m.team2_id);
+          if (inExport.has(k)) (groups.get(k) ?? groups.set(k, []).get(k)!).push(m);
+        }
+      for (const [k, dbs] of groups) {
+        const free = [...(exportBy.get(k) ?? [])];
+        const left: DbMatch[] = [];
+        for (const m of dbs) {
+          const i = free.findIndex((id) => exportSig(id) === dbSig(m));
+          if (i >= 0) pairOf.set(m.id, free.splice(i, 1)[0]);
+          else left.push(m);
+        }
+        for (const m of left) pairOf.set(m.id, free.shift() ?? null);
+      }
+    }
+
     for (const s of series) {
       const season = seasonNo.get(s.season_id) ?? 0;
       for (const m of [...(s.series_matches as DbMatch[])].sort((a, b) => a.match_no - b.match_no)) {
@@ -176,23 +219,21 @@ export async function loadDbOnlyMatches(): Promise<DashboardInput | null> {
         if (!(m.winner_id || m.is_tie) || m.series_innings.length === 0) continue;
         const k = key(m.match_date, m.team1_id, m.team2_id);
         if (inExport.has(k)) {
-          // The export's copy of this match, paired by order of play that day.
-          const i = taken.get(k) ?? 0;
-          taken.set(k, i + 1);
-          const exportId = exportBy.get(k)?.[i];
+          const exportId = pairOf.get(m.id) ?? null;
           if (!exportId) {
-            // More database matches than export ones that day (Season 2's
-            // finals): still awaiting a decision, so left out.
-            continue;
-          }
-          if (dbSig(m) === exportSig(exportId)) {
+            // More database matches than export ones that day. Season 2's
+            // finals are still awaiting a decision, so they stay out; from
+            // Season 3 the database is the record, so the match counts.
+            if (season < FIRST_DB_SEASON) continue;
+          } else if (dbSig(m) === exportSig(exportId)) {
             // Same numbers: the export stays (it carries dot balls); the
             // database only adds the squad who didn't bat.
             addSquad(m, exportId);
             continue;
+          } else {
+            // Corrected in the admin: the database copy replaces the export's.
+            out.replaces.push(exportId);
           }
-          // Corrected in the admin: the database copy replaces the export's.
-          out.replaces.push(exportId);
         } else if (season < FIRST_DB_SEASON) continue;
 
         const matchId = `db:${m.id}`;

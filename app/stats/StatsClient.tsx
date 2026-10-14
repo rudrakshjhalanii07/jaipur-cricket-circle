@@ -132,7 +132,7 @@ function SectionHead({
   className?: string;
 }) {
   return (
-    <header id={id} data-head className={`grid scroll-mt-20 items-end gap-x-10 gap-y-4 md:grid-cols-[auto_minmax(0,1fr)_auto] ${className}`}>
+    <header id={id} data-head className={`relative grid scroll-mt-20 items-end gap-x-10 gap-y-4 md:grid-cols-[auto_minmax(0,1fr)_auto] ${className}`}>
       <div className="overflow-hidden">
         <span
           data-head-num
@@ -1408,15 +1408,18 @@ export default function StatsClient({
         </section>
 
         {/* ── 05 Hidden gems ── */}
-        <section className={WRAP}>
+        {/* A soft gold wash behind the gems; still the light theme. */}
+        <section className="bg-gradient-to-b from-transparent via-[#F7F0DF] to-transparent pb-10">
+        <div className={WRAP}>
           <SectionHead id="gems" n="05" kicker={`Underused, overperforming · ${s.label}`} title="Hidden gems" note="Players who do more with the bat or ball than their share of it — the case for giving them more." />
           <ChancesTab rows={insights.chances} names={cardData.players} onOpenPlayer={(p, card) => openIndex(p, card, [p])} />
+        </div>
         </section>
 
         {/* ── 06 Compare ── */}
-        <section className="mt-28 border-y border-jcc-blue/10 bg-jcc-navy-light pb-28 md:mt-36">
+        <section className="theme-static-dark relative mt-28 overflow-hidden bg-[#05080F] pb-28 md:mt-36">
           <div className={WRAP}>
-            <SectionHead id="compare" n="06" kicker={`Head to head · ${s.label}`} title="Compare any two" note="Pick two players. Twelve categories, scaled to the better of the pair." />
+            <SectionHead dark id="compare" n="06" kicker={`Head to head · ${s.label}`} title="Compare any two" note="Pick two players. Twelve categories, scaled to the better of the pair." />
             <Compare data={cardData} seasons={seasons} onOpenPlayer={(p) => openIndex(p, undefined, [p])} />
           </div>
         </section>

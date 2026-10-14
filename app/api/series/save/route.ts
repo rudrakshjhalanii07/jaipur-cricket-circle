@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { canonicalPlayerName, canonicalNamesInText } from "@/lib/player-names";
 import { refreshScorecards } from "@/lib/scorecards-cache";
+import type { ScoreEvent } from "@/lib/ball-by-ball";
 
 interface NewSeriesInput {
   name: string;
@@ -54,6 +55,12 @@ interface InningsInput {
 }
 
 interface SaveBody {
+  /**
+   * The ball-by-ball scorer's log, kept in series_ball_logs. Absent when the
+   * scorecard comes from anywhere else (the editor, an import), in which case
+   * an existing log is only flagged as edited.
+   */
+  ball_log?: { innings: ScoreEvent[][] } | null;
   series_id?: string;
   new_series?: NewSeriesInput;
   match_no: number;
@@ -103,6 +110,41 @@ function canonicalizeNames(body: SaveBody): SaveBody {
   };
 }
 
+/** The same name normalisation as the scorecard, applied to every name in the log. */
+function canonicalizeLog(innings: ScoreEvent[][]): ScoreEvent[][] {
+  const n = (name: string) => (name ? canonicalPlayerName(name) : name);
+  return innings.map((events) =>
+    events.map((e) =>
+      e.t === "retire"
+        ? { ...e, player: n(e.player) }
+        : {
+            ...e,
+            striker: n(e.striker),
+            nonStriker: n(e.nonStriker),
+            bowler: n(e.bowler),
+            wicket: e.wicket ? { ...e.wicket, out: n(e.wicket.out), fielders: e.wicket.fielders.map(n) } : null,
+          },
+    ),
+  );
+}
+
+async function keepBallLog(matchId: string, log: SaveBody["ball_log"]): Promise<boolean> {
+  try {
+    if (log?.innings?.length) {
+      const { error } = await supabaseAdmin
+        .from("series_ball_logs")
+        .upsert({ match_id: matchId, innings: canonicalizeLog(log.innings), saved_at: new Date().toISOString(), scorecard_edited_at: null });
+      if (error) throw error;
+      return true;
+    }
+    await supabaseAdmin.from("series_ball_logs").update({ scorecard_edited_at: new Date().toISOString() }).eq("match_id", matchId);
+    return false;
+  } catch (err) {
+    console.warn("series_ball_logs not written:", err);
+    return false;
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const password = request.headers.get("x-admin-password");
@@ -110,7 +152,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const raw = await request.json() as SaveBody;
+    const { ball_log: ballLog, ...raw } = (await request.json()) as SaveBody;
     if (!raw.series_id && !raw.new_series) {
       return NextResponse.json({ error: "series_id or new_series required" }, { status: 400 });
     }
@@ -130,9 +172,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Failed to save match", detail: error?.message }, { status: 500 });
     }
 
+    // Keep the delivery log, or mark an existing one as edited. A missing table
+    // (supabase/add_ball_by_ball.sql not run yet) never fails the save.
+    const ballLogSaved = await keepBallLog(data.match_id, ballLog);
+
     // /stats, the matchday reports and the home page all read scorecards.
     refreshScorecards();
-    return NextResponse.json({ ok: true, match_id: data.match_id, series_id: data.series_id });
+    return NextResponse.json({ ok: true, match_id: data.match_id, series_id: data.series_id, ball_log_saved: ballLogSaved });
   } catch (err) {
     console.error("series/save error:", err);
     return NextResponse.json({ error: "Server error", detail: String(err) }, { status: 500 });

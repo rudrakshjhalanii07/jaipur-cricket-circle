@@ -881,6 +881,11 @@ export function dashboardIdForName(name: string): string | null {
   return exportIdByName.get(name.trim().toLowerCase()) ?? null;
 }
 
+/** Every player in the export: merged ID → display name. */
+export function dashboardExportNames(): [string, string][] {
+  return [...namePlayers(exportData)];
+}
+
 /** A CricHeroes player ID after merges: the ID CardData.playerIds uses. */
 export function dashboardMergedId(playerId: string): string {
   return mergedId(playerId);

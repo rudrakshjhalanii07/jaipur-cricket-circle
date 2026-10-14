@@ -35,7 +35,8 @@ const battingFacts = (r: { runs: number; balls: number; f4: number; s6: number }
   { label: "Strike rate", value: r.balls ? f0((100 * r.runs) / r.balls) : "–" },
 ];
 /** "27* (21) & 4/24 (2)" → two headline figures: the innings and the spell. */
-const potmFigures = (line: string): Pick<ShareCardSpec, "figures" | "hero"> => {
+/** "27* (21) & 4/24 (2)" → the card's headline figures. Shared with the profile story. */
+export const potmFigures = (line: string): Pick<ShareCardSpec, "figures" | "hero"> => {
   const parts = line.split(/\s*&\s*/).map((part) => {
     const m = part.match(/^(\S+)\s*\((\d+(?:\.\d)?)\)$/);
     if (!m) return { value: part, unit: "" };
@@ -253,7 +254,7 @@ export function profileShareCards({
         kicker: "Head to head · with the ball",
         title: `Dismissed ${pr.nameOf(m.p)} ${m.wk === 2 ? "twice" : `${m.wk} times`}`,
         hero: { value: String(m.wk), unit: `wickets in ${plural(m.inns, "meeting")}`, colors: PURPLE },
-        facts: [{ label: "Meetings", value: String(m.inns) }, { label: "Wickets", value: String(m.wk) }, m.ducks ? { label: "For ducks", value: String(m.ducks) } : { label: "Strike rate", value: f0(m.sr) }],
+        facts: [{ label: "Meetings", value: String(m.inns) }, { label: "Wickets", value: String(m.wk) }, m.ducks ? { label: "For ducks", value: String(m.ducks) } : { label: "Hit rate", value: `${Math.round((100 * m.wk) / m.inns)}%` }],
         versus: { left: me, right: { name: pr.nameOf(m.p), photo: photoOf(pr.nameOf(m.p)) } },
       }, `Dismissed ${pr.nameOf(m.p)} ${m.wk} times in ${m.inns} meetings`);
     });
@@ -268,7 +269,7 @@ export function profileShareCards({
         kicker: "Head to head · with the bat",
         title: `${pr.nameOf(m.p)} has never got me out`,
         hero: { value: "0", unit: `dismissals in ${plural(m.inns, "meeting")}`, colors: GREEN },
-        facts: [{ label: "Meetings", value: String(m.inns) }, { label: "Times out", value: "0" }, { label: "Their economy", value: f2(m.econ) }],
+        facts: [{ label: "Meetings", value: String(m.inns) }, { label: "Times out", value: "0" }, { label: "Survived", value: "Every time" }],
         versus: { left: me, right: { name: pr.nameOf(m.p), photo: photoOf(pr.nameOf(m.p)) } },
       }, `${pr.nameOf(m.p)} has bowled at me in ${m.inns} matches and never got me out`);
     });

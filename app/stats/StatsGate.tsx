@@ -102,7 +102,7 @@ export default function StatsGate({ expiredOn, teaser }: { expiredOn?: string; t
           </p>
           {!checking && (
             <div className="mt-10 flex flex-wrap items-center gap-5">
-              <Link href="/profile?next=/stats" className="btn-gold group">
+              <Link href="/profile" className="btn-gold group">
                 Log in to view stats <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Link>
               <Link href="/profile" className="text-sm font-semibold tracking-tight text-white/70 underline decoration-jcc-accent decoration-2 underline-offset-4 hover:text-white">

@@ -482,17 +482,17 @@ function MatchRow({ name, inns, wk, wkLabel, main, mainLabel, sub, bar, barGood 
   );
 }
 
+// Head to head, only what the scorecards prove: who dismissed whom, and how
+// often they met. Runs, strike rates and economies in those innings cover the
+// whole innings or spell, not the duel, so they stay out.
 function MatchupsBatter({ pr }: { pr: Profile }) {
-  const [by, setBy] = useState<"wk" | "econ" | "sr">("wk");
-  const rows = [...pr.batting.matchups].sort(
-    by === "wk" ? (a, b) => b.wk - a.wk || (a.econ ?? 99) - (b.econ ?? 99)
-      : by === "econ" ? (a, b) => Number(b.balls >= 24) - Number(a.balls >= 24) || (a.econ ?? 99) - (b.econ ?? 99)
-        : (a, b) => Number(b.bb >= 10) - Number(a.bb >= 10) || (a.sr ?? 999) - (b.sr ?? 999),
-  );
-  const lg = pr.league.LB.sr ?? 100;
+  const [by, setBy] = useState<"wk" | "met" | "never">("wk");
+  const rows = [...pr.batting.matchups]
+    .filter((e) => (by === "never" ? e.wk === 0 : true))
+    .sort(by === "wk" ? (a, b) => b.wk - a.wk || b.wk / b.inns - a.wk / a.inns : (a, b) => b.inns - a.inns || a.wk - b.wk);
   return (
     <>
-      <Toggle value={by} onChange={setBy} options={[["wk", "Got you most"], ["econ", "Tightest on you"], ["sr", "You scored slowest"]]} />
+      <Toggle value={by} onChange={setBy} options={[["wk", "Got you most"], ["met", "Faced most"], ["never", "Never got you"]]} />
       <ol className="grid gap-1">
         {rows.map((e) => (
           <MatchRow
@@ -501,11 +501,11 @@ function MatchupsBatter({ pr }: { pr: Profile }) {
             inns={e.inns}
             wk={e.wk}
             wkLabel="got you"
-            main={f0(e.sr)}
-            mainLabel="your SR"
-            sub={`${e.br} (${e.bb}) · their econ ${f2(e.econ)}`}
-            bar={((e.sr ?? 0) / (lg * 2)) * 100}
-            barGood={(e.sr ?? 0) >= lg}
+            main={`${Math.round((100 * e.wk) / e.inns)}%`}
+            mainLabel="out to them"
+            sub={e.wk ? `out ${e.wk} of ${e.inns}` : "never out to them"}
+            bar={(100 * e.wk) / e.inns}
+            barGood={e.wk === 0}
           />
         ))}
       </ol>
@@ -513,16 +513,13 @@ function MatchupsBatter({ pr }: { pr: Profile }) {
   );
 }
 function MatchupsBowler({ pr }: { pr: Profile }) {
-  const [by, setBy] = useState<"wk" | "slow" | "fast">("wk");
-  const rows = [...pr.bowling.matchups].sort(
-    by === "wk" ? (a, b) => b.wk - a.wk || (a.sr ?? 999) - (b.sr ?? 999)
-      : by === "slow" ? (a, b) => Number(b.bb >= 10) - Number(a.bb >= 10) || (a.sr ?? 999) - (b.sr ?? 999)
-        : (a, b) => Number(b.bb >= 10) - Number(a.bb >= 10) || (b.sr ?? 0) - (a.sr ?? 0),
-  );
-  const lg = pr.league.LB.sr ?? 100;
+  const [by, setBy] = useState<"wk" | "met" | "ducks">("wk");
+  const rows = [...pr.bowling.matchups]
+    .filter((e) => (by === "ducks" ? e.ducks > 0 : true))
+    .sort(by === "met" ? (a, b) => b.inns - a.inns || b.wk - a.wk : by === "ducks" ? (a, b) => b.ducks - a.ducks || b.wk - a.wk : (a, b) => b.wk - a.wk || b.wk / b.inns - a.wk / a.inns);
   return (
     <>
-      <Toggle value={by} onChange={setBy} options={[["wk", "You got most"], ["slow", "You tied down"], ["fast", "Took you on"]]} />
+      <Toggle value={by} onChange={setBy} options={[["wk", "You got most"], ["met", "Bowled at most"], ["ducks", "Sent back for ducks"]]} />
       <ol className="grid gap-1">
         {rows.map((e) => (
           <MatchRow
@@ -531,11 +528,11 @@ function MatchupsBowler({ pr }: { pr: Profile }) {
             inns={e.inns}
             wk={e.wk}
             wkLabel="you got"
-            main={f0(e.sr)}
-            mainLabel="their SR"
-            sub={`${e.br} (${e.bb})${e.ducks ? ` · ${e.ducks} duck${e.ducks > 1 ? "s" : ""}` : ""} · your econ ${f2(e.econ)}`}
-            bar={((e.sr ?? 0) / (lg * 2)) * 100}
-            barGood={(e.sr ?? 0) <= lg}
+            main={`${Math.round((100 * e.wk) / e.inns)}%`}
+            mainLabel="you got them"
+            sub={`${e.wk ? `got them ${e.wk} of ${e.inns}` : "not dismissed yet"}${e.ducks ? ` · ${e.ducks} duck${e.ducks > 1 ? "s" : ""}` : ""}`}
+            bar={(100 * e.wk) / e.inns}
+            barGood={e.wk > 0}
           />
         ))}
       </ol>
@@ -871,7 +868,7 @@ function buildCards(pr: Profile, scopeLabel: string, setTip: SetTip, holders: Ma
       body: bt.matchups.length ? (
         <>
           <MatchupsBatter pr={pr} />
-          <p className="mt-2 text-xs leading-relaxed text-jcc-text-muted">From the innings where both played. Economy and dot % are the bowler&apos;s whole spell in those innings, and your SR is your whole innings: the export has no ball-by-ball data. Listed: bowled in 2+ of your innings, or dismissed you.</p>
+          <p className="mt-2 text-xs leading-relaxed text-jcc-text-muted">A meeting is an innings where they bowled while you batted. Only dismissals are counted: the scorecards don&apos;t record which bowler each run came off. Listed: bowled in 2+ of your innings, or dismissed you.</p>
         </>
       ) : <Empty>Not enough innings to compare bowlers yet.</Empty>,
     });
@@ -961,7 +958,7 @@ function buildCards(pr: Profile, scopeLabel: string, setTip: SetTip, holders: Ma
             </>
           ) : <Empty>No wickets yet in {scopeLabel}.</Empty>}
           {bw.matchups.length > 0 && (
-            <Sec title="Batters against you" note="From the innings where both played. The batter's runs and your economy cover whole innings, not only your duel.">
+            <Sec title="Batters against you" note="A meeting is an innings where you bowled while they batted. Only dismissals are counted: the scorecards don't record which bowler each run came off.">
               <MatchupsBowler pr={pr} />
             </Sec>
           )}

@@ -41,8 +41,7 @@ export function battleStory(b: Battle, names: string[]) {
   const opener = b.meetings[0].out ? `${bowl} drew first blood` : `${bat} came through the first`;
   /** −1 (all batter) … +1 (all bowler). */
   const balance = (b.bowlerWins - b.batterWins) / b.meetings.length;
-  const best = [...b.meetings].filter((m) => !m.out).sort((x, y) => y.runs - x.runs)[0];
-  return { headline, opener, balance, bat, bowl, best, since: fmtDate(b.meetings[0].date) };
+  return { headline, opener, balance, bat, bowl, since: fmtDate(b.meetings[0].date) };
 }
 
 /**
@@ -107,10 +106,6 @@ function Chronicle({ b, names }: { b: Battle; names: string[] }) {
             <div className={`font-mono text-[9.5px] uppercase tracking-[0.12em] ${m.out ? "text-jcc-seam/70" : "text-[#FCFBF8]/60"}`}>{fmtDate(m.date)}</div>
             <div className="whitespace-nowrap font-heading text-[13px] font-semibold italic tracking-tight">
               {m.out ? `${bowl} strikes` : `${bat} survives`}
-              <span className="ml-1.5 font-mono text-[10.5px] font-normal not-italic opacity-75">
-                {m.runs}
-                {m.notOut ? "*" : ""} ({m.balls})
-              </span>
             </div>
           </div>
         </li>
@@ -276,11 +271,11 @@ export function MeetingStrip({ b, size = 14 }: { b: Battle; size?: number }) {
       {b.meetings.map((m, i) => (
         <span
           key={i}
-          title={`${fmtDate(m.date)} · ${m.out ? "out to him" : "survived him"} · ${m.runs}${m.notOut ? "*" : ""} (${m.balls})`}
+          title={`${fmtDate(m.date)} · ${m.out ? "out to him" : "survived him"}`}
           className={`grid place-items-center rounded-full font-mono text-[8.5px] font-bold ${m.out ? "bg-jcc-accent text-jcc-seam" : "bg-jcc-blue text-[#FCFBF8]"}`}
           style={{ width: size, height: size }}
         >
-          {size >= 18 ? (m.out ? "W" : m.runs) : ""}
+          {size >= 18 && m.out ? "W" : ""}
         </span>
       ))}
     </div>
@@ -385,7 +380,7 @@ export default function KeyBattles({ data, seasons, onOpenPlayer }: { data: Card
       )}
 
       <p className="mt-10 max-w-3xl font-mono text-[11px] leading-relaxed text-jcc-text-muted">
-        A meeting is an innings where one bowled and the other batted. &ldquo;Strikes&rdquo; means the bowler got him that innings; &ldquo;survives&rdquo; means he wasn&apos;t out to that bowler &mdash; he may have batted through or fallen to someone else. Scores in the chronicle are his whole innings; the scorecards don&apos;t say which balls came from which bowler. Battles shown: top-15 run-scorers against top-15 wicket-takers, met {BATTLE_MIN_MEETINGS}+ times, the bowler striking in 30&ndash;70% of them.
+        A meeting is an innings where one bowled and the other batted. &ldquo;Strikes&rdquo; means the bowler got him that innings; &ldquo;survives&rdquo; means he wasn&apos;t out to that bowler &mdash; he may have batted through or fallen to someone else. Only dismissals are counted: the scorecards don&apos;t say which balls came from which bowler. Battles shown: top-15 run-scorers against top-15 wicket-takers, met {BATTLE_MIN_MEETINGS}+ times, the bowler striking in 30&ndash;70% of them.
       </p>
     </div>
   );
