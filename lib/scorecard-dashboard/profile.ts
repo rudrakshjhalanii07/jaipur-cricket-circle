@@ -947,7 +947,7 @@ export function playerProfile(d: CardData, seasons: number[], p: number) {
   const teamRuns = x.bat.reduce((s, r) => s + innTotal(r), 0);
   const log = [...x.bat].sort(byDate(S)).map((r) => ({
     date: M[r.m].date, season: M[r.m].season, runs: r.runs, balls: r.balls, f4: r.f4, s6: r.s6, out: isOut(r.kind), how: r.how,
-    opp: r.opp, chasing: r.inn === 2, pos: r.pos, won: M[r.m].winner === r.team,
+    opp: r.opp, chasing: r.inn === 2, pos: r.pos, won: M[r.m].winner === r.team, tied: !M[r.m].winner,
   }));
   const opps = [...new Set(x.bat.map((r) => r.opp))].sort();
   const positions = [...new Set(x.bat.map((r) => r.pos))].sort((a, c) => a - c);
@@ -985,7 +985,7 @@ export function playerProfile(d: CardData, seasons: number[], p: number) {
   })();
   const spells = [...x.bowl].sort(byDate(S)).map((r) => ({
     date: M[r.m].date, season: M[r.m].season, opp: r.opp, balls: r.balls, mdn: r.mdn, runs: r.runs, wk: r.wk, dots: r.dots, wd: r.wd, nb: r.nb,
-    won: M[r.m].winner === r.team,
+    won: M[r.m].winner === r.team, tied: !M[r.m].winner,
   }));
   const bowlOpps = [...new Set(x.bowl.map((r) => r.opp))].sort().map((o) => toBowlSplit(`vs ${o}`, x.bowl.filter((r) => r.opp === o)));
   const wickets = [...x.victims].sort(byDate(S)).map((r) => ({
@@ -1672,4 +1672,29 @@ export function keyBattles(d: CardData, seasons: number[]): Battle[] {
     })
     .map((b) => ({ ...b, meetings: [...b.meetings].sort((x, y) => x.date.localeCompare(y.date)) }))
     .sort((a, b) => b.meetings.length - a.meetings.length || gap(a) - gap(b) || standing(a) - standing(b));
+}
+
+/**
+ * One player bowling at another, exactly as the scorecards know it: the
+ * innings where `bowler` bowled and `batter` batted against him, and how many
+ * of those `bowler` took his wicket. No runs: the scorecards don't record who
+ * bowled each ball, so the batter's innings total isn't a duel figure.
+ */
+export type Duel = { meetings: number; wk: number; last: string | null };
+
+export function duel(d: CardData, seasons: number[], bowler: number, batter: number): Duel {
+  const S = getScope(d, seasons);
+  const out: Duel = { meetings: 0, wk: 0, last: null };
+  if (bowler === batter) return out;
+  for (const r of S.bat) {
+    if (r.p !== batter) continue;
+    if (!(S.byInnBowl.get(key(r.m, r.inn)) ?? []).some((w) => w.p === bowler)) continue;
+    out.meetings++;
+    if (r.bw === bowler) {
+      out.wk++;
+      const date = S.d.matches[r.m].date;
+      if (!out.last || date > out.last) out.last = date;
+    }
+  }
+  return out;
 }

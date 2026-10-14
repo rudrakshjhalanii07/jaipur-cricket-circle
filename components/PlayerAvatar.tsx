@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { getDiceBearUrl } from "@/lib/avatar";
+import { focusOf, focusStyle } from "@/lib/photo-focus";
 
 interface PlayerAvatarProps {
   /** The player's uploaded image URL (from Supabase). Null/undefined triggers DiceBear fallback. */
@@ -31,6 +32,11 @@ interface PlayerAvatarProps {
    * where the face is small and needs to read at a glance.
    */
   treatment?: "editorial" | "natural";
+  /**
+   * Width/height of the frame, for photos whose URL carries framing
+   * (lib/photo-focus.ts): the face is centred and sized to suit it.
+   */
+  focusBox?: number;
 }
 
 /**
@@ -49,7 +55,9 @@ export default function PlayerAvatar({
   alt,
   displaySize = 80,
   treatment = "editorial",
+  focusBox = 1,
 }: PlayerAvatarProps) {
+  const focus = focusOf(src);
   const [photoError, setPhotoError] = useState(false);
   const fallbackUrl = getDiceBearUrl(name, team);
   const displayAlt = alt ?? name;
@@ -62,12 +70,13 @@ export default function PlayerAvatar({
     <div className={`${frameClass} bg-white/5 border border-white/10 flex items-center justify-center shrink-0 ${className}`}>
       {showRealPhoto ? (
         <Image
-          src={src}
+          src={src.split("#")[0]}
           alt={displayAlt}
           width={displaySize}
           height={displaySize}
           loading="lazy"
           className={`${imgClassName} ${photoClass}`}
+          style={focus ? focusStyle(focus, 0.42, focusBox) : undefined}
           onError={() => setPhotoError(true)}
         />
       ) : (

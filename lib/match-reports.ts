@@ -18,6 +18,8 @@
 import { buildCardData } from "@/lib/scorecard-dashboard/compute";
 import { fetchDbOnlyMatches } from "@/lib/scorecard-dashboard/db-matches.server";
 import { manOfTheMatch, ov, type CardData, type CardKind } from "@/lib/scorecard-dashboard/profile";
+import { SEASON_3_SCHEDULE } from "@/lib/season-schedule";
+import { TEAMS } from "@/lib/teams";
 
 // ─── Output shapes ───────────────────────────────────────────────────────────
 
@@ -109,8 +111,12 @@ const Team = (t: string) => capFirst(t);
 /** Possessive: "Mavericks'", "Rudraksh's". */
 const poss = (s: string) => (s.endsWith("s") ? `${s}'` : `${s}'s`);
 
-/** CricHeroes venue names drift ("Box Cricket Kodai", "Kodai Box Cricket 2"). */
+/**
+ * CricHeroes venue names drift ("Box Cricket Kodai", "Kodai Box Cricket 2").
+ * Kodai 2.0, the club's newer box, keeps its own name.
+ */
 function venueName(v: string) {
+  if (/kodai\s*2\.0/i.test(v)) return "Kodai 2.0";
   if (/kodai/i.test(v)) return "Kodai Box Cricket";
   if (/heera/i.test(v)) return "Heera Box Cricket";
   if (/jai club/i.test(v)) return "Jai Club Box";
@@ -518,6 +524,52 @@ type Piece = {
   records: string[];
 };
 
+// ─── Rescheduled fixtures ────────────────────────────────────────────────────
+// Season 3 has a published fixture list (lib/season-schedule.ts). A fixture
+// missing from the week it was listed in, and played in a later week that
+// didn't list it, was moved there: Week 7's Outliers v Mavericks and Mavericks
+// v Vikings were played in Week 11. Both weeks' reports say so.
+
+type Move = { pair: string; week: number };
+type Moves = { out: Move[]; in: Move[]; postponed: string[] };
+
+const teamKey = (t: string) => t.toLowerCase().replace(/[^a-z]/g, "").replace(/^the/, "");
+const pairKey = (a: string, b: string) => [teamKey(a), teamKey(b)].sort().join("|");
+
+function fixtureMoves(d: CardData, days: { season: number; date: string; ms: number[] }[]): Map<number, Moves> {
+  const weeks = days.filter((x) => x.season === 3);
+  const listed = new Map(SEASON_3_SCHEDULE.map((w) => [w.week_no, w.fixtures.filter((f) => f.team1_id && f.team2_id)]));
+  const label = (a: string, b: string) => `${team(a)} v ${team(b)}`;
+  const missing: { week: number; key: string; pair: string }[] = [];
+  const extra: { week: number; key: string; pair: string }[] = [];
+  weeks.forEach((day, i) => {
+    const week = i + 1;
+    const played = day.ms.map((m) => ({ key: pairKey(d.matches[m].teamA, d.matches[m].teamB), pair: label(d.matches[m].teamA, d.matches[m].teamB) }));
+    const left = [...played];
+    for (const f of listed.get(week) ?? []) {
+      const key = pairKey(TEAMS[f.team1_id!].name, TEAMS[f.team2_id!].name);
+      const at = left.findIndex((x) => x.key === key);
+      if (at >= 0) left.splice(at, 1);
+      else missing.push({ week, key, pair: label(TEAMS[f.team1_id!].name, TEAMS[f.team2_id!].name) });
+    }
+    for (const x of left) extra.push({ week, ...x });
+  });
+  const moves = new Map<number, Moves>();
+  const at = (w: number) => moves.get(w) ?? moves.set(w, { out: [], in: [], postponed: [] }).get(w)!;
+  for (const m of missing) {
+    const later = extra.findIndex((x) => x.key === m.key && x.week > m.week);
+    if (later >= 0) {
+      const [x] = extra.splice(later, 1);
+      at(m.week).out.push({ pair: x.pair, week: x.week });
+      at(x.week).in.push({ pair: x.pair, week: m.week });
+    } else if (m.week < weeks.length) at(m.week).postponed.push(m.pair);
+  }
+  return moves;
+}
+
+/** "the Outliers v Mavericks and Mavericks v Vikings" */
+const andList = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+
 function buildReports(raw: CardData): DayReport[] {
   // CricHeroes keeps names as typed; "Mahesh kumar" reads as a typo in a headline.
   const d: CardData = { ...raw, players: raw.players.map((n) => n.replace(/(^|\s)(\p{Ll})/gu, (_, sp, ch) => sp + ch.toUpperCase())) };
@@ -534,6 +586,7 @@ function buildReports(raw: CardData): DayReport[] {
   }
   days.sort((a, b) => a.season - b.season || a.date.localeCompare(b.date));
 
+  const moves = fixtureMoves(d, days);
   const recs = new Map<number, Map<string, Rec>>();
   const h2h = new Map<string, Map<string, number>>();
   const best = new Map<number, { score: number; figs: [number, number]; total: number; low: number }>();
@@ -822,7 +875,23 @@ function buildReports(raw: CardData): DayReport[] {
     if (week === 1) kicker = "Season opener";
     headline = capFirst(headline);
 
-    const dek = `${capFirst(word(n))} ${n === 1 ? "match" : "matches"} at ${venue}: ${tally(dayRec)}.`;
+    // Fixtures moved out of this week, or into it from an earlier one.
+    const mv = season === 3 ? moves.get(week) : undefined;
+    const movedOut = [...(mv?.out ?? [])];
+    const movedIn = [...(mv?.in ?? [])];
+    const byWeek = (xs: Move[]) => [...new Set(xs.map((x) => x.week))].map((w) => ({ w, pairs: xs.filter((x) => x.week === w).map((x) => x.pair) }));
+    const fixtureNotes = [
+      ...byWeek(movedOut).map(({ w, pairs }) =>
+        `${capFirst(word(pairs.length))} of this week's fixtures, ${andList(pairs)}, ${pairs.length === 1 ? "was" : "were"} moved to Week ${w}.`),
+      ...(mv?.postponed.length ? [`${capFirst(andList(mv.postponed))} ${mv.postponed.length === 1 ? "was" : "were"} postponed.`] : []),
+      ...byWeek(movedIn).map(({ w, pairs }) =>
+        `${capFirst(word(pairs.length))} of them, ${andList(pairs)}, ${pairs.length === 1 ? "was" : "were"} carried over from Week ${w}.`),
+    ];
+    const dekNote = [
+      ...byWeek(movedOut).map(({ w, pairs }) => `${word(pairs.length)} moved to Week ${w}`),
+      ...byWeek(movedIn).map(({ w, pairs }) => `${word(pairs.length)} carried over from Week ${w}`),
+    ];
+    const dek = `${capFirst(word(n))} ${n === 1 ? "match" : "matches"} at ${venue}${dekNote.length ? ` (${dekNote.join("; ")})` : ""}: ${tally(dayRec)}.`;
 
     // Lede: the shape of the day, then what it did to the table.
     const lede: string[] = [];
@@ -836,6 +905,7 @@ function buildReports(raw: CardData): DayReport[] {
         `${capFirst(word(n))} ${n === 1 ? "match" : "matches"}, one evening, one box at ${venue}: this was Week ${week}.`,
         `${weekday(day.date)} at ${venue} served up ${word(n)} ${n === 1 ? "match" : "matches"} for Week ${week}.`,
       ]));
+    lede.push(...fixtureNotes);
     if (nervy >= 2 && kicker !== "Thriller night") lede.push(`${capFirst(word(nervy))} of them went down to the wire.`);
     else if (nervy === 1) {
       const p = pieces.find((x) => x.kind === "thriller" || x.kind === "tie")!;

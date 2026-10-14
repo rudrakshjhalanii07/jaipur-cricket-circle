@@ -23,9 +23,9 @@ import { TEAMS } from "@/lib/teams";
 import { getClubStatistics } from "@/lib/statistics";
 import { fetchSeasons } from "@/lib/seasons";
 import { createRosterMatcher } from "@/lib/club-roster";
+import { parseFocus, withFocus } from "@/lib/photo-focus";
 import {
   getGovernanceRoleLabel,
-  HONORARY_GOVERNANCE_MEMBERS,
   type GovernanceFields,
 } from "@/lib/member-role";
 
@@ -44,25 +44,24 @@ export const metadata: Metadata = {
 
 type CommitteeMember = GovernanceFields & { id: string; image_url?: string | null; team?: string | null };
 
+// Every committee member, and every photo, comes from the players table. Each
+// photo carries its framing so the face sits centred, as on /members and /stats.
 async function getCommittee(): Promise<CommitteeMember[]> {
   const { data } = await supabaseAdmin.from("players").select("*").eq("approval_status", "approved");
-  const fromDb: CommitteeMember[] = (data ?? [])
+  return (data ?? [])
     .filter((p) => p.is_core_committee || p.is_exec_committee)
     .map((p) => ({
       id: p.id,
       name: p.name,
-      image_url: p.image_url,
+      image_url: p.image_url ? withFocus(p.image_url, parseFocus(p.image_focus)) : null,
       team: p.team,
       governance_role: p.governance_role,
       is_core_committee: !!p.is_core_committee,
       is_exec_committee: !!p.is_exec_committee,
       group_role: p.group_role,
       governance_order: p.governance_order,
-    }));
-  // The honorary entry predates his players row; the row wins once it exists.
-  const have = new Set(fromDb.map((m) => (m.name ?? "").toLowerCase()));
-  const honorary = HONORARY_GOVERNANCE_MEMBERS.filter((m) => !have.has((m.name ?? "").toLowerCase()));
-  return [...fromDb, ...honorary].sort((a, b) => (a.governance_order ?? 99) - (b.governance_order ?? 99));
+    }))
+    .sort((a, b) => (a.governance_order ?? 99) - (b.governance_order ?? 99));
 }
 
 const MISSION = [
@@ -218,6 +217,7 @@ export default async function AboutPage() {
                       team={m.team}
                       className="h-full w-full transition-transform duration-700 group-hover:scale-105"
                       imgClassName="h-full w-full object-cover"
+                      focusBox={0.8}
                     />
                   </div>
                   <div className="theme-static-dark absolute inset-x-0 bottom-0 bg-linear-to-t from-[#0D1728] via-[#0D1728]/80 to-transparent p-4 pt-14">

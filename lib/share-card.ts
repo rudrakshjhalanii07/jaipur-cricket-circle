@@ -51,6 +51,11 @@ export type ShareCardSpec = {
   /** Two or three headline numbers side by side (e.g. bat & ball figures). */
   figures?: { value: string; unit: string }[];
   body?: string;
+  /**
+   * A line chart of one series (a season trend): the line in gold, the peak
+   * marked and labelled, first and last labels along the bottom.
+   */
+  chart?: { values: number[]; labels: string[]; fmt?: (n: number) => string };
   /** 3×2 stat grid (the overview card). */
   stats?: CardStat[];
   /** A ruled row of up to three small facts under everything else. */
@@ -422,6 +427,67 @@ async function draw(spec: ShareCardSpec, withPhoto: boolean): Promise<HTMLCanvas
       ctx.fillStyle = SOFT;
       ctx.font = B(400, 40);
       lines.forEach((l, i) => ctx.fillText(l, PAD, y + 40 + i * 56));
+    });
+  }
+
+  if (spec.chart && spec.chart.values.length >= 2) {
+    const { values, labels } = spec.chart;
+    const fmt = spec.chart.fmt ?? ((n: number) => String(Math.round(n)));
+    const CH = 420;
+    push(CH, 44, (y) => {
+      const top = y + 64; // room for the peak label
+      const bottom = y + CH - 56; // room for the date labels
+      const max = Math.max(...values) * 1.08 || 1;
+      const step = WIDTH / (values.length - 1);
+      const px = (i: number) => PAD + i * step;
+      const py = (v: number) => bottom - (bottom - top) * (v / max);
+      // Baseline and a faint mid rule
+      ctx.fillStyle = RULE;
+      ctx.fillRect(PAD, bottom, WIDTH, 2);
+      ctx.fillStyle = "rgba(252,251,248,0.08)";
+      ctx.fillRect(PAD, (top + bottom) / 2, WIDTH, 2);
+      // Area under the line
+      const fill = ctx.createLinearGradient(0, top, 0, bottom);
+      fill.addColorStop(0, alpha(GOLD, 0.32));
+      fill.addColorStop(1, alpha(GOLD, 0));
+      ctx.beginPath();
+      values.forEach((v, i) => (i ? ctx.lineTo(px(i), py(v)) : ctx.moveTo(px(i), py(v))));
+      ctx.lineTo(px(values.length - 1), bottom);
+      ctx.lineTo(PAD, bottom);
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+      // The line
+      ctx.beginPath();
+      values.forEach((v, i) => (i ? ctx.lineTo(px(i), py(v)) : ctx.moveTo(px(i), py(v))));
+      ctx.strokeStyle = GOLD_HI;
+      ctx.lineWidth = 7;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.stroke();
+      // Dots, the peak larger and labelled
+      const peak = values.indexOf(Math.max(...values));
+      values.forEach((v, i) => {
+        ctx.beginPath();
+        ctx.arc(px(i), py(v), i === peak ? 16 : 9, 0, Math.PI * 2);
+        ctx.fillStyle = i === peak ? GOLD_HI : NAVY;
+        ctx.fill();
+        ctx.strokeStyle = i === peak ? WHITE : GOLD_HI;
+        ctx.lineWidth = 5;
+        ctx.stroke();
+      });
+      ctx.fillStyle = WHITE;
+      ctx.font = M(600, 30);
+      const tag = `PEAK ${fmt(values[peak])}`;
+      const tw = ctx.measureText(tag).width;
+      const tx = Math.min(PAD + WIDTH - tw, Math.max(PAD, px(peak) - tw / 2));
+      ctx.fillText(tag, tx, py(values[peak]) - 34);
+      // First and last labels
+      ctx.fillStyle = SOFT;
+      ctx.font = M(600, 26);
+      ctx.fillText(labels[0] ?? "", PAD, y + CH - 8);
+      const last = labels[labels.length - 1] ?? "";
+      ctx.fillText(last, PAD + WIDTH - ctx.measureText(last).width, y + CH - 8);
     });
   }
 

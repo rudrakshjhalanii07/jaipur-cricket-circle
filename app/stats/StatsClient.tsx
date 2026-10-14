@@ -23,7 +23,8 @@ import type { PlayerPhotoMap } from "@/lib/player-photos";
 import type { CaptaincyRow } from "@/lib/scorecard-dashboard/captaincy.server";
 import Jaali from "@/components/Jaali";
 import { Avatar, PhotoContext, Portrait, usePhoto } from "./Avatar";
-import { GREEN, ORANGE, PURPLE, SectionShare, listCard, playerRow, statCard, teamRow, usePhotoOf } from "./SectionShare";
+import { GOLD as GOLD_STOPS, GREEN, JCC_CREST, ORANGE, PURPLE, SectionShare, listCard, playerRow, statCard, teamRow, usePhotoOf } from "./SectionShare";
+import type { SheetCard } from "./ShareSheet";
 import { Counter, ScrollTrigger, gsap, isSeen, reduceMotion, useGSAP, usePill, whenSeen } from "./motion";
 
 // Everything rendered here is either a number or a string formatted on the
@@ -732,6 +733,54 @@ function TenOver() {
   return <span className="ml-1.5 rounded-full bg-jcc-accent px-1.5 py-px font-mono text-[9px] font-semibold uppercase text-jcc-seam">10 ov</span>;
 }
 
+/** Story cards for the whole season: the numbers in the hero, then its headline acts. */
+function SeasonShare({ s }: { s: ScopeStats }) {
+  const photoOf = usePhotoOf();
+  const share = (): SheetCard[] => {
+    const m = s.summary;
+    const n = (x: number) => x.toLocaleString("en-IN");
+    const leader = s.standings[0];
+    const numbers: SheetCard = {
+      id: `season-${s.key}`,
+      label: "The season in numbers",
+      text: `${s.label} in numbers: ${n(m.matches)} matches, ${n(m.runs)} runs, ${n(m.wickets)} wickets, ${n(m.sixes)} sixes — JCC Stats\n${window.location.origin}/stats`,
+      spec: {
+        kicker: `The season in numbers · ${s.label}`,
+        title: `${s.label}, by the numbers`,
+        hero: { value: n(m.matches), unit: `matches over ${m.matchdays} matchdays`, colors: GOLD_STOPS },
+        stats: [
+          { label: "Runs", value: n(m.runs) },
+          { label: "Wickets", value: n(m.wickets) },
+          { label: "Sixes", value: n(m.sixes) },
+          { label: "Fours", value: n(m.fours) },
+          { label: "Avg 1st inns", value: m.avgFirstInnings.toFixed(1) },
+          { label: "Fifties", value: n(m.fifties) },
+        ],
+        facts: [
+          { label: "Won batting first", value: String(m.defendsWon) },
+          { label: "Won chasing", value: String(m.chasesWon) },
+          ...(leader ? [{ label: "Top of the table", value: leader.team }] : []),
+        ],
+        emblem: JCC_CREST,
+        byline: "JCC Stats",
+        team: "Jaipur Cricket Circle",
+        footer: `${window.location.host}/stats`,
+      },
+    };
+    const acts = [
+      s.batting[0] && playerRow(s.batting[0].name, `${s.batting[0].runs} runs`, "Orange Cap", photoOf(s.batting[0].name)),
+      s.bowling[0] && playerRow(s.bowling[0].name, `${s.bowling[0].wickets} wkts`, "Purple Cap", photoOf(s.bowling[0].name)),
+      s.topScores[0] && playerRow(s.topScores[0].label, s.topScores[0].value, "Top score", photoOf(s.topScores[0].label)),
+      s.bestSpells[0] && playerRow(s.bestSpells[0].label, s.bestSpells[0].value, "Best spell", photoOf(s.bestSpells[0].label)),
+      leader && teamRow(leader.team, `${leader.points} pts`, "Top of the table"),
+      s.highestTotals[0] && teamRow(s.highestTotals[0].label, s.highestTotals[0].value, "Highest total"),
+    ].filter((x): x is NonNullable<typeof x> => Boolean(x));
+    const headline = listCard({ id: `season-acts-${s.key}`, label: "Headline acts", kicker: `The season so far · ${s.label}`, title: "The headline acts", rows: acts });
+    return [numbers, ...(acts.length ? [headline] : [])];
+  };
+  return <SectionShare build={share} fileBase={`jcc-season-${s.key}`} label="Share the season" dark />;
+}
+
 /** Story cards for the record tables (the lowest totals stay off: no one shares those). */
 function RecordsShare({ s }: { s: ScopeStats }) {
   const photoOf = usePhotoOf();
@@ -1312,7 +1361,8 @@ export default function StatsClient({
             ))}
           </dl>
 
-          <div className="mt-4 max-w-xl">
+          <div className="mt-4 flex flex-wrap items-end justify-between gap-6">
+          <div className="w-full max-w-xl">
             <div className="flex justify-between font-mono text-[10.5px] uppercase tracking-[0.14em] text-white/60">
               <span><b className="font-semibold text-white">{summary.defendsWon}</b> won batting first</span>
               <span><b className="font-semibold text-white">{summary.chasesWon}</b> won chasing</span>
@@ -1321,6 +1371,10 @@ export default function StatsClient({
               <div data-hero="bar" className="rounded-full bg-jcc-accent transition-[width] duration-700" style={{ width: `${100 - chasePct}%` }} />
               <div data-hero="bar" className="rounded-full bg-white/35 transition-[width] duration-700" style={{ width: `${chasePct}%` }} />
             </div>
+          </div>
+          <div data-hero="fade">
+            <SeasonShare s={s} />
+          </div>
           </div>
         </div>
 
@@ -1384,7 +1438,7 @@ export default function StatsClient({
         {/* ── 01 Stories ── */}
         <section className={WRAP}>
           <SectionHead id="stories" n="01" kicker={`The story in numbers · ${s.label}`} title="What the numbers say" note="Trends across the season, and the stats worth telling someone about. Every card has its own share link." />
-          <Stories data={cardData} seasons={seasons} onOpenPlayer={(p) => openIndex(p, undefined, [p])} />
+          <Stories data={cardData} seasons={seasons} scope={s.label} onOpenPlayer={(p) => openIndex(p, undefined, [p])} />
         </section>
 
         {/* ── 02 Leaders ── */}

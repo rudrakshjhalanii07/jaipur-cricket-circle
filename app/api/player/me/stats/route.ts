@@ -81,8 +81,8 @@ function story(pr: Profile, battles: ReturnType<typeof keyBattles>, photos: Play
 
   return {
     highlights: {
-      bestInnings: bestInnings && { runs: bestInnings.runs, balls: bestInnings.balls, notOut: !bestInnings.out, opp: bestInnings.opp, date: bestInnings.date, won: bestInnings.won },
-      bestSpell: bestSpell && { wk: bestSpell.wk, runs: bestSpell.runs, balls: bestSpell.balls, opp: bestSpell.opp, date: bestSpell.date, won: bestSpell.won },
+      bestInnings: bestInnings && { runs: bestInnings.runs, balls: bestInnings.balls, notOut: !bestInnings.out, opp: bestInnings.opp, date: bestInnings.date, won: bestInnings.won, tied: bestInnings.tied },
+      bestSpell: bestSpell && { wk: bestSpell.wk, runs: bestSpell.runs, balls: bestSpell.balls, opp: bestSpell.opp, date: bestSpell.date, won: bestSpell.won, tied: bestSpell.tied },
       mostSixes: bigHit && bigHit.s6 > 0 ? { s6: bigHit.s6, runs: bigHit.runs, opp: bigHit.opp, date: bigHit.date } : null,
       boundaries: pr.B.f4 + pr.B.s6,
       scores20: log.filter((r) => r.runs >= 20).length,
@@ -143,19 +143,19 @@ function story(pr: Profile, battles: ReturnType<typeof keyBattles>, photos: Play
           seen.set(base, n);
           return `${base}|${n}`;
         };
-        type Row = { date: string; opp: string; won: boolean; bat: { runs: number; balls: number; out: boolean } | null; bowl: { wk: number; runs: number; balls: number } | null };
+        type Row = { date: string; opp: string; won: boolean; tied: boolean; bat: { runs: number; balls: number; out: boolean } | null; bowl: { wk: number; runs: number; balls: number } | null };
         const rows = new Map<string, Row>();
-        for (const r of log) rows.set(key(r.date, r.opp), { date: r.date, opp: r.opp, won: r.won, bat: { runs: r.runs, balls: r.balls, out: r.out }, bowl: null });
+        for (const r of log) rows.set(key(r.date, r.opp), { date: r.date, opp: r.opp, won: r.won, tied: r.tied, bat: { runs: r.runs, balls: r.balls, out: r.out }, bowl: null });
         seen.clear();
         for (const w of spells) {
           const k = key(w.date, w.opp);
-          const row = rows.get(k) ?? { date: w.date, opp: w.opp, won: w.won, bat: null, bowl: null };
+          const row = rows.get(k) ?? { date: w.date, opp: w.opp, won: w.won, tied: w.tied, bat: null, bowl: null };
           row.bowl = { wk: w.wk, runs: w.runs, balls: w.balls };
           rows.set(k, row);
         }
         return [...rows.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-8);
       })(),
-      innings: log.slice(-8).map((r) => ({ runs: r.runs, balls: r.balls, out: r.out, opp: r.opp, date: r.date, won: r.won })),
+      innings: log.slice(-8).map((r) => ({ runs: r.runs, balls: r.balls, out: r.out, opp: r.opp, date: r.date, won: r.won, tied: r.tied })),
       spells: spells.slice(-8).map((s) => ({ wk: s.wk, runs: s.runs, balls: s.balls, opp: s.opp, date: s.date })),
     },
     strengths: [...pr.insights.good, ...pr.insights.info].slice(0, 5),

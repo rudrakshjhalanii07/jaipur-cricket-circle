@@ -41,8 +41,8 @@ export type StoryData = {
   ranks?: Record<"runs" | "sr" | "six" | "wk" | "econ" | "dot" | "field" | "death" | "pp", Rank>;
   mom?: { date: string; opp: string; line: string }[];
   highlights?: {
-    bestInnings: { runs: number; balls: number; notOut: boolean; opp: string; date: string; won: boolean } | null;
-    bestSpell: { wk: number; runs: number; balls: number; opp: string; date: string; won: boolean } | null;
+    bestInnings: { runs: number; balls: number; notOut: boolean; opp: string; date: string; won: boolean; tied?: boolean } | null;
+    bestSpell: { wk: number; runs: number; balls: number; opp: string; date: string; won: boolean; tied?: boolean } | null;
     mostSixes: { s6: number; runs: number; opp: string; date: string } | null;
     boundaries: number;
     scores20: number;
@@ -64,8 +64,8 @@ export type StoryData = {
     rivalries: { opponent: string; photo?: string | null; batting: boolean; meetings: number; mine: number; theirs: number; runs: number; balls: number }[];
   };
   form?: {
-    allround?: { date: string; opp: string; won: boolean; bat: { runs: number; balls: number; out: boolean } | null; bowl: { wk: number; runs: number; balls: number } | null }[];
-    innings: { runs: number; balls: number; out: boolean; opp: string; date: string; won: boolean }[];
+    allround?: { date: string; opp: string; won: boolean; tied?: boolean; bat: { runs: number; balls: number; out: boolean } | null; bowl: { wk: number; runs: number; balls: number } | null }[];
+    innings: { runs: number; balls: number; out: boolean; opp: string; date: string; won: boolean; tied?: boolean }[];
     spells: { wk: number; runs: number; balls: number; opp: string; date: string }[];
   };
   strengths?: Note[];
@@ -98,6 +98,8 @@ const KICK = "font-mono text-[10.5px] font-medium uppercase tracking-[0.16em]";
 const EASE = [0.16, 1, 0.3, 1] as const;
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 const overs = (balls: number) => `${Math.floor(balls / 6)}${balls % 6 ? `.${balls % 6}` : ""}`;
+/** A match result for a side that didn't win: no winner means a tie. */
+const outcome = (r: { won: boolean; tied?: boolean }) => (r.won ? "Won" : r.tied ? "Tied" : "Lost");
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const topPct = (r: { rank: number; of: number }) => Math.max(1, Math.round((r.rank / r.of) * 100));
 
@@ -292,13 +294,13 @@ function Moments({ s }: { s: StoryData }) {
         <FlipCard
           dark
           front={<>{label("Top score", true)}<p className="mt-5 font-heading text-[5.5rem] font-extrabold leading-[0.8] tracking-[-0.06em] tabular-nums" style={grad("linear-gradient(135deg,#F59E0B,#EA580C)")}><Counter value={b.runs} />{b.notOut && "*"}</p><p className="mt-4 text-[13px] text-white/70">off {b.balls} balls</p></>}
-          back={<>{label("The knock", true)}<div className="mt-4">{backLine("Against", b.opp)}{backLine("Date", day(b.date))}{backLine("Strike rate", Math.round((100 * b.runs) / Math.max(1, b.balls)))}{backLine("Result", b.won ? "Won 🏆" : "Lost")}</div></>}
+          back={<>{label("The knock", true)}<div className="mt-4">{backLine("Against", b.opp)}{backLine("Date", day(b.date))}{backLine("Strike rate", Math.round((100 * b.runs) / Math.max(1, b.balls)))}{backLine("Result", b.won ? "Won 🏆" : outcome(b))}</div></>}
         />
       )}
       {w && (
         <FlipCard
           front={<>{label("Best spell")}<p className="mt-5 font-heading text-[4.5rem] font-extrabold leading-[0.8] tracking-[-0.06em] tabular-nums" style={grad("linear-gradient(135deg,#A78BFA,#7C3AED)")}>{w.wk}/{w.runs}</p><p className="mt-4 text-[13px] text-jcc-text-muted">in {overs(w.balls)} overs</p></>}
-          back={<>{label("The spell")}<div className="mt-4 text-jcc-blue">{backLine("Against", w.opp)}{backLine("Date", day(w.date))}{backLine("Economy", ((6 * w.runs) / Math.max(1, w.balls)).toFixed(1))}{backLine("Result", w.won ? "Won 🏆" : "Lost")}</div></>}
+          back={<>{label("The spell")}<div className="mt-4 text-jcc-blue">{backLine("Against", w.opp)}{backLine("Date", day(w.date))}{backLine("Economy", ((6 * w.runs) / Math.max(1, w.balls)).toFixed(1))}{backLine("Result", w.won ? "Won 🏆" : outcome(w))}</div></>}
         />
       )}
       <FlipCard
@@ -654,7 +656,7 @@ function Form({ s }: { s: StoryData }) {
             {cur && (
               <p className="text-[12.5px] text-jcc-blue">
                 <b className="font-heading text-base">{cur.runs}{cur.out ? "" : "*"}</b> off {cur.balls} v {cur.opp} · {day(cur.date)}
-                <span className={`ml-2 font-mono text-[10px] uppercase tracking-[0.12em] ${cur.won ? "text-jcc-accent-dark" : "text-jcc-text-muted"}`}>{cur.won ? "won" : "lost"}</span>
+                <span className={`ml-2 font-mono text-[10px] uppercase tracking-[0.12em] ${cur.won ? "text-jcc-accent-dark" : "text-jcc-text-muted"}`}>{outcome(cur).toLowerCase()}</span>
               </p>
             )}
           </div>
@@ -1005,7 +1007,7 @@ function AllRound({ s }: { s: StoryData }) {
                 {r.bowl ? Array.from({ length: Math.max(1, r.bowl.wk) }, (_, k) => <span key={k} className={`h-2 flex-1 rounded-full ${r.bowl!.wk ? "bg-[#7C3AED]" : "bg-jcc-blue/15"}`} />) : null}
               </div>
               <p className="mt-1 font-heading text-[13px] font-bold tabular-nums text-[#7C3AED]">{r.bowl ? `${r.bowl.wk}/${r.bowl.runs}` : "–"}</p>
-              <p className={`mt-auto pt-2 font-mono text-[9.5px] uppercase tracking-[0.12em] ${r.won ? "text-jcc-accent-dark" : "text-jcc-text-muted"}`}>{r.won ? "Won" : "Lost"}</p>
+              <p className={`mt-auto pt-2 font-mono text-[9.5px] uppercase tracking-[0.12em] ${r.won ? "text-jcc-accent-dark" : "text-jcc-text-muted"}`}>{outcome(r)}</p>
             </motion.li>
           );
         })}
@@ -1800,11 +1802,11 @@ export function StoryScroll({
         const out: SheetCard[] = [];
         const b = h.bestInnings;
         if (b && b.runs > 0) {
-          out.push(card({ id: "top-score", label: "Top score", kicker: `Top score · ${scope}`, title: `${b.runs}${b.notOut ? "*" : ""} against ${b.opp}`, value: `${b.runs}${b.notOut ? "*" : ""}`, unit: `off ${b.balls} balls`, colors: ORANGE, facts: [{ label: "Against", value: b.opp }, { label: "Date", value: day(b.date) }, { label: "Result", value: b.won ? "Won" : "Lost" }] }));
+          out.push(card({ id: "top-score", label: "Top score", kicker: `Top score · ${scope}`, title: `${b.runs}${b.notOut ? "*" : ""} against ${b.opp}`, value: `${b.runs}${b.notOut ? "*" : ""}`, unit: `off ${b.balls} balls`, colors: ORANGE, facts: [{ label: "Against", value: b.opp }, { label: "Date", value: day(b.date) }, { label: "Result", value: outcome(b) }] }));
         }
         const w = h.bestSpell;
         if (w) {
-          out.push(card({ id: "best-spell", label: "Best spell", kicker: `Best spell · ${scope}`, title: `${w.wk} for ${w.runs} against ${w.opp}`, value: `${w.wk}/${w.runs}`, unit: `in ${overs(w.balls)} overs`, colors: PURPLE, facts: [{ label: "Against", value: w.opp }, { label: "Date", value: day(w.date) }, { label: "Result", value: w.won ? "Won" : "Lost" }] }));
+          out.push(card({ id: "best-spell", label: "Best spell", kicker: `Best spell · ${scope}`, title: `${w.wk} for ${w.runs} against ${w.opp}`, value: `${w.wk}/${w.runs}`, unit: `in ${overs(w.balls)} overs`, colors: PURPLE, facts: [{ label: "Against", value: w.opp }, { label: "Date", value: day(w.date) }, { label: "Result", value: outcome(w) }] }));
         }
         out.push(...momCards(3));
         if (h.boundaries) {

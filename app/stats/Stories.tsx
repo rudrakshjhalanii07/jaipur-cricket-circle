@@ -12,7 +12,8 @@ import { TONE, scoringTrend, statStories, type Story, type TrendPoint } from "@/
 import { teamByName } from "@/lib/teams";
 import { gradientStops, type ShareCardSpec } from "@/lib/share-card";
 import { Avatar, usePhoto } from "./Avatar";
-import { ShareSheet } from "./ShareSheet";
+import { ShareSheet, type SheetCard } from "./ShareSheet";
+import { JCC_CREST, SectionShare } from "./SectionShare";
 import { gsap, reduceMotion, useGSAP, whenSeen } from "./motion";
 
 const LABEL = "font-mono text-[10.5px] font-medium uppercase tracking-[0.16em] text-jcc-text-muted";
@@ -116,7 +117,7 @@ const W = 640;
 const H = 240;
 const PAD = { l: 34, r: 14, t: 18, b: 30 };
 
-function TrendChart({ title, points, value, fmt, unit }: { title: string; points: TrendPoint[]; value: (t: TrendPoint) => number; fmt: (n: number) => string; unit: string }) {
+function TrendChart({ id, title, points, value, fmt, unit, scope }: { id: string; title: string; points: TrendPoint[]; value: (t: TrendPoint) => number; fmt: (n: number) => string; unit: string; scope: string }) {
   const [hover, setHover] = useState<number | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const vals = points.map(value);
@@ -130,6 +131,28 @@ function TrendChart({ title, points, value, fmt, unit }: { title: string; points
   const ticks = [0, 0.5, 1].map((f) => Math.round((max / 1.12) * f));
   const mean = vals.reduce((a, b) => a + b, 0) / Math.max(1, vals.length);
   const last = vals[vals.length - 1] ?? 0;
+
+  // The chart as a story card: the latest figure up top, the season's line under it.
+  const share = (): SheetCard[] => {
+    const lastLabel = points[points.length - 1]?.label ?? "";
+    const spec: ShareCardSpec = {
+      kicker: `Season trend · ${scope}`,
+      title,
+      hero: { value: fmt(last), unit: `${unit}, ${lastLabel}`, colors: ["#F3C96A", "#A97824"] },
+      chart: { values: vals, labels: points.map((p) => p.label), fmt },
+      facts: [
+        { label: "Season avg", value: fmt(mean) },
+        { label: "Peak", value: `${fmt(vals[peak])} · ${points[peak]?.label ?? ""}` },
+        { label: "Matchdays", value: String(points.length) },
+      ],
+      emblem: JCC_CREST,
+      byline: "JCC Stats",
+      team: "Jaipur Cricket Circle",
+      footer: `${window.location.host}/stats`,
+    };
+    const text = `${title}: ${fmt(last)} ${unit} on ${lastLabel} (season avg ${fmt(mean)}, peak ${fmt(vals[peak])}) — JCC Stats\n${window.location.origin}/stats#trend-${id}`;
+    return [{ id: `trend-${id}`, label: title, spec, text }];
+  };
 
   useGSAP(
     () => {
@@ -154,10 +177,13 @@ function TrendChart({ title, points, value, fmt, unit }: { title: string; points
   );
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} id={`trend-${id}`} className="relative scroll-mt-28">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <p className={LABEL}>{title}</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className={LABEL}>{title}</p>
+            <SectionShare build={share} fileBase={`jcc-trend-${id}`} />
+          </div>
           <p className="mt-2 font-heading text-5xl font-bold leading-none tracking-[-0.05em] tabular-nums text-white">
             {fmt(last)} <span className="align-middle text-base font-semibold tracking-tight text-jcc-text-muted">{unit}, latest</span>
           </p>
@@ -215,7 +241,7 @@ function TrendChart({ title, points, value, fmt, unit }: { title: string; points
   );
 }
 
-export default function Stories({ data, seasons, onOpenPlayer }: { data: CardData; seasons: number[]; onOpenPlayer: (p: number) => void }) {
+export default function Stories({ data, seasons, scope = "", onOpenPlayer }: { data: CardData; seasons: number[]; scope?: string; onOpenPlayer: (p: number) => void }) {
   const stories = useMemo(() => statStories(data, seasons), [data, seasons]);
   const trend = useMemo(() => scoringTrend(data, seasons), [data, seasons]);
   const grid = useRef<HTMLDivElement>(null);
@@ -238,8 +264,8 @@ export default function Stories({ data, seasons, onOpenPlayer }: { data: CardDat
     <div>
       {trend.length >= 3 && (
         <div className="grid gap-12 border-y border-jcc-blue/80 py-10 md:grid-cols-2 md:gap-16 md:py-14">
-          <TrendChart title="Average first-innings total, by matchday" points={trend} value={(t) => t.avgFirst} fmt={(n) => n.toFixed(0)} unit="runs" />
-          <TrendChart title="Sixes per match, by matchday" points={trend} value={(t) => t.sixes} fmt={(n) => n.toFixed(1)} unit="sixes" />
+          <TrendChart id="first-innings" scope={scope} title="Average first-innings total, by matchday" points={trend} value={(t) => t.avgFirst} fmt={(n) => n.toFixed(0)} unit="runs" />
+          <TrendChart id="sixes" scope={scope} title="Sixes per match, by matchday" points={trend} value={(t) => t.sixes} fmt={(n) => n.toFixed(1)} unit="sixes" />
         </div>
       )}
       {lead && (

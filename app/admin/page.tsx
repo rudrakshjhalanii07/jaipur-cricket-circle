@@ -28,7 +28,6 @@ import PhotoFramingControl from "@/components/admin/PhotoFramingControl";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminStatCard from "@/components/admin/AdminStatCard";
 import { supabase } from "@/lib/supabase";
-import { HONORARY_GOVERNANCE_MEMBERS } from "@/lib/member-role";
 
 type AdminSection = "dashboard" | "match" | "registrations" | "members" | "roles" | "statsAccess" | "photos" | "chewvana" | "seasons";
 
@@ -55,7 +54,7 @@ export default function AdminPage() {
         const dbCommitteeCount = (playersRes.data || []).filter(
           (p) => p.is_core_committee || p.is_exec_committee
         ).length;
-        setCommitteeCount(dbCommitteeCount + HONORARY_GOVERNANCE_MEMBERS.length);
+        setCommitteeCount(dbCommitteeCount);
       }
       if (!seasonsRes.error) setSeasonsPlayed(seasonsRes.count ?? null);
     })();

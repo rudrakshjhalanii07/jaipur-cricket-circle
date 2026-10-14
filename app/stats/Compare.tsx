@@ -7,30 +7,33 @@
 
 import { useMemo, useRef, useState } from "react";
 import { ArrowLeftRight, ChevronDown } from "lucide-react";
-import { f0, f1, f2, leaderboardRows, type BoardRow, type CardData } from "@/lib/scorecard-dashboard/profile";
+import { duel, f0, f1, f2, fmtDate, leaderboardRows, type BoardRow, type CardData } from "@/lib/scorecard-dashboard/profile";
 import { teamByName } from "@/lib/teams";
 import { focusOf, focusStyle } from "@/lib/photo-focus";
 import { gsap, reduceMotion, useGSAP } from "./motion";
 import { GOLD, SectionShare, usePhotoOf } from "./SectionShare";
 import type { SheetCard } from "./ShareSheet";
 
+const capital = (w: string) => w.charAt(0).toUpperCase() + w.slice(1);
+const times = (n: number) => (n === 1 ? "once" : n === 2 ? "twice" : `${n} times`);
+
 const LABEL = "font-mono text-[10.5px] font-medium uppercase tracking-[0.16em] text-jcc-text-muted";
 
-type Metric = { label: string; get: (r: BoardRow) => number | null; fmt: (n: number | null) => string; lower?: boolean; min?: (r: BoardRow) => boolean };
+type Metric = { label: string; get: (r: BoardRow) => number | null; fmt: (n: number | null) => string; lower?: boolean; min?: (r: BoardRow) => boolean; kind: "bat" | "bowl" | "other" };
 
 const METRICS: Metric[] = [
-  { label: "Matches", get: (r) => r.matches, fmt: f0 },
-  { label: "Runs", get: (r) => r.runs, fmt: f0 },
-  { label: "Strike rate", get: (r) => r.sr, fmt: f1, min: (r) => r.balls >= 15 },
-  { label: "Average", get: (r) => r.avg, fmt: f1, min: (r) => r.balls >= 15 },
-  { label: "Sixes", get: (r) => r.s6, fmt: f0 },
-  { label: "Boundaries", get: (r) => r.bnd, fmt: f0 },
-  { label: "Wickets", get: (r) => r.wk, fmt: f0 },
-  { label: "Economy", get: (r) => r.econ, fmt: f2, lower: true, min: (r) => r.bowlBalls >= 12 },
-  { label: "Dot-ball %", get: (r) => r.dotPct, fmt: f1, min: (r) => r.bowlBalls >= 12 },
-  { label: "Death-over wkts", get: (r) => r.death, fmt: f0 },
-  { label: "Fielding", get: (r) => r.fielding, fmt: f0 },
-  { label: "Player of the Match", get: (r) => r.mom, fmt: f0 },
+  { label: "Matches", get: (r) => r.matches, fmt: f0, kind: "other" },
+  { label: "Runs", get: (r) => r.runs, fmt: f0, kind: "bat" },
+  { label: "Strike rate", get: (r) => r.sr, fmt: f1, min: (r) => r.balls >= 15, kind: "bat" },
+  { label: "Average", get: (r) => r.avg, fmt: f1, min: (r) => r.balls >= 15, kind: "bat" },
+  { label: "Sixes", get: (r) => r.s6, fmt: f0, kind: "bat" },
+  { label: "Boundaries", get: (r) => r.bnd, fmt: f0, kind: "bat" },
+  { label: "Wickets", get: (r) => r.wk, fmt: f0, kind: "bowl" },
+  { label: "Economy", get: (r) => r.econ, fmt: f2, lower: true, min: (r) => r.bowlBalls >= 12, kind: "bowl" },
+  { label: "Dot-ball %", get: (r) => r.dotPct, fmt: f1, min: (r) => r.bowlBalls >= 12, kind: "bowl" },
+  { label: "Death-over wkts", get: (r) => r.death, fmt: f0, kind: "bowl" },
+  { label: "Fielding", get: (r) => r.fielding, fmt: f0, kind: "other" },
+  { label: "Player of the Match", get: (r) => r.mom, fmt: f0, kind: "other" },
 ];
 
 /** A fighter's card: tall photo in team light, name on it, tap anywhere to pick someone else. */
@@ -127,37 +130,103 @@ export default function Compare({ data, seasons, onOpenPlayer }: { data: CardDat
   const ca = teamByName(A.team)?.primary ?? "#D4AF37";
   const cb = teamByName(B.team)?.primary ?? "#3B6FC4";
 
-  // One face-off card: both photos split, categories won as the score, and
-  // the rows each of them takes, as a list.
+  // Exact one-on-one: innings where one bowled at the other, and the wickets.
+  const aOnB = duel(data, seasons, a, b);
+  const bOnA = duel(data, seasons, b, a);
+
+  // The face-off as story cards: the overall score, then batting and bowling
+  // on their own, then the one-on-one. Values sit on each player's side with
+  // the better one in gold, so nothing is read as "21 · 17".
   const share = (): SheetCard[] => {
     const na = names[a], nb = names[b];
     const first = (n: string) => n.split(/\s+/)[0];
-    const won = (side: "a" | "b") => lines.filter((l) => l.win === side).map((l) => l.m.label);
-    const leader = winsA === winsB ? null : winsA > winsB ? na : nb;
-    return [
-      {
-        id: `${a}-${b}`,
-        label: `${first(na)} v ${first(nb)}`,
-        text: `${na} v ${nb}: ${winsA}–${winsB} on categories\n${window.location.origin}/stats#compare`,
-        spec: {
-          kicker: "Head to head · twelve categories",
-          title: leader ? `${first(leader)} takes the head to head` : "Dead level",
-          hero: { value: `${winsA}–${winsB}`, unit: "categories won", colors: GOLD },
-          versus: { left: { name: na, photo: photoOf(na), color: ca }, right: { name: nb, photo: photoOf(nb), color: cb } },
-          list: lines
-            .filter((l) => l.va != null || l.vb != null)
-            .slice(0, 6)
-            .map((l) => ({ name: l.m.label, value: `${l.m.fmt(l.va)} · ${l.m.fmt(l.vb)}`, plain: true })),
-          facts: [
-            { label: first(na), value: won("a").slice(0, 2).join(", ") || "–" },
-            { label: first(nb), value: won("b").slice(0, 2).join(", ") || "–" },
-          ],
-          byline: `${first(na)} v ${first(nb)}`,
-          team: "Head to head",
-          footer: `${window.location.host}/stats`,
-        },
+    const fa = first(na), fb = first(nb);
+    const versus = { left: { name: na, photo: photoOf(na), color: ca }, right: { name: nb, photo: photoOf(nb), color: cb } };
+    const base = { versus, byline: `${fa} v ${fb}`, team: "Face-off", footer: `${window.location.host}/stats` };
+    const link = `${window.location.origin}/stats#compare`;
+    const rowsOf = (ls: typeof lines) =>
+      ls.filter((l) => l.va != null || l.vb != null).map((l) => ({ label: l.m.label, a: l.m.fmt(l.va), b: l.m.fmt(l.vb), win: l.win, pa: l.la, pb: l.lb }));
+    const score = (ls: typeof lines) => [ls.filter((l) => l.win === "a").length, ls.filter((l) => l.win === "b").length] as const;
+    const cards: SheetCard[] = [];
+
+    const head = ["Runs", "Strike rate", "Wickets", "Economy", "Fielding", "Player of the Match"];
+    const leader = winsA === winsB ? null : winsA > winsB ? fa : fb;
+    cards.push({
+      id: `faceoff-${a}-${b}`,
+      label: "Face-off",
+      text: `${na} v ${nb}: ${winsA}–${winsB} on ${lines.length} categories\n${link}`,
+      spec: {
+        ...base,
+        kicker: `Face-off · ${lines.length} categories`,
+        title: leader ? `${leader} takes the face-off` : "Dead level",
+        hero: { value: `${winsA}–${winsB}`, unit: "categories won", colors: GOLD },
+        compare: rowsOf(lines.filter((l) => head.includes(l.m.label))),
       },
-    ];
+    });
+
+    const part = (kind: "bat" | "bowl", word: string, noun: string) => {
+      const ls = lines.filter((l) => l.m.kind === kind);
+      const rows = rowsOf(ls);
+      if (!rows.length || rows.every((r) => r.a === "0" && r.b === "0")) return;
+      const [x, y] = score(ls);
+      cards.push({
+        id: `faceoff-${kind}-${a}-${b}`,
+        label: capital(word),
+        text: `${na} v ${nb} ${word}: ${x}–${y}\n${link}`,
+        spec: {
+          ...base,
+          kicker: `Face-off · ${word}`,
+          title: x === y ? `Level ${kind === "bat" ? "with the bat" : "with the ball"}` : `${x > y ? fa : fb} the better ${noun}`,
+          hero: { value: `${x}–${y}`, unit: `${word} categories won`, colors: GOLD },
+          compare: rows,
+        },
+      });
+    };
+    part("bat", "batting", "batter");
+    part("bowl", "bowling", "bowler");
+
+    // One on one: only the exact facts, and only when someone has a wicket to show.
+    if (aOnB.wk + bOnA.wk > 0) {
+      const x = aOnB.wk, y = bOnA.wk;
+      const max = Math.max(x, y, 1), maxM = Math.max(aOnB.meetings, bOnA.meetings, 1);
+      cards.push({
+        id: `duel-${a}-${b}`,
+        label: "One on one",
+        text: `${fa} has dismissed ${fb} ${times(x)}, ${fb} has dismissed ${fa} ${times(y)}\n${link}`,
+        spec: {
+          ...base,
+          kicker: "One on one · ball v bat",
+          title: x === y ? "All square, wicket for wicket" : `${x > y ? fa : fb} has the upper hand`,
+          hero: { value: `${x}–${y}`, unit: "times dismissed the other", colors: GOLD },
+          compare: [
+            { label: "Wickets of the other", a: String(x), b: String(y), win: x === y ? null : x > y ? "a" : "b", pa: x / max, pb: y / max },
+            { label: "Innings bowled at", a: String(aOnB.meetings), b: String(bOnA.meetings), win: null, pa: aOnB.meetings / maxM, pb: bOnA.meetings / maxM },
+          ],
+          body: "Counted from innings where one bowled and the other batted. The scorecards record who took each wicket, not who bowled each ball.",
+        },
+      });
+      for (const [bw, bt, dl, bwName, btName, color] of [[a, b, aOnB, na, nb, ca], [b, a, bOnA, nb, na, cb]] as const) {
+        if (!dl.wk) continue;
+        cards.push({
+          id: `duel-${bw}-on-${bt}`,
+          label: `${first(bwName)}'s wickets`,
+          text: `${bwName} has dismissed ${btName} ${times(dl.wk)} in ${dl.meetings} innings\n${link}`,
+          spec: {
+            ...base,
+            versus: { left: { name: bwName, photo: photoOf(bwName), color }, right: { name: btName, photo: photoOf(btName), color: color === ca ? cb : ca } },
+            kicker: "One on one · wickets",
+            title: `${first(bwName)} has ${first(btName)}'s number`,
+            hero: { value: String(dl.wk), unit: `${dl.wk === 1 ? "dismissal" : "dismissals"} in ${dl.meetings} innings`, colors: GOLD },
+            facts: [
+              { label: "Bowled at him", value: `${dl.meetings} innings` },
+              { label: "Strike", value: `${Math.round((100 * dl.wk) / dl.meetings)}%` },
+              ...(dl.last ? [{ label: "Latest", value: fmtDate(dl.last) }] : []),
+            ],
+          },
+        });
+      }
+    }
+    return cards;
   };
 
   const decided = winsA + winsB || 1;
@@ -230,6 +299,26 @@ export default function Compare({ data, seasons, onOpenPlayer }: { data: CardDat
           ))}
         </ul>
 
+        {/* One on one: the exact part of a head to head */}
+        {aOnB.meetings + bOnA.meetings > 0 && (
+          <div className="mt-10 grid gap-3 sm:grid-cols-2">
+            {([[a, b, aOnB, ca], [b, a, bOnA, cb]] as const).map(([bw, bt, dl, color]) => (
+              <div key={bw} className="rounded-2xl border border-[#FCFBF8]/10 bg-[#FCFBF8]/[0.03] p-5">
+                <p className={`${LABEL} text-[#FCFBF8]/55`}>
+                  <span style={{ color }}>{names[bw].split(" ")[0]}</span> bowling at {names[bt].split(" ")[0]}
+                </p>
+                <p className="mt-2 font-heading text-4xl font-bold leading-none tracking-[-0.04em] tabular-nums text-[#FCFBF8]">
+                  <span className={dl.wk ? "text-jcc-accent" : ""}>{dl.wk}</span>
+                  <span className="ml-2 align-middle text-sm font-semibold tracking-tight text-[#FCFBF8]/60">
+                    {dl.wk === 1 ? "dismissal" : "dismissals"} in {dl.meetings} {dl.meetings === 1 ? "innings" : "innings"}
+                  </span>
+                </p>
+                {dl.last && <p className="mt-2 font-mono text-[10.5px] text-[#FCFBF8]/45">latest {fmtDate(dl.last)}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="mt-10 flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap gap-3">
             {[a, b].map((p) => (
@@ -237,7 +326,7 @@ export default function Compare({ data, seasons, onOpenPlayer }: { data: CardDat
                 {names[p].split(" ")[0]}&apos;s cards →
               </button>
             ))}
-            <SectionShare build={share} fileBase="jcc-head-to-head" label="Share this face-off" dark />
+            <SectionShare build={share} fileBase="jcc-head-to-head" label="Share the face-off" dark />
           </div>
           <p className="font-mono text-[11px] text-[#FCFBF8]/50">Rates need 15 balls faced or 12 bowled · gold marks the better side of each row</p>
         </div>

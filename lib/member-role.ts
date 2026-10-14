@@ -57,22 +57,3 @@ export function getGovernanceRoleLabel(p: GovernanceFields): string {
 export function isCommitteeCaptain(p: GovernanceFields): boolean {
   return p.group_role === "captain";
 }
-
-/**
- * The one committee member with no `players` row — phone is NOT NULL UNIQUE
- * on that table and no real number is on file for him, so fabricating a
- * player record isn't safe. Kept here, not in app/about/page.tsx, so this
- * remains the single documented exception rather than a second hardcoded
- * roster creeping back in.
- */
-export const HONORARY_GOVERNANCE_MEMBERS: (GovernanceFields & { id: string })[] = [
-  {
-    id: "honorary-abhijeet-singh-shekhawat",
-    name: "Abhijeet Singh Shekhawat",
-    governance_role: "co-founder",
-    is_core_committee: true,
-    is_exec_committee: true,
-    group_role: "member",
-    governance_order: 5,
-  },
-];
