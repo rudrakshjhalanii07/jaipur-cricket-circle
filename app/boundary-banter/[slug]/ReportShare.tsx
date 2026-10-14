@@ -5,10 +5,10 @@
 // A match's own Share button puts that match first in the gallery.
 
 import { ListOrdered } from "lucide-react";
-import { SectionShare, GOLD, JCC_CREST, listCard, teamRow } from "@/app/stats/SectionShare";
+import { SectionShare, GOLD, listCard, teamRow } from "@/app/stats/SectionShare";
 import type { SheetCard } from "@/app/stats/ShareSheet";
 import type { DayMatch, DayPreview, DayReport } from "@/lib/match-reports";
-import type { ShareCardSpec } from "@/lib/share-card";
+import type { ResultRow, ResultSide, ShareCardSpec } from "@/lib/share-card";
 import { ov } from "@/lib/scorecard-dashboard/profile";
 import { teamByName } from "@/lib/teams";
 
@@ -36,6 +36,16 @@ const shortLabel = (label: string) => {
 
 const margin = (result: string) => result.replace(/^.* won by /, "").replace(/\s*\(.*\)$/, "");
 
+type Side = { team: string; runs: number; wickets: number; balls: number };
+
+/** A match as a scoreboard tile: both sides, the winner lit, the margin on the right. */
+function resultRow([a, b]: Side[], winner: string | null, by?: string | null): ResultRow {
+  const side = (x: Side): ResultSide => ({ team: x.team, score: `${x.runs}/${x.wickets}`, logo: teamByName(x.team)?.logo ?? null, color: teamByName(x.team)?.primary });
+  if (!winner) return { a: side(a), b: side(b), winner: null, verdict: ["Tied on", String(a.runs)] };
+  const short = by ? by.replace(/ wickets?\b/, (x) => (x.trim() === "wicket" ? " wkt" : " wkts")) : null;
+  return { a: side(a), b: side(b), winner: a.team === winner ? "a" : "b", verdict: short ? ["Won by", short] : ["Winner", winner] };
+}
+
 export function reportCards(report: DayReport, photos: Record<string, string | null>, first?: number): SheetCard[] {
   const host = window.location.host;
   const url = `${window.location.origin}/boundary-banter/${report.slug}`;
@@ -47,16 +57,16 @@ export function reportCards(report: DayReport, photos: Record<string, string | n
     label: "The week",
     kicker: `Boundary Banter · ${week}`,
     title: report.headline,
-    rows: report.matches.map((m) => {
-      const [a, b] = m.innings;
-      return teamRow(m.winner ?? `${a.team} v ${b.team}`, m.winner ? margin(m.result) : "Tie", `${a.team} ${a.runs}/${a.wickets} · ${b.team} ${b.runs}/${b.wickets}`);
-    }),
+    rows: [],
     facts: report.numbers.slice(0, 3).map((n) => ({ label: shortLabel(n.label), value: n.value })),
   });
   // The star of the day leads the week's card when there's a photo.
   const starPhoto = report.star ? photos[report.star.name] ?? null : null;
   summary.spec = {
     ...summary.spec,
+    results: report.matches.map((m) => resultRow(m.innings, m.winner, m.winner ? margin(m.result) : null)),
+    // No crest up top: the masthead carries the club's, and the tiles get the room.
+    emblem: undefined,
     ...base(teamByName(report.star?.team)?.primary),
     ...(report.star && starPhoto ? { person: { name: report.star.name, photo: starPhoto }, emblem: undefined } : {}),
     byline: "Boundary Banter",
@@ -156,15 +166,11 @@ export function previewCard(r: DayPreview): SheetCard {
     label: `Week ${r.week}`,
     kicker: `Boundary Banter · ${week}`,
     title: r.headline,
-    rows: r.matches.map((m) => {
-      const [a, b] = m.scores;
-      const score = (x: typeof a) => `${x.runs}/${x.wickets}`;
-      return teamRow(m.winner ?? `${a.team} v ${b.team}`, m.winner ? "won" : "tie", `${a.team} ${score(a)} · ${b.team} ${score(b)}`);
-    }),
+    rows: [],
     facts: r.star ? [{ label: "Star of the day", value: r.star }, { label: "Venue", value: r.venue }] : [{ label: "Venue", value: r.venue }],
   });
-  // The index has no photos loaded: the club crest leads instead.
-  card.spec = { ...card.spec, emblem: JCC_CREST };
+  // No crest up top: the masthead carries the club's, and the tiles get the room.
+  card.spec = { ...card.spec, emblem: undefined, results: r.matches.map((m) => resultRow(m.scores, m.winner, m.margin)) };
   card.spec = { ...card.spec, footer: `${window.location.host}/boundary-banter`, byline: "Boundary Banter", team: week };
   card.text = `${r.headline}\n${r.dek}\n${window.location.origin}/boundary-banter/${r.slug}`;
   return card;

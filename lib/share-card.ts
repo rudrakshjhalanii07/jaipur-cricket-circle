@@ -38,6 +38,11 @@ function lift(ctx: CanvasRenderingContext2D, on: boolean) {
 
 export type CardStat = { label: string; value: string; note?: string };
 export type CardPerson = { name: string; photo?: string | null; color?: string };
+/** One side of a match on a results card. */
+export type ResultSide = { team: string; score: string; overs?: string; logo?: string | null; color?: string };
+/** A match on a results card: two sides, who won, and a two-line verdict ("Won by", "5 runs"). */
+export type ResultRow = { a: ResultSide; b: ResultSide; winner: "a" | "b" | null; verdict: [string, string] };
+
 /** One line of a ranked list: a player (round photo) or a team (crest, `logo`). */
 export type CardRow = { name: string; value: string; note?: string; photo?: string | null; color?: string; logo?: boolean; plain?: boolean };
 
@@ -78,6 +83,8 @@ export type ShareCardSpec = {
   team?: string;
   /** A ranked list (leaderboards, records, an XI); up to 11 rows. */
   list?: CardRow[];
+  /** A day's results as scoreboard tiles, one per match; up to 5. */
+  results?: ResultRow[];
   /** Badge cards: a saturated sunburst in these two colours behind the emblem. */
   burst?: [string, string];
   /** A team crest drawn large up top, for cards about a team. */
@@ -299,6 +306,8 @@ async function draw(spec: ShareCardSpec, withPhoto: boolean): Promise<HTMLCanvas
     spec.emblem ? loadImage(spec.emblem, false) : null,
     ...rows.map((r) => (r.photo && (withPhoto || r.logo) ? loadImage(r.photo, !r.logo) : null)),
   ]);
+  const results = (spec.results ?? []).slice(0, 5);
+  const resultImgs = await Promise.all(results.flatMap((r) => [r.a, r.b]).map((x) => (x.logo ? loadImage(x.logo, false) : null)));
   const [face, leftFace, rightFace] = await Promise.all([
     faceFor(spec.person, photo),
     faceFor(spec.versus?.left, left),
@@ -385,7 +394,7 @@ async function draw(spec: ShareCardSpec, withPhoto: boolean): Promise<HTMLCanvas
   }
 
   // Title
-  const big = !spec.hero && !spec.figures?.length && !spec.list?.length;
+  const big = !spec.hero && !spec.figures?.length && !spec.list?.length && !results.length;
   const tpx = big ? 124 : 84;
   // An empty title (a face-off, where the portraits already carry the names)
   // draws nothing and hands its room to the pictures.
@@ -695,6 +704,95 @@ async function draw(spec: ShareCardSpec, withPhoto: boolean): Promise<HTMLCanvas
     };
   }
 
+  // Results: a scoreboard tile per match. The winner's line is lit, the
+  // loser's dimmed, a bar in the winner's colour down the left edge and the
+  // verdict in its own column. Tiles are sized with the list (see below).
+  let resultsBlock: Block | null = null;
+  const R = { th: 132, gap: 16 };
+  if (results.length) {
+    resultsBlock = { h: 0, gap: 32, draw: () => {} };
+    blocks.push(resultsBlock);
+    resultsBlock.draw = (y) => {
+      const { th, gap } = R;
+      const VW = 196; // verdict column
+      const vx = PAD + WIDTH - VW;
+      const lineH = (th - 30) / 2;
+      const crestS = Math.round(lineH * 0.82);
+      const namePx = Math.round(Math.min(42, Math.max(28, lineH * 0.62)));
+      results.forEach((r, i) => {
+        const ty = y + i * (th + gap);
+        const won = r.winner ? (r.winner === "a" ? r.a : r.b) : null;
+        ctx.beginPath();
+        ctx.roundRect(PAD, ty, WIDTH, th, 24);
+        const bg = ctx.createLinearGradient(PAD, ty, PAD + WIDTH, ty);
+        bg.addColorStop(0, alpha(won?.color ?? GOLD, 0.2));
+        bg.addColorStop(0.55, "rgba(252,251,248,0.04)");
+        bg.addColorStop(1, "rgba(252,251,248,0.06)");
+        ctx.fillStyle = bg;
+        ctx.fill();
+        ctx.strokeStyle = "rgba(252,251,248,0.12)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.save();
+        ctx.clip();
+        ctx.fillStyle = won?.color ? alpha(won.color, 1) : GOLD;
+        ctx.fillRect(PAD, ty, 8, th);
+        ctx.restore();
+
+        // The two sides, one per line.
+        ([r.a, r.b] as ResultSide[]).forEach((side, k) => {
+          const cy = ty + 15 + lineH * k + lineH / 2;
+          const lit = !r.winner || side === won;
+          ctx.save();
+          ctx.globalAlpha = lit ? 1 : 0.5;
+          const img = resultImgs[i * 2 + k];
+          const cx = PAD + 34;
+          if (img) {
+            const q = Math.min(crestS / img.width, crestS / img.height);
+            ctx.drawImage(img, cx + (crestS - img.width * q) / 2, cy - (img.height * q) / 2, img.width * q, img.height * q);
+          }
+          const tx = cx + crestS + 18;
+          ctx.font = H(800, namePx + 4);
+          const sw = ctx.measureText(side.score).width;
+          ctx.textAlign = "right";
+          ctx.fillStyle = WHITE;
+          ctx.fillText(side.score, vx - 26, cy + namePx * 0.38);
+          let ow = 0;
+          if (side.overs) {
+            ctx.font = M(600, 20);
+            ctx.fillStyle = MUTED;
+            const o = `${side.overs} OV`;
+            ow = ctx.measureText(o).width + 2 * o.length + 14;
+            tracked(ctx, 2, () => ctx.fillText(o, vx - 26 - sw - 14, cy + namePx * 0.32));
+          }
+          ctx.textAlign = "left";
+          ctx.fillStyle = WHITE;
+          ctx.font = H(lit && r.winner ? 800 : 700, namePx);
+          const room = vx - 26 - sw - ow - 20 - tx;
+          ctx.fillText(wrap(ctx, side.team, room, 1)[0] ?? side.team, tx, cy + namePx * 0.36);
+          ctx.restore();
+        });
+
+        // Verdict column.
+        ctx.fillStyle = "rgba(252,251,248,0.12)";
+        ctx.fillRect(vx, ty + 22, 2, th - 44);
+        const mid = vx + VW / 2;
+        ctx.textAlign = "center";
+        ctx.fillStyle = SOFT;
+        ctx.font = M(600, 20);
+        tracked(ctx, 3, () => ctx.fillText(r.verdict[0].toUpperCase(), mid, ty + th / 2 - 12));
+        const vpx = fit(ctx, r.verdict[1].toUpperCase(), (z) => H(800, z), VW - 30, 40, 26);
+        ctx.font = H(800, vpx);
+        const g = ctx.createLinearGradient(mid - 70, ty, mid + 70, ty + th);
+        g.addColorStop(0, GOLD_HI);
+        g.addColorStop(1, GOLD_DK);
+        ctx.fillStyle = g;
+        ctx.fillText(r.verdict[1].toUpperCase(), mid, ty + th / 2 + vpx * 0.95);
+        ctx.textAlign = "left";
+      });
+    };
+  }
+
   if (spec.facts?.length) {
     const n = Math.min(3, spec.facts.length);
     const cw = WIDTH / n;
@@ -727,22 +825,35 @@ async function draw(spec: ShareCardSpec, withPhoto: boolean): Promise<HTMLCanvas
 
   // The footer sits low, just above the strip Instagram's reply bar covers;
   // everything else stacks up from it.
-  const FOOT_TOP = CARD_H - 300;
+  // A results card runs compact: a slimmer masthead and a one-line footer give
+  // the tiles the room, still clear of Instagram's top bar and reply strip.
+  const compact = results.length > 0;
+  const FOOT_TOP = compact ? CARD_H - 250 : CARD_H - 300;
+  const safeTop = compact ? 196 : SAFE_TOP;
   if (listBlock) {
     // Rows share what's left once the visual has its room: up to 168px for a
     // lone holder, 150 for a handful, never below 64.
     const n = rows.length;
     const visualRoom = spec.person || spec.versus || spec.emblem ? (n > 4 ? 300 : 420) : 60;
     const others = blocks.reduce((s, b, i) => s + (b === listBlock ? 0 : b.h) + (i < blocks.length - 1 ? b.gap : 0), 0);
-    const free = FOOT_TOP - 56 - (SAFE_TOP + visualRoom) - others;
+    const free = FOOT_TOP - 56 - (safeTop + visualRoom) - others;
     const lines = n > 6 ? Math.ceil(n / 2) : n;
     L.rh = Math.max(64, Math.min(n <= 2 ? 168 : 150, Math.floor(free / lines)));
     listBlock.h = lines * L.rh;
   }
+  if (resultsBlock) {
+    // Tiles share what's left after any picture: 104–168px each.
+    const n = results.length;
+    const visualRoom = spec.person || spec.versus || spec.emblem ? 250 : 60;
+    const others = blocks.reduce((s, b, i) => s + (b === resultsBlock ? 0 : b.h) + (i < blocks.length - 1 ? b.gap : 0), 0);
+    const free = FOOT_TOP - 56 - (safeTop + visualRoom) - others - (n - 1) * R.gap;
+    R.th = Math.max(104, Math.min(168, Math.floor(free / n)));
+    resultsBlock.h = n * R.th + (n - 1) * R.gap;
+  }
   const stack = blocks.reduce((s, b, i) => s + b.h + (i < blocks.length - 1 ? b.gap : 0), 0);
   // Text-only cards may start higher; a photo or crest needs room up top.
   const visual = !!(spec.person || spec.versus || spec.emblem);
-  const top = Math.max(SAFE_TOP + (visual ? 130 : 40), FOOT_TOP - 56 - stack);
+  const top = Math.max(safeTop + (visual ? 130 : 40), FOOT_TOP - 56 - stack);
 
   // ── Background ────────────────────────────────────────────────────────────
   ctx.fillStyle = NAVY;
@@ -986,14 +1097,28 @@ async function draw(spec: ShareCardSpec, withPhoto: boolean): Promise<HTMLCanvas
   }
 
   // ── Masthead ──────────────────────────────────────────────────────────────
-  const my = 150;
-  if (logo) ctx.drawImage(logo, PAD, my, 74, 76);
-  ctx.fillStyle = WHITE;
-  ctx.font = H(700, 38);
-  ctx.fillText("Jaipur Cricket Circle", PAD + 94, my + 36);
-  ctx.fillStyle = GOLD;
-  ctx.font = M(600, 25);
-  tracked(ctx, 5, () => ctx.fillText("JCC STATS", PAD + 94, my + 68));
+  if (compact) {
+    // One line: crest, club name, a gold tag.
+    const my = 118;
+    if (logo) ctx.drawImage(logo, PAD, my, 48, 50);
+    ctx.fillStyle = WHITE;
+    ctx.font = H(700, 30);
+    ctx.fillText("Jaipur Cricket Circle", PAD + 64, my + 36);
+    ctx.textAlign = "right";
+    ctx.fillStyle = GOLD;
+    ctx.font = M(600, 22);
+    tracked(ctx, 4, () => ctx.fillText("#JCC", CARD_W - PAD, my + 34));
+    ctx.textAlign = "left";
+  } else {
+    const my = 150;
+    if (logo) ctx.drawImage(logo, PAD, my, 74, 76);
+    ctx.fillStyle = WHITE;
+    ctx.font = H(700, 38);
+    ctx.fillText("Jaipur Cricket Circle", PAD + 94, my + 36);
+    ctx.fillStyle = GOLD;
+    ctx.font = M(600, 25);
+    tracked(ctx, 5, () => ctx.fillText("JCC STATS", PAD + 94, my + 68));
+  }
 
   // ── Content stack ─────────────────────────────────────────────────────────
   let y = top;
@@ -1005,6 +1130,24 @@ async function draw(spec: ShareCardSpec, withPhoto: boolean): Promise<HTMLCanvas
   // ── Footer: who, which team, where ────────────────────────────────────────
   ctx.fillStyle = RULE;
   ctx.fillRect(PAD, FOOT_TOP, WIDTH, 2);
+  if (compact) {
+    // One line: the byline on the left, the address on the right.
+    const by = spec.byline ?? "JCC Stats";
+    const addr = spec.footer.replace(/^www\./i, "").toUpperCase();
+    ctx.fillStyle = WHITE;
+    ctx.font = H(700, 28);
+    ctx.fillText(by, PAD, FOOT_TOP + 56);
+    const room = WIDTH - ctx.measureText(by).width - 40;
+    let px = 20;
+    const w = () => (ctx.font = M(600, px), ctx.measureText(addr).width + 2 * addr.length);
+    while (px > 15 && w() > room) px--;
+    ctx.textAlign = "right";
+    ctx.fillStyle = SOFT;
+    ctx.font = M(600, px);
+    tracked(ctx, 2, () => ctx.fillText(addr, CARD_W - PAD, FOOT_TOP + 54));
+    ctx.textAlign = "left";
+    return canvas;
+  }
   const fy = FOOT_TOP + 44;
   let fx = PAD;
   const who = spec.byline ?? spec.person?.name ?? (spec.versus ? `${spec.versus.left.name.split(/\s+/)[0]} v ${spec.versus.right.name.split(/\s+/)[0]}` : "JCC Stats");
@@ -1018,18 +1161,28 @@ async function draw(spec: ShareCardSpec, withPhoto: boolean): Promise<HTMLCanvas
   ctx.fillStyle = WHITE;
   ctx.font = H(700, 38);
   ctx.fillText(wrap(ctx, who, 380, 1)[0] ?? who, fx, fy + 24);
-  ctx.fillStyle = MUTED;
+  // The team line and the address share a baseline: the address shrinks
+  // (down to 18px) to clear the team line, which only then gets cut short.
+  // Widths add the tracking by hand; measureText may not count letterSpacing.
+  const addr = spec.footer.replace(/^www\./i, "").toUpperCase();
+  const teamLine = (spec.team ?? "Jaipur Cricket Circle").toUpperCase();
+  ctx.font = M(600, 24);
+  const teamW = Math.min(420, ctx.measureText(teamLine).width + 3 * teamLine.length);
+  let addrPx = 23;
+  const addrW = () => (ctx.font = M(600, addrPx), ctx.measureText(addr).width + 2 * addr.length);
+  while (addrPx > 18 && fx + teamW + 32 + addrW() > CARD_W - PAD) addrPx--;
+  const addrWidth = addrW();
   ctx.fillStyle = SOFT;
   ctx.font = M(600, 24);
-  tracked(ctx, 3, () => ctx.fillText(wrap(ctx, (spec.team ?? "Jaipur Cricket Circle").toUpperCase(), 420, 1)[0] ?? "", fx, fy + 62));
+  const teamRoom = Math.min(420, CARD_W - PAD - addrWidth - 32 - fx) - 3 * teamLine.length;
+  tracked(ctx, 3, () => ctx.fillText(wrap(ctx, teamLine, teamRoom, 1)[0] ?? "", fx, fy + 62));
   ctx.textAlign = "right";
   ctx.fillStyle = GOLD;
   ctx.font = M(600, 26);
   tracked(ctx, 4, () => ctx.fillText("#JCC", CARD_W - PAD, fy + 24));
-  ctx.fillStyle = MUTED;
   ctx.fillStyle = SOFT;
-  ctx.font = M(600, 23);
-  tracked(ctx, 2, () => ctx.fillText(spec.footer.toUpperCase(), CARD_W - PAD, fy + 60));
+  ctx.font = M(600, addrPx);
+  tracked(ctx, 2, () => ctx.fillText(addr, CARD_W - PAD, fy + 60));
   ctx.textAlign = "left";
 
   return canvas;

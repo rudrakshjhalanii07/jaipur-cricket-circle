@@ -32,6 +32,8 @@ type RawMatch = {
   winner: string | null;
   result: string;
   winBy: string;
+  /** Order of play within the day: a database match's match_no (export matches have none). */
+  order?: number;
 };
 type RawInnings = {
   matchId: string;
@@ -388,12 +390,15 @@ function resolveFielder(matchId: string, fieldingTeam: string, raw: string): str
   return `name:${cleanName(raw)}`;
 }
 
+/** Oldest first; within a day, in order of play (export matches, then database ones by match_no). */
+const byPlay = (a: RawMatch, b: RawMatch) => a.date.localeCompare(b.date) || (a.order ?? 0) - (b.order ?? 0) || a.matchId.localeCompare(b.matchId);
+
 // ─── Compute one scope ───────────────────────────────────────────────────────
 
 function computeScope(key: ScopeKey, label: string, seasons: number[]): ScopeStats {
   const matches = data.matches
     .filter((m) => seasons.includes(m.season))
-    .sort((a, b) => a.date.localeCompare(b.date) || a.matchId.localeCompare(b.matchId));
+    .sort(byPlay);
   const ids = new Set(matches.map((m) => m.matchId));
   const innings = data.innings.filter((i) => ids.has(i.matchId));
   const batting = data.batting.filter((b) => ids.has(b.matchId));
@@ -757,7 +762,7 @@ function buildCardDataNow(): CardData {
     return index.get(id)!;
   };
 
-  const matches = [...data.matches].sort((a, b) => a.date.localeCompare(b.date) || a.matchId.localeCompare(b.matchId));
+  const matches = [...data.matches].sort(byPlay);
   const mIndex = new Map(matches.map((m, i) => [m.matchId, i]));
 
   // A dismissal names the bowler as typed ("b Ankit"), so look the name up

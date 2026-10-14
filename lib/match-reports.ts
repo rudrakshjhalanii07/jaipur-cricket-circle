@@ -87,7 +87,7 @@ export type DayReport = {
   next: { slug: string; headline: string } | null;
 };
 export type DayPreview = Pick<DayReport, "slug" | "season" | "week" | "date" | "venue" | "kicker" | "headline" | "dek"> & {
-  matches: { kicker: string; winner: string | null; scores: { team: string; runs: number; wickets: number; balls: number }[] }[];
+  matches: { kicker: string; winner: string | null; /** "7 runs", "6 wickets"; null on a tie. */ margin?: string | null; scores: { team: string; runs: number; wickets: number; balls: number }[] }[];
   star: string | null;
 };
 
@@ -1029,7 +1029,7 @@ let memo: { key: string; reports: DayReport[] } | null = null;
 
 async function all(): Promise<DayReport[]> {
   const extra = await fetchDbOnlyMatches();
-  const key = (extra?.matches ?? []).map((m) => m.matchId).join(",");
+  const key = (extra?.matches ?? []).map((m) => `${m.matchId}:${m.order ?? ""}`).join(",");
   if (memo?.key !== key) memo = { key, reports: buildReports(buildCardData(extra)) };
   return memo.reports;
 }
@@ -1050,6 +1050,7 @@ export async function dayReportPreviews(): Promise<DayPreview[]> {
     matches: r.matches.map((m) => ({
       kicker: m.kicker,
       winner: m.winner,
+      margin: m.winner ? m.result.replace(/^.* won by /, "").replace(/\s*\(.*\)$/, "") : null,
       scores: m.innings.map((i) => ({ team: i.team, runs: i.runs, wickets: i.wickets, balls: i.balls })),
     })),
     star: r.star?.name ?? null,

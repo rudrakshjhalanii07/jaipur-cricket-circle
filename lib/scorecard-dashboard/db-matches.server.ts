@@ -109,7 +109,7 @@ const key = (date: string, a: string, b: string) => `${date}|${[a, b].sort().joi
  * match saved in the admin and the Sunday cron refresh it, so /stats and the
  * Boundary Banter reports pick a new week up straight away.
  */
-export const fetchDbOnlyMatches = unstable_cache(loadDbOnlyMatches, ["db-only-matches-v4"], {
+export const fetchDbOnlyMatches = unstable_cache(loadDbOnlyMatches, ["db-only-matches-v5"], {
   revalidate: 3600,
   tags: ["scorecards"],
 });
@@ -249,6 +249,7 @@ export async function loadDbOnlyMatches(): Promise<DashboardInput | null> {
           winner: m.winner_id ? team(m.winner_id) : null,
           result: m.is_tie ? "tie" : "resulted",
           winBy: m.is_tie ? "" : `${m.margin_value ?? 0} ${m.margin_type === "wickets" ? (m.margin_value === 1 ? "wicket" : "wickets") : "runs"}`,
+          order: m.match_no,
         });
 
         for (const inn of m.series_innings) {
