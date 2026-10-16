@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Inter_Tight, Cormorant_Garamond, IBM_Plex_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { unstable_cache } from "next/cache";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
@@ -51,38 +51,47 @@ const getNavbarMatchRegistrations = unstable_cache(
   { revalidate: 300 }
 );
 
-const inter = Inter({
+// Fonts are self-hosted from app/fonts (latin subset, as Google serves it)
+// rather than fetched through next/font/google at build time: that loader
+// broke the Vercel build on 16 Oct 2026 ("next/font/google queries have
+// exactly one entry"), and a build shouldn't depend on Google being reachable.
+const inter = localFont({
   variable: "--font-inter",
-  subsets: ["latin"],
+  src: "./fonts/inter-100-900-normal.woff2",
+  weight: "100 900",
   display: "swap",
 });
 
 // The display face for every headline and big numeral, site-wide: a tight
 // grotesk, first used on /stats and now the whole site's voice.
-const grotesk = Inter_Tight({
+const grotesk = localFont({
   variable: "--font-grotesk",
-  subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
+  src: "./fonts/inter-tight-500-800-normal.woff2",
+  weight: "500 800",
   display: "swap",
 });
 
 // Classical serif, kept only for pull quotes in the club's story (--font-serif).
 // Not preloaded: nothing above the fold uses it.
-const displaySerif = Cormorant_Garamond({
+const displaySerif = localFont({
   variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["500", "600"],
-  style: ["normal", "italic"],
+  src: [
+    { path: "./fonts/cormorant-garamond-500-600-normal.woff2", weight: "500 600", style: "normal" },
+    { path: "./fonts/cormorant-garamond-500-600-italic.woff2", weight: "500 600", style: "italic" },
+  ],
   display: "swap",
   preload: false,
 });
 
 // Mono is only used in below-the-fold tickers/labels — don't preload it so it
 // stops competing with the critical heading/body fonts on slow connections.
-const plexMono = IBM_Plex_Mono({
+const plexMono = localFont({
   variable: "--font-plex-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  src: [
+    { path: "./fonts/ibm-plex-mono-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/ibm-plex-mono-500-normal.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/ibm-plex-mono-600-normal.woff2", weight: "600", style: "normal" },
+  ],
   display: "swap",
   preload: false,
 });

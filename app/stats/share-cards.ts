@@ -12,7 +12,7 @@
 //     rank rides on the rank card as a chip.
 //  4. Capped per kind, so a star player gets ~20 cards, not 60.
 
-import { f0, f1, f2, fmtDate, ov, plural, type Profile } from "@/lib/scorecard-dashboard/profile";
+import { byScalp, f0, f1, f2, fmtDate, ov, plural, type Profile } from "@/lib/scorecard-dashboard/profile";
 import { gradientStops, type CardPerson, type ShareCardSpec } from "@/lib/share-card";
 import { teamByName } from "@/lib/teams";
 import { burstFor, emblemImage, tierOf } from "./achievements";
@@ -247,7 +247,7 @@ export function profileShareCards({
   // J · Bunnies: batters this player has dismissed twice or more
   pr.bowling.matchups
     .filter((m) => m.wk >= 2 && !rivals.has(m.p))
-    .sort((a, b) => b.wk - a.wk || a.inns - b.inns)
+    .sort(byScalp)
     .slice(0, 3)
     .forEach((m) => {
       add(`bunny-${m.p}`, `Got ${first(pr.nameOf(m.p))}`, {

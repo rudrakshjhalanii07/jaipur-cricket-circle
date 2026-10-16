@@ -190,7 +190,7 @@ export type PlayerAgg = {
   winPct: number;
 };
 
-type Rank = { rank: number; of: number };
+export type Rank = { rank: number; of: number };
 export type ScopeIndex = ReturnType<typeof buildScope>;
 
 const decoded = new WeakMap<CardData, { bat: Bat[]; bowl: Bowl[] }>();
@@ -903,7 +903,15 @@ export type Split = { label: string; inns: number; runs: number; balls: number; 
 export type BowlSplit = { label: string; spells: number; balls: number; runs: number; wk: number; econ: number | null; dotPct: number | null };
 /** br/bb/outs: the batter's whole innings (and whether he was out to anyone) in innings this bowler bowled in. */
 export type BatterMatchup = { p: number; inns: number; wk: number; balls: number; runs: number; dots: number; br: number; bb: number; outs: number; econ: number | null; sr: number | null; dotPct: number | null };
-export type BowlerMatchup = { p: number; inns: number; wk: number; ducks: number; br: number; bb: number; outs: number; balls: number; runs: number; sr: number | null; econ: number | null };
+/** `batRank` is the batter's place on the scope's run-scoring table (Orange Cap order), so a wicket can be weighed by whose it was. */
+export type BowlerMatchup = { p: number; inns: number; wk: number; ducks: number; br: number; bb: number; outs: number; balls: number; runs: number; sr: number | null; econ: number | null; batRank: Rank | null };
+/**
+ * The order to list a bowler's victims in: most wickets, then the better batter
+ * (higher on the run-scoring table), then the fewer meetings. A one-off wicket
+ * of the league's top scorer outranks a one-off wicket of a tail-ender.
+ */
+export const byScalp = (a: BowlerMatchup, b: BowlerMatchup) =>
+  b.wk - a.wk || (a.batRank?.rank ?? 1e9) - (b.batRank?.rank ?? 1e9) || a.inns - b.inns;
 
 const toSplit = (label: string, rows: Bat[]): Split => {
   const a = aggBat(rows);
@@ -973,7 +981,7 @@ export function playerProfile(d: CardData, seasons: number[], p: number) {
     const map = new Map<number, BowlerMatchup>();
     for (const w of x.bowl) {
       for (const r of S.byInnBat.get(key(w.m, w.inn)) ?? []) {
-        const e = map.get(r.p) ?? map.set(r.p, { p: r.p, inns: 0, wk: 0, ducks: 0, br: 0, bb: 0, outs: 0, balls: 0, runs: 0, sr: null, econ: null }).get(r.p)!;
+        const e = map.get(r.p) ?? map.set(r.p, { p: r.p, inns: 0, wk: 0, ducks: 0, br: 0, bb: 0, outs: 0, balls: 0, runs: 0, sr: null, econ: null, batRank: S.ranks.runs.get(r.p) ?? null }).get(r.p)!;
         e.inns++; e.br += r.runs; e.bb += r.balls; e.balls += w.balls; e.runs += w.runs;
         if (isOut(r.kind)) e.outs++;
         if (r.bw === x.p) { e.wk++; if (duckType(r)) e.ducks++; }

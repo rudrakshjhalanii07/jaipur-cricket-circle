@@ -58,7 +58,7 @@ export type StoryData = {
     oversPerMatch: number | null;
   };
   battles?: {
-    bunnies: { name: string; photo?: string | null; wk: number; meetings: number; ducks: number }[];
+    bunnies: { name: string; photo?: string | null; wk: number; meetings: number; ducks: number; batRank?: number | null }[];
     dominated: { name: string; photo?: string | null; meetings: number }[];
     nemesis: { name: string; photo?: string | null; wk: number; meetings: number }[];
     rivalries: { opponent: string; photo?: string | null; batting: boolean; meetings: number; mine: number; theirs: number; runs: number; balls: number }[];
@@ -503,6 +503,7 @@ function Battles({ s, me }: { s: StoryData; me: Me }) {
                   <div className="min-w-0">
                     <span className="rounded-full bg-jcc-accent px-2.5 py-1 font-mono text-[9.5px] font-semibold uppercase tracking-[0.14em] text-[#0B1424]">Favourite victim</span>
                     <p className="mt-2 truncate font-heading text-3xl font-bold tracking-[-0.02em] text-jcc-blue">{fav.name}</p>
+                    {fav.batRank != null && <p className="mt-1 font-mono text-[10.5px] text-jcc-text-muted">#{fav.batRank} run-scorer in the league</p>}
                   </div>
                   <p className="flex items-baseline gap-2 sm:ml-auto">
                     <span className="font-heading text-7xl font-extrabold leading-none tracking-[-0.05em] tabular-nums text-jcc-accent-dark">{fav.wk}</span>
@@ -529,6 +530,7 @@ function Battles({ s, me }: { s: StoryData; me: Me }) {
                           <p className="mt-1 font-mono text-[10px] text-jcc-text-muted">
                             {x.wk} of {plural(x.meetings, "meeting")}
                             {x.ducks > 0 && ` · 🦆 ${x.ducks}`}
+                            {x.batRank != null && ` · #${x.batRank} bat`}
                           </p>
                         </div>
                         <span className="font-heading text-4xl font-extrabold tabular-nums text-jcc-accent-dark">{x.wk}</span>

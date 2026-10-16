@@ -3,7 +3,7 @@ import { getSignedInMember } from "@/lib/member-session";
 import { getStatsAccess } from "@/lib/stats-access";
 import { buildCardData } from "@/lib/scorecard-dashboard/compute";
 import { fetchDbOnlyMatches } from "@/lib/scorecard-dashboard/db-matches.server";
-import { keyBattles, leaderboardRows, leagueInsights, playerProfile, slug, type CardData, type Profile } from "@/lib/scorecard-dashboard/profile";
+import { byScalp, keyBattles, leaderboardRows, leagueInsights, playerProfile, slug, type CardData, type Profile } from "@/lib/scorecard-dashboard/profile";
 import { memberCardIndex } from "@/lib/scorecard-dashboard/member-card.server";
 import { fetchPlayerPhotos } from "@/lib/player-photos.server";
 import { fetchCaptaincy, type CaptaincyRow } from "@/lib/scorecard-dashboard/captaincy.server";
@@ -102,9 +102,9 @@ function story(pr: Profile, battles: ReturnType<typeof keyBattles>, photos: Play
     battles: {
       bunnies: pr.bowling.matchups
         .filter((m) => m.wk > 0)
-        .sort((a, b) => b.wk - a.wk || a.inns - b.inns)
+        .sort(byScalp)
         .slice(0, 4)
-        .map((m) => ({ name: nm(m.p), photo: pic(m.p), wk: m.wk, meetings: m.inns, ducks: m.ducks })),
+        .map((m) => ({ name: nm(m.p), photo: pic(m.p), wk: m.wk, meetings: m.inns, ducks: m.ducks, batRank: m.batRank?.rank ?? null })),
       // Bowlers who've bowled in their innings again and again and never got them out.
       dominated: pr.batting.matchups
         .filter((m) => m.wk === 0 && m.inns >= 2)

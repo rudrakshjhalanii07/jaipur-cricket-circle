@@ -17,6 +17,7 @@ import {
   fmtDate,
   ov,
   plural,
+  byScalp,
   playerProfile,
   leagueInsights,
   momAnalytics,
@@ -516,7 +517,7 @@ function MatchupsBowler({ pr }: { pr: Profile }) {
   const [by, setBy] = useState<"wk" | "met" | "ducks">("wk");
   const rows = [...pr.bowling.matchups]
     .filter((e) => (by === "ducks" ? e.ducks > 0 : true))
-    .sort(by === "met" ? (a, b) => b.inns - a.inns || b.wk - a.wk : by === "ducks" ? (a, b) => b.ducks - a.ducks || b.wk - a.wk : (a, b) => b.wk - a.wk || b.wk / b.inns - a.wk / a.inns);
+    .sort(by === "met" ? (a, b) => b.inns - a.inns || b.wk - a.wk : by === "ducks" ? (a, b) => b.ducks - a.ducks || b.wk - a.wk : byScalp);
   return (
     <>
       <Toggle value={by} onChange={setBy} options={[["wk", "You got most"], ["met", "Bowled at most"], ["ducks", "Sent back for ducks"]]} />
